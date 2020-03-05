@@ -73,6 +73,12 @@ def make_rope(params):
         v.radius = params["vertex_radius"], params["vertex_radius"]
     return rope, hook1, hook2
 
+def action_test(rope, hook1, hook2, frame_num=0):
+    # TODO
+    # Look into ShapeKeys, Keyframes for Softbody animation
+    # https://blender.stackexchange.com/questions/23563/how-to-bake-softbody-animation-into-keyframes/23566#23566 
+    # ^^This seems like the most relevant link...
+    pass
 
 if __name__ == '__main__':
     clear_scene()
@@ -81,3 +87,4 @@ if __name__ == '__main__':
     with open("rope_params.json", "r") as f:
         rope_params = json.load(f)
     rope, hook1, hook2 = make_rope(rope_params)
+    action_test(rope, hook1, hook2)
