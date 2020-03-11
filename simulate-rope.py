@@ -11,7 +11,7 @@ import numpy as np
 from random import sample
 import bmesh
 
-'''Usage: blender -b -P cloth-blender.py'''
+'''Usage: blender -P simulate-rope.py'''
 
 def clear_scene():
     '''Clear existing objects in scene'''
