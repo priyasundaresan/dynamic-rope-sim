@@ -1,5 +1,6 @@
 {
     "segment_radius": 0.25,
+    "segment_friction": 1.0,
     "num_segments": 50,
     "segment_mass": 0.1,
     "table_size": 25
