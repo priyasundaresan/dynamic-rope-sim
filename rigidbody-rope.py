@@ -42,7 +42,7 @@ def make_rope(params):
     bpy.ops.rigidbody.object_add()
     cylinder.rigid_body.mass = params["segment_mass"]
     cylinder.rigid_body.friction = params["segment_friction"]
-    #cylinder.rigid_body.kinematic = True 
+    cylinder.rigid_body.linear_damping = params["damping"]
     for i in range(num_segments-1):
         bpy.ops.object.duplicate_move(TRANSFORM_OT_translate={"value":(-2*segment_radius, 0, 0)})
     bpy.ops.object.select_all(action='SELECT')
@@ -59,7 +59,6 @@ def make_table(params):
 def action_test(params):
     # Makes a knot by a hardcoded trajectory
     # Press Spacebar once the Blender script loads to run the animation
-
     end1 = bpy.data.objects['Cylinder']
     end2 = bpy.data.objects['Cylinder.%03d'%(params["num_segments"]-1)]
 
@@ -69,33 +68,33 @@ def action_test(params):
     end2.rigid_body.enabled = False
     end2.rigid_body.kinematic = True
 
+    # Pin the two endpoints initially
     end1.keyframe_insert(data_path="location", frame=1)
     end2.keyframe_insert(data_path="location", frame=1)
 
+    # Wrap endpoint one circularly around endpoint 2
     end2.location[0] += 10
     end1.location[0] -= 15
     end1.location[1] += 5 
     end1.keyframe_insert(data_path="location", frame=80)
     end2.keyframe_insert(data_path="location", frame=80)
-
     end1.location[0] -= 1
     end1.location[1] -= 7
     end1.keyframe_insert(data_path="location", frame=120)
-
     end1.location[0] += 3
     end1.location[2] -= 4
     end1.keyframe_insert(data_path="location", frame=150)
-
-    end1.location[1] += 3
+    end1.location[1] += 2.5
     end1.keyframe_insert(data_path="location", frame=170)
 
+    # Thread endpoint 1 through the loop (downward)
     end1.location[2] -= 2
     end1.keyframe_insert(data_path="location", frame=180)
 
+    # Pull endpoint 1 up and through
     end1.location[0] += 5
     end1.location[2] += 2
     end1.keyframe_insert(data_path="location", frame=200)
-
     end1.location[0] += 5
     end1.keyframe_insert(data_path="location", frame=230)
 
