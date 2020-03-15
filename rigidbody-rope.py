@@ -95,8 +95,13 @@ def action_test(params):
     end1.location[0] += 5
     end1.location[2] += 2
     end1.keyframe_insert(data_path="location", frame=200)
-    end1.location[0] += 5
+    end2.keyframe_insert(data_path="location", frame=200)
+
+    end1.location[0] += 7 
+    end1.location[2] += 5 
+    end2.location[0] -= 7
     end1.keyframe_insert(data_path="location", frame=230)
+    end2.keyframe_insert(data_path="location", frame=230)
 
 if __name__ == '__main__':
     with open("rigidbody_params.json", "r") as f:
