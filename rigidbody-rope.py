@@ -91,7 +91,7 @@ def action_test(params):
     end1.location[2] -= 2
     end1.keyframe_insert(data_path="location", frame=180)
 
-    # Pull endpoint 1 up and through
+    # Pull to tighten knot
     end1.location[0] += 5
     end1.location[2] += 2
     end1.keyframe_insert(data_path="location", frame=200)
