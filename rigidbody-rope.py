@@ -105,21 +105,28 @@ def knot_test(params):
     end2.keyframe_insert(data_path="location", frame=230)
 
 def coil_test(params):
-    scene = bpy.context.scene
-    scene.frame_end = 600
-    end1 = bpy.data.objects['Cylinder']
 
     # Allow endpoints to be keyframe-animated
+    end1 = bpy.data.objects['Cylinder']
     end1.rigid_body.enabled = False
     end1.rigid_body.kinematic = True
-
     end1.keyframe_insert(data_path="location", frame=1)
+
+    anim_start = 120
+    anim_end = 600
+    scene = bpy.context.scene
+    scene.frame_end = anim_end
+    scene.rigidbody_world.point_cache.frame_end = anim_end
+
+    # Helix equation:
+    # x = rcos(t), y = rsin(t), z = ct
     r = 1.15
     c = -0.75
-    timesteps = 50
-    anim_start = 120
     start_height = 19
-    for t in np.linspace(0, 10*np.pi, timesteps):
+    t0 = 0
+    tn = 10*np.pi
+    timesteps = 50
+    for t in np.linspace(t0, tn, timesteps):
         x = r*np.cos(t) 
         y = r*np.sin(t) 
         z = c*t + start_height
