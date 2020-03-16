@@ -54,9 +54,10 @@ def make_table(params):
     bpy.ops.rigidbody.object_add()
     table = bpy.context.object
     table.rigid_body.type = 'PASSIVE'
+    table.rigid_body.friction = 1.0
     bpy.ops.object.select_all(action='DESELECT')
 
-def action_test(params):
+def knot_test(params):
     # Makes a knot by a hardcoded trajectory
     # Press Spacebar once the Blender script loads to run the animation
     end1 = bpy.data.objects['Cylinder']
@@ -103,10 +104,33 @@ def action_test(params):
     end1.keyframe_insert(data_path="location", frame=230)
     end2.keyframe_insert(data_path="location", frame=230)
 
+def coil_test(params):
+    scene = bpy.context.scene
+    scene.frame_end = 600
+    end1 = bpy.data.objects['Cylinder']
+
+    # Allow endpoints to be keyframe-animated
+    end1.rigid_body.enabled = False
+    end1.rigid_body.kinematic = True
+
+    end1.keyframe_insert(data_path="location", frame=1)
+    r = 1.15
+    c = -0.75
+    timesteps = 50
+    anim_start = 120
+    x0,y0,_ = end1.location
+    for t in np.linspace(0, 10*np.pi, timesteps):
+        x = r*np.cos(t) 
+        y = r*np.sin(t) 
+        z = c*t + 19
+        end1.location = x,y,z
+        end1.keyframe_insert(data_path="location", frame=anim_start+(t+1)*(float(scene.frame_end-anim_start)/timesteps))
+
 if __name__ == '__main__':
     with open("rigidbody_params.json", "r") as f:
         params = json.load(f)
     clear_scene()
     make_rope(params)
     make_table(params)
-    action_test(params)
+    #knot_test(params)
+    coil_test(params)
