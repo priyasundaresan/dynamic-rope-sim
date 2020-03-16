@@ -54,7 +54,7 @@ def make_table(params):
     bpy.ops.rigidbody.object_add()
     table = bpy.context.object
     table.rigid_body.type = 'PASSIVE'
-    table.rigid_body.friction = 1.0
+    table.rigid_body.friction = 0.7
     bpy.ops.object.select_all(action='DESELECT')
 
 def knot_test(params):
@@ -118,11 +118,11 @@ def coil_test(params):
     c = -0.75
     timesteps = 50
     anim_start = 120
-    x0,y0,_ = end1.location
+    start_height = 19
     for t in np.linspace(0, 10*np.pi, timesteps):
         x = r*np.cos(t) 
         y = r*np.sin(t) 
-        z = c*t + 19
+        z = c*t + start_height
         end1.location = x,y,z
         end1.keyframe_insert(data_path="location", frame=anim_start+(t+1)*(float(scene.frame_end-anim_start)/timesteps))
 
