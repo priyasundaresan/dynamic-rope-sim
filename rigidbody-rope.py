@@ -136,17 +136,17 @@ def knot_test(params):
     # I had to use end1.matrix_world.translation to get the updated world coordinate of end1 as the sim progresses
     # because end1.location does NOT give the up-to-date location taking into account physics
     
-    for step in range(1, 350):
+    for step in range(1, 351):
         bpy.context.scene.frame_set(step)
         #print(end1.matrix_world.translation) # does update properly :)
         #print(end1.location) # does NOT update properly 
 
     end1.rigid_body.kinematic = True 
     end1.location = end1.matrix_world.translation # This line is critical - without it, the rope "snaps" back to starting position at frame 1 because its location is not up to date with how the simulation progressed after the drop; try uncommmenting to see what I mean
-    end1.keyframe_insert(data_path="location", frame=350) 
     end1.keyframe_insert(data_path="rigid_body.kinematic",frame=350)
-    end1.location[2] += 5
-    end1.keyframe_insert(data_path="location", frame=370)
+    end1.keyframe_insert(data_path="location", frame=350) 
+    end1.location[2] += 4
+    end1.keyframe_insert(data_path="location", frame=500)
 
 def coil_test(params):
 
