@@ -1,7 +1,8 @@
 {
     "segment_radius": 0.25,
     "segment_friction": 1.0,
-    "damping": 0.35,
+    "linear_damping": 0.55,
+    "angular_damping": 0.55,
     "num_segments": 50,
     "segment_mass": 0.05, 
     "table_size": 25
