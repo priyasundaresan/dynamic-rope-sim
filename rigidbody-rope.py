@@ -43,7 +43,7 @@ def make_rope(params):
     cylinder.rigid_body.mass = params["segment_mass"]
     cylinder.rigid_body.friction = params["segment_friction"]
     cylinder.rigid_body.linear_damping = params["linear_damping"]
-    cylinder.rigid_body.angular_damping = params["angular_damping"]
+    cylinder.rigid_body.angular_damping = params["angular_damping"] # NOTE: this makes the rope a lot less wiggly
     bpy.context.scene.rigidbody_world.steps_per_second = 120
     bpy.context.scene.rigidbody_world.solver_iterations = 20
     for i in range(num_segments-1):
@@ -76,7 +76,7 @@ def knot_test(params):
     end2 = bpy.data.objects['Cylinder.%03d'%(params["num_segments"]-1)]
 
     # Allow endpoints to be keyframe-animated at the start
-    end1.rigid_body.kinematic = True
+    end1.rigid_body.kinematic = True # This means end1 is manually animable
     end2.rigid_body.kinematic = True
     end1.keyframe_insert(data_path="rigid_body.kinematic",frame=1)
     end2.keyframe_insert(data_path="rigid_body.kinematic",frame=1)
@@ -117,7 +117,7 @@ def knot_test(params):
     end2.keyframe_insert(data_path="location", frame=230)
 
     # Now, we "drop" the rope; no longer animated and will move only based on rigid body physics
-    end1.rigid_body.kinematic = False
+    end1.rigid_body.kinematic = False # This means end1 is not animable, will move based on physics solver
     end2.rigid_body.kinematic = False
     end1.keyframe_insert(data_path="rigid_body.kinematic",frame=240)
     end2.keyframe_insert(data_path="rigid_body.kinematic",frame=240)
@@ -145,6 +145,8 @@ def knot_test(params):
     end1.location = end1.matrix_world.translation # This line is critical - without it, the rope "snaps" back to starting position at frame 1 because its location is not up to date with how the simulation progressed after the drop; try uncommmenting to see what I mean
     end1.keyframe_insert(data_path="rigid_body.kinematic",frame=350)
     end1.keyframe_insert(data_path="location", frame=350) 
+
+    # Lift the end
     end1.location[2] += 20
     end1.keyframe_insert(data_path="location", frame=500)
 
