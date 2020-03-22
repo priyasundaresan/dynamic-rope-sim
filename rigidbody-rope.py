@@ -43,6 +43,8 @@ def make_rope(params):
     cylinder.rigid_body.mass = params["segment_mass"]
     cylinder.rigid_body.friction = params["segment_friction"]
     cylinder.rigid_body.linear_damping = params["damping"]
+    bpy.context.scene.rigidbody_world.steps_per_second = 120
+    bpy.context.scene.rigidbody_world.solver_iterations = 20
     for i in range(num_segments-1):
         bpy.ops.object.duplicate_move(TRANSFORM_OT_translate={"value":(-2*segment_radius, 0, 0)})
     bpy.ops.object.select_all(action='SELECT')
@@ -58,16 +60,26 @@ def make_table(params):
     bpy.ops.object.select_all(action='DESELECT')
 
 def knot_test(params):
+    # Resources: 
+    # Dynamically animate/un-animate: https://blender.stackexchange.com/questions/130889/insert-keyframe-for-rigid-body-properties-for-object-python-script-blender
+    # https://blenderartists.org/t/make-a-rigid-body-end-up-in-a-particular-position/634204/2
+
     # Makes a knot by a hardcoded trajectory
     # Press Spacebar once the Blender script loads to run the animation
+    anim_end = 600
+    scene = bpy.context.scene
+    scene.frame_end = anim_end
+    scene.rigidbody_world.point_cache.frame_end = anim_end
+
     end1 = bpy.data.objects['Cylinder']
+    print("start", end1.location)
     end2 = bpy.data.objects['Cylinder.%03d'%(params["num_segments"]-1)]
 
-    # Allow endpoints to be keyframe-animated
-    end1.rigid_body.enabled = False
+    # Allow endpoints to be keyframe-animated at the start
     end1.rigid_body.kinematic = True
-    end2.rigid_body.enabled = False
     end2.rigid_body.kinematic = True
+    end1.keyframe_insert(data_path="rigid_body.kinematic",frame=1)
+    end2.keyframe_insert(data_path="rigid_body.kinematic",frame=1)
 
     # Pin the two endpoints initially
     end1.keyframe_insert(data_path="location", frame=1)
@@ -98,11 +110,43 @@ def knot_test(params):
     end1.keyframe_insert(data_path="location", frame=200)
     end2.keyframe_insert(data_path="location", frame=200)
 
-    end1.location[0] += 7 
     end1.location[2] += 5 
+    end1.location[0] += 7 
     end2.location[0] -= 7
     end1.keyframe_insert(data_path="location", frame=230)
     end2.keyframe_insert(data_path="location", frame=230)
+
+    # Now, we "drop" the rope; no longer animated and will move only based on rigid body physics
+    end1.rigid_body.kinematic = False
+    end2.rigid_body.kinematic = False
+    end1.keyframe_insert(data_path="rigid_body.kinematic",frame=240)
+    end2.keyframe_insert(data_path="rigid_body.kinematic",frame=240)
+
+    # Now, I want to try re-picking up the end of the rope after it's been dropped
+    # Turns out this is a little tricky because we need to know where end1 ended up after the drop happened
+    # Otherwise, when you just translate end1 and keyframe it, it thinks its still at its pre-drop position
+    # so end1 first quickly jumps from its post-drop position to pre-drop pose and then does the motion
+    # This is the "snapping" effect where it quickly jumps to an outdated location (like the softbody!!)
+    # We really just want it to move from its post-drop position to the translation
+
+    # Workaround: I pick  a frame when I think the rope has settled, get the updated location of end1, and
+    # set it back to kinematic (controllable by animation)
+
+    # Note: I step through the animation up to frame 350 cuz that's about when the rope settles after being dropped
+    # I had to use end1.matrix_world.translation to get the updated world coordinate of end1 as the sim progresses
+    # because end1.location does NOT give the up-to-date location taking into account physics
+    
+    for step in range(1, 350):
+        bpy.context.scene.frame_set(step)
+        #print(end1.matrix_world.translation) # does update properly :)
+        #print(end1.location) # does NOT update properly 
+
+    end1.rigid_body.kinematic = True 
+    end1.location = end1.matrix_world.translation # This line is critical - without it, the rope "snaps" back to starting position at frame 1 because its location is not up to date with how the simulation progressed after the drop; try uncommmenting to see what I mean
+    end1.keyframe_insert(data_path="location", frame=350) 
+    end1.keyframe_insert(data_path="rigid_body.kinematic",frame=350)
+    end1.location[2] += 5
+    end1.keyframe_insert(data_path="location", frame=370)
 
 def coil_test(params):
 
@@ -139,5 +183,5 @@ if __name__ == '__main__':
     clear_scene()
     make_rope(params)
     make_table(params)
-    #knot_test(params)
-    coil_test(params)
+    knot_test(params)
+    #coil_test(params)
