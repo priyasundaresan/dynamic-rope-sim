@@ -73,7 +73,6 @@ def knot_test(params):
     scene.rigidbody_world.point_cache.frame_end = anim_end
 
     end1 = bpy.data.objects['Cylinder']
-    print("start", end1.location)
     end2 = bpy.data.objects['Cylinder.%03d'%(params["num_segments"]-1)]
 
     # Allow endpoints to be keyframe-animated at the start
