@@ -52,6 +52,7 @@ def make_rope(params):
     bpy.ops.rigidbody.connect(con_type='POINT', connection_pattern='CHAIN_DISTANCE')
     bpy.ops.object.select_all(action='DESELECT')
 
+
 def make_table(params):
     bpy.ops.mesh.primitive_plane_add(size=params["table_size"], location=(0,0,-5))
     bpy.ops.rigidbody.object_add()
@@ -74,6 +75,17 @@ def knot_test(params):
 
     end1 = bpy.data.objects['Cylinder']
     end2 = bpy.data.objects['Cylinder.%03d'%(params["num_segments"]-1)]
+
+    # Set up cylinders that will be used to undo a crossing
+    pull_cyl = bpy.data.objects['Cylinder.015']
+    pull_cyl.rigid_body.kinematic = False
+    pull_cyl.keyframe_insert(data_path="rigid_body.kinematic",frame=1)
+    pull_cyl.keyframe_insert(data_path="location", frame=1)
+
+    hold_cyl = bpy.data.objects['Cylinder.026']
+    hold_cyl.rigid_body.kinematic = False
+    hold_cyl.keyframe_insert(data_path="rigid_body.kinematic",frame=1)
+    hold_cyl.keyframe_insert(data_path="location", frame=1)
 
     # Allow endpoints to be keyframe-animated at the start
     end1.rigid_body.kinematic = True # This means end1 is manually animable
@@ -141,14 +153,58 @@ def knot_test(params):
         #print(end1.matrix_world.translation) # does update properly :)
         #print(end1.location) # does NOT update properly 
 
+    # Reidemeister
     end1.rigid_body.kinematic = True 
-    end1.location = end1.matrix_world.translation # This line is critical - without it, the rope "snaps" back to starting position at frame 1 because its location is not up to date with how the simulation progressed after the drop; try uncommmenting to see what I mean
+    # Next line is critical - without it, the rope "snaps" back to starting position at frame 1 because its location is not up to date with how the simulation progressed after the drop; try uncommmenting to see what I mean
+    end1.location = end1.matrix_world.translation 
     end1.keyframe_insert(data_path="rigid_body.kinematic",frame=350)
     end1.keyframe_insert(data_path="location", frame=350) 
+    end1.location[0] = 9
+    end1.keyframe_insert(data_path="location", frame=375)
 
-    # Lift the end
-    end1.location[2] += 20
-    end1.keyframe_insert(data_path="location", frame=500)
+    end2.rigid_body.kinematic = True 
+    end2.location = end2.matrix_world.translation 
+    end2.keyframe_insert(data_path="rigid_body.kinematic",frame=375)
+    end2.keyframe_insert(data_path="location", frame=375) 
+    end2.location[0] = -9
+    end2.keyframe_insert(data_path="location", frame=400)
+
+    end1.rigid_body.kinematic = False
+    end2.rigid_body.kinematic = False
+    end1.keyframe_insert(data_path="rigid_body.kinematic",frame=400)
+    end2.keyframe_insert(data_path="rigid_body.kinematic",frame=400)
+
+    for step in range(351, 401):
+        bpy.context.scene.frame_set(step)
+
+    # Undoing 
+    hold_cyl.rigid_body.kinematic = True 
+    hold_cyl.keyframe_insert(data_path="rigid_body.kinematic",frame=400)
+    hold_cyl.location = hold_cyl.matrix_world.translation 
+    # We want the hold cylinder to stay in place during the pull
+    hold_cyl.keyframe_insert(data_path="location", frame=400) 
+    hold_cyl.keyframe_insert(data_path="location", frame=500)
+
+    # Doing this because if I try to keyframe the location of hold and pull at frame 400, it causes "snapping"
+    for step in range(401, 410):
+        bpy.context.scene.frame_set(step)
+
+    pull_cyl.rigid_body.kinematic = True 
+    pull_cyl.keyframe_insert(data_path="rigid_body.kinematic",frame=410)
+    pull_cyl.location = pull_cyl.matrix_world.translation 
+    pull_cyl.keyframe_insert(data_path="location", frame=410) 
+    # Pull
+    pull_cyl.location[2] += 3 
+    pull_cyl.location[0] -= 6
+    pull_cyl.location[1] -= 2
+    pull_cyl.keyframe_insert(data_path="location", frame=500)
+
+    # Release both pull, hold
+    pull_cyl.rigid_body.kinematic = False
+    pull_cyl.keyframe_insert(data_path="rigid_body.kinematic",frame=500)
+    hold_cyl.rigid_body.kinematic = False
+    hold_cyl.keyframe_insert(data_path="rigid_body.kinematic",frame=500)
+
 
 def coil_test(params):
 
