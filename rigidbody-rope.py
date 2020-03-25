@@ -180,8 +180,9 @@ def chain_knot_test(params):
     end1.keyframe_insert(data_path="location", frame=230)
     end2.keyframe_insert(data_path="location", frame=230)
 
-def find_knot(params, chain=False):
-    # this returns a pick and hold point for a rope with a single knot
+def find_knot_cluster(params, chain=False):
+    # this returns a pick and hold point for a rope with a single knot by clustering
+    # the depths of the cylinders to find two points
     piece = "Torus" if chain else "Cylinder"
     last = 2**(params["chain_len"]+1)-1 if chain else params["num_segments"]-1
 
@@ -192,7 +193,10 @@ def find_knot(params, chain=False):
 
     occlusions = []
     for d in depths.keys():
-        if depths[d] > np.mean([h for h in depths.values()]):
+        # threshold = np.mean([h for h in depths.values()])
+        heights = [h for h in depths.values()]
+        threshold = max(heights) - (max(heights) - np.mean(heights))/4
+        if depths[d] > threshold:
             occlusions.append(int(d))
 
     clus = KMeans(n_clusters=2)
@@ -208,6 +212,45 @@ def find_knot(params, chain=False):
                 pick_and_hold.append(piece_index)
     hold = max(pick_and_hold)
     pick = min(pick_and_hold)
+    print(pick, hold)
+    return pick, hold
+
+def find_knot(params, chain=False):
+    # this returns a pick and hold point for a rope with a single knot by following
+    # the rope to find all cylinders in the knot, then pick the 1/4 and 3/4th points
+    # as the pick and hold
+    piece = "Torus" if chain else "Cylinder"
+    last = 2**(params["chain_len"]+1)-1 if chain else params["num_segments"]-1
+
+    knot_radius = 2
+    depths = {}
+    highest_cylinder = None
+    highest_z = -100000
+    for i in range(last):
+        piece_name = '%s.%03d'%(piece, i) if i != 0 else piece
+        depth = bpy.data.objects[piece_name].matrix_world.translation[2]
+        depths[str(i)] = depth
+        if depth > highest_z:
+            highest_z = depth
+            highest_cylinder = i
+
+    highest_name = '%s.%03d'%(piece, highest_cylinder) if highest_cylinder != 0 else piece
+    highest_cyl_x = bpy.data.objects[highest_name].matrix_world.translation[0]
+    highest_cyl_y = bpy.data.objects[highest_name].matrix_world.translation[1]
+    knot_cylinders = []
+    for d in depths.keys():
+        piece_name = '%s.%03d'%(piece, int(d)) if int(d) != 0 else piece
+        x = bpy.data.objects[piece_name].matrix_world.translation[0]
+        y = bpy.data.objects[piece_name].matrix_world.translation[1]
+        if ((x - highest_cyl_x)**2 + (y - highest_cyl_y)**2)**0.5 < knot_radius:
+            knot_cylinders.append(int(d))
+
+    index1 = int(len(knot_cylinders)/4)
+    index2 = int(3*len(knot_cylinders)/4)
+    pick_and_hold = [knot_cylinders[index1], knot_cylinders[index2]]
+    hold = max(pick_and_hold)
+    pick = min(pick_and_hold)
+    print(pick, hold)
     return pick, hold
 
 def knot_test(params, chain=False):
@@ -346,7 +389,6 @@ def knot_test(params, chain=False):
     hold_cyl.rigid_body.kinematic = False
     # hold_cyl.keyframe_insert(data_path="rigid_body.kinematic",frame=1)
     # hold_cyl.keyframe_insert(data_path="location", frame=1)
-
 
     # Undoing
     hold_cyl.rigid_body.kinematic = True
