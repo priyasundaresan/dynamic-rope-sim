@@ -72,10 +72,10 @@ def knot_test(params, chain=False):
     ## Reidemeister
     for step in range(1, 350):
         bpy.context.scene.frame_set(step)
-    take_action(end1, 375, (5,0,0), save_location=True)
+    take_action(end1, 375, (5,0,0))
     for step in range(350, 375):
         bpy.context.scene.frame_set(step)
-    take_action(end2, 400, (-5,0,0), save_location=True)
+    take_action(end2, 400, (-5,0,0))
 
     toggle_animation(end1, 400, False)
     toggle_animation(end2, 400, False)
@@ -88,10 +88,10 @@ def knot_test(params, chain=False):
     hold_cyl = get_piece(piece, hold)
 
     ## Undoing
-    take_action(hold_cyl, 500, (0,0,0), save_location=True)
+    take_action(hold_cyl, 500, (0,0,0))
     for step in range(400, 410):
         bpy.context.scene.frame_set(step)
-    take_action(pull_cyl, 500, (-6,-2,3), save_location=True)
+    take_action(pull_cyl, 500, (-6,-2,3))
 
     ## Release both pull, hold
     toggle_animation(pull_cyl, 500, False)
