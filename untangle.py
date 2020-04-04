@@ -18,19 +18,17 @@ def get_piece(piece_name, piece_id):
         return bpy.data.objects['%s' % (piece_name)]
     return bpy.data.objects['%s.%03d' % (piece_name, piece_id)]
 
-def keyframe_kinematic(obj, frame, toggle_kinematic=False):
-    if toggle_kinematic:
-        obj.rigid_body.kinematic = not obj.rigid_body.kinematic
+def toggle_animation(obj, frame, animate):
+    obj.rigid_body.kinematic = animate
     obj.keyframe_insert(data_path="rigid_body.kinematic", frame=frame)
 
-def take_action(obj, frame, action_vec, toggle_kinematic=False, save_kinematic=False, save_location=False):
+def take_action(obj, frame, action_vec, animate=True):
     curr_frame = bpy.context.scene.frame_current
-    if save_location:
+    dx,dy,dz = action_vec
+    if animate != obj.rigid_body.kinematic:
         obj.location = obj.matrix_world.translation
         obj.keyframe_insert(data_path="location", frame=curr_frame)
-    dx,dy,dz = action_vec
-    if save_kinematic:
-        keyframe_kinematic(obj, frame if not save_location else curr_frame, toggle_kinematic=toggle_kinematic)
+    toggle_animation(obj, curr_frame, animate)
     obj.location += Vector((dx,dy,dz))
     obj.keyframe_insert(data_path="location", frame=frame)
 
@@ -43,12 +41,13 @@ def knot_test(params, chain=False):
     end2 = get_piece(piece, last)
     # Allow endpoints to be keyframe-animated at the start
     # Pin the two endpoints initially
-    keyframe_kinematic(end1, 1, toggle_kinematic=True)
-    keyframe_kinematic(end2, 1, toggle_kinematic=True)
 
     for i in range(last+1):
         obj = get_piece(piece, i if i != 0 else -1)
-        take_action(obj, 1, (0,0,0), save_kinematic=True)
+        if i == 0 or i == last:
+            take_action(obj, 1, (0,0,0), animate=True)
+        else:
+            take_action(obj, 1, (0,0,0), animate=False)
 
     # Wrap endpoint one circularly around endpoint 2
     take_action(end2, 80, (10,0,0))
@@ -67,37 +66,36 @@ def knot_test(params, chain=False):
     take_action(end2, 230, (-7,0,0))
 
     # Now, we "drop" the rope; no longer animated and will move only based on rigid body physics
-    keyframe_kinematic(end1, 240, toggle_kinematic=True)
-    keyframe_kinematic(end2, 240, toggle_kinematic=True)
+    toggle_animation(end1, 240, False)
+    toggle_animation(end2, 240, False)
 
-    # Reidemeister
+    ## Reidemeister
     for step in range(1, 350):
         bpy.context.scene.frame_set(step)
-    take_action(end1, 375, (5,0,0), toggle_kinematic=True, save_kinematic=True, save_location=True)
+    take_action(end1, 375, (5,0,0), save_location=True)
     for step in range(350, 375):
         bpy.context.scene.frame_set(step)
-    take_action(end2, 400, (-5,0,0), toggle_kinematic=True, save_kinematic=True, save_location=True)
+    take_action(end2, 400, (-5,0,0), save_location=True)
 
-    keyframe_kinematic(end1, 400, toggle_kinematic=True)
-    keyframe_kinematic(end2, 400, toggle_kinematic=True)
+    toggle_animation(end1, 400, False)
+    toggle_animation(end2, 400, False)
 
     for step in range(375, 400):
         bpy.context.scene.frame_set(step)
 
-    #pick, hold = find_knot(params, chain=chain)
     pick, hold = 16, 26
     pull_cyl = get_piece(piece, pick)
     hold_cyl = get_piece(piece, hold)
 
-    # Undoing
-    take_action(hold_cyl, 500, (0,0,0), toggle_kinematic=True, save_kinematic=True, save_location=True)
+    ## Undoing
+    take_action(hold_cyl, 500, (0,0,0), save_location=True)
     for step in range(400, 410):
         bpy.context.scene.frame_set(step)
-    take_action(pull_cyl, 500, (-6,-2,3), toggle_kinematic=True, save_kinematic=True, save_location=True)
+    take_action(pull_cyl, 500, (-6,-2,3), save_location=True)
 
-    # Release both pull, hold
-    keyframe_kinematic(pull_cyl, 500, toggle_kinematic=True)
-    keyframe_kinematic(hold_cyl, 500, toggle_kinematic=True)
+    ## Release both pull, hold
+    toggle_animation(pull_cyl, 500, False)
+    toggle_animation(hold_cyl, 500, False)
 
 if __name__ == '__main__':
     with open("rigidbody_params.json", "r") as f:
