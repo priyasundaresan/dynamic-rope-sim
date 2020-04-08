@@ -7,5 +7,8 @@
     "segment_mass": 0.05, 
     "table_size": 50,
     "chain_len": 5,
-    "chain_scale": 0.4
+    "chain_scale": 0.4,
+    "engine": "BLENDER_WORKBENCH",
+    "render_width": 640,
+    "render_height": 480
 }
