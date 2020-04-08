@@ -21,7 +21,16 @@ def set_render_settings(engine, render_size):
         os.makedirs('./images')
     else:
         os.system('rm -r ./images')
-        os.makedirs('./images')
+    if not os.path.exists("./images_depth"):
+        os.makedirs('./images_depth')
+    else:
+        os.system('rm -r ./images_depth')
+        os.makedirs('./images_depth')
+    if not os.path.exists("./image_masks"):
+        os.makedirs('./image_masks')
+    else:
+        os.system('rm -r ./image_masks')
+        os.makedirs('./image_masks')
     scene = bpy.context.scene
     scene.render.engine = engine
     render_width, render_height = render_size
@@ -115,15 +124,53 @@ def find_knot(params, chain=False, thresh=0.4, pull_offset=3):
             return pull_idx, hold_idx, action_vec # Found! Return the pull, hold, and action
     return -1, last, [0,0,0] # Didn't find a pull/hold
 
-def render_frame(frame, render_offset=0, step=2, num_annotations=200, filename="%06d.png", folder="images", annot=True, mapping=None):
+def render_frame(frame, render_offset=0, step=2, num_annotations=700, filename="%06d.png", folder="images", annot=True, mapping=None):
     # Renders a single frame in a sequence (if frame%step == 0)
     frame -= render_offset
     if frame%step == 0:
         scene = bpy.context.scene
-        scene.render.filepath = os.path.join(folder, filename) % (frame//step)
+        index = frame//step
+        render_mask("image_masks/%06d_visible_mask.png", "images_depth/%06d_rgb.png", index)
+        scene.render.filepath = os.path.join(folder, filename) % index
         bpy.ops.render.render(write_still=True)
         if annot:
-            annotate(frame//step, mapping, num_annotations)
+            annotate(index, mapping, num_annotations)
+
+def render_mask(mask_filename, depth_filename, index):
+    # NOTE: this method is still in progress
+    scene = bpy.context.scene
+    saved = scene.render.engine
+    scene.render.engine = 'BLENDER_EEVEE'
+    scene.eevee.taa_samples = 1
+    scene.eevee.taa_render_samples = 1
+    scene.use_nodes = True
+    tree = bpy.context.scene.node_tree
+    links = tree.links
+    render_node = tree.nodes["Render Layers"]
+    norm_node = tree.nodes.new(type="CompositorNodeNormalize")
+    inv_node = tree.nodes.new(type="CompositorNodeInvert")
+    math_node = tree.nodes.new(type="CompositorNodeMath")
+    math_node.operation = 'CEIL' # Threshold the depth image
+    composite = tree.nodes.new(type = "CompositorNodeComposite")
+
+    links.new(render_node.outputs["Depth"], inv_node.inputs["Color"])
+    links.new(inv_node.outputs[0], norm_node.inputs[0])
+    links.new(norm_node.outputs[0], composite.inputs["Image"])
+
+    scene.render.filepath = depth_filename % index
+    bpy.ops.render.render(write_still=True)
+
+    links.new(norm_node.outputs[0], math_node.inputs[0])
+    links.new(math_node.outputs[0], composite.inputs["Image"])
+
+    scene.render.filepath = mask_filename % index
+    bpy.ops.render.render(write_still=True)
+    # Clean up 
+    scene.render.engine = saved
+    for node in tree.nodes:
+        if node.name != "Render Layers":
+            tree.nodes.remove(node)
+    scene.use_nodes = False
 
 def tie_knot(params, chain=False, render=False):
 
@@ -171,12 +218,12 @@ def reidemeister(params, start_frame, render=False, render_offset=0, annot=True,
 
     middle_frame = start_frame+25
     end_frame = start_frame+50
-    take_action(end1, middle_frame, (5,0,0))
+    take_action(end1, middle_frame, (11-end1.matrix_world.translation[0],0,0))
     for step in range(start_frame, middle_frame):
         bpy.context.scene.frame_set(step)
         if render:
             render_frame(step, render_offset=render_offset, annot=annot, mapping=mapping)
-    take_action(end2, end_frame, (-5,0,0))
+    take_action(end2, end_frame, (-9-end2.matrix_world.translation[0],0,0))
 
     # Drop the ends
     toggle_animation(end1, end_frame, False)
@@ -197,9 +244,9 @@ def random_loosen(params, start_frame, render=False, render_offset=0, annot=True
     pull_cyl = get_piece(piece, pick)
     hold_cyl = get_piece(piece, hold)
 
-    dx = np.random.uniform(1, 2)*random.choice((-1,1))
-    dy = np.random.uniform(1, 2)*random.choice((-1,1))
-    dz = np.random.uniform(1, 2)
+    dx = np.random.uniform(0.5, 1.5)*random.choice((-1,1))
+    dy = np.random.uniform(0.5, 1.5)*random.choice((-1,1))
+    dz = np.random.uniform(0.5, 1.5)
 
     mid_frame = start_frame + 50
     end_frame = start_frame + 100
@@ -228,7 +275,7 @@ def generate_dataset(params, chain=False, render=False):
     
     knot_end_frame = tie_knot(params, render=False)
     reid_start = knot_end_frame
-    for i in range(2):
+    for i in range(3):
         reid_end_frame = reidemeister(params, reid_start, render=render, render_offset=knot_end_frame, mapping=mapping)
         reid_start = random_loosen(params, reid_end_frame, render=render, render_offset=knot_end_frame, mapping=mapping)
 
