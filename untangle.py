@@ -7,6 +7,7 @@ import sys
 sys.path.append(os.getcwd())
 
 from rigidbody_rope import *
+from sklearn.neighbors import NearestNeighbors
 
 def set_animation_settings(anim_end):
     scene = bpy.context.scene
@@ -32,8 +33,36 @@ def take_action(obj, frame, action_vec, animate=True):
     obj.location += Vector((dx,dy,dz))
     obj.keyframe_insert(data_path="location", frame=frame)
 
+def find_knot(params, chain=False, thresh=0.4, pull_offset=3):
+
+    piece = "Torus" if chain else "Cylinder"
+    last = 2**(params["chain_len"]+1)-1 if chain else params["num_segments"]-1
+    cache = {}
+
+    for i in range(last):
+        cyl = get_piece(piece, i if i else -1)
+        x,y,z = cyl.matrix_world.translation
+        key = tuple((x,y))
+        val = {"idx":i, "depth":z}
+        cache[key] = val
+    neigh = NearestNeighbors(2, 0)
+    planar_coords = list(cache.keys())
+    neigh.fit(planar_coords)
+    for i in range(last):
+        cyl = get_piece(piece, i if i else -1)
+        x,y,z = cyl.matrix_world.translation
+        match_idxs = neigh.kneighbors([(x,y)], 2, return_distance=False) # 1st neighbor is always identical, we want 2nd
+        nearest = match_idxs.squeeze().tolist()[1:][0]
+        curr_cyl, match_cyl = cache[(x,y)], cache[planar_coords[nearest]]
+        depth_diff = match_cyl["depth"] - curr_cyl["depth"]
+        if depth_diff > thresh:
+            pull_idx = i + pull_offset
+            hold_idx = match_cyl["idx"]
+            return pull_idx, hold_idx
+    return -1,last
+
 def knot_test(params, chain=False):
-    set_animation_settings(800)
+    set_animation_settings(700)
     piece = "Torus" if chain else "Cylinder"
     last = 2**(params["chain_len"]+1)-1 if chain else params["num_segments"]-1
 
@@ -83,7 +112,9 @@ def knot_test(params, chain=False):
     for step in range(375, 400):
         bpy.context.scene.frame_set(step)
 
-    pick, hold = 16, 26
+    #find_knot(params)
+    #pick, hold = 16, 26
+    pick, hold = find_knot(params)
     pull_cyl = get_piece(piece, pick)
     hold_cyl = get_piece(piece, hold)
 
@@ -93,9 +124,20 @@ def knot_test(params, chain=False):
         bpy.context.scene.frame_set(step)
     take_action(pull_cyl, 500, (-6,-2,3))
 
-    ## Release both pull, hold
+
+    ### Release both pull, hold
     toggle_animation(pull_cyl, 500, False)
     toggle_animation(hold_cyl, 500, False)
+
+    for step in range(410, 600):
+        bpy.context.scene.frame_set(step)
+    take_action(end1, 625, (7,0,0))
+    for step in range(600, 625):
+        bpy.context.scene.frame_set(step)
+    take_action(end2, 650, (-7,0,0))
+
+    toggle_animation(end1, 650, False)
+    toggle_animation(end2, 650, False)
 
 if __name__ == '__main__':
     with open("rigidbody_params.json", "r") as f:
