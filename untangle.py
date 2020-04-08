@@ -41,7 +41,8 @@ def set_render_settings(engine, render_size):
 
 def get_piece(piece_name, piece_id):
     # Returns the piece with name piece_name, index piece_id
-    if piece_id == -1:
+    # if piece_id == -1:
+    if piece_id == -1 or piece_id == 0:
         return bpy.data.objects['%s' % (piece_name)]
     return bpy.data.objects['%s.%03d' % (piece_name, piece_id)]
 
@@ -54,13 +55,17 @@ def take_action(obj, frame, action_vec, animate=True):
     # Keyframes a displacement for obj given by action_vec at given frame
     curr_frame = bpy.context.scene.frame_current
     dx,dy,dz = action_vec
+    obj.rotation_quaternion = obj.matrix_world.to_quaternion()
+    obj.keyframe_insert(data_path="rotation_quaternion", frame=curr_frame)
     if animate != obj.rigid_body.kinematic:
         # We are "picking up" a dropped object, so we need its updated location
         obj.location = obj.matrix_world.translation
         obj.keyframe_insert(data_path="location", frame=curr_frame)
     toggle_animation(obj, curr_frame, animate)
     obj.location += Vector((dx,dy,dz))
+    obj.rotation_quaternion = obj.matrix_world.to_quaternion()
     obj.keyframe_insert(data_path="location", frame=frame)
+    obj.keyframe_insert(data_path="rotation_quaternion", frame=frame)
 
 def find_knot(params, chain=False, thresh=0.4, pull_offset=3):
 
@@ -93,8 +98,73 @@ def find_knot(params, chain=False, thresh=0.4, pull_offset=3):
             dy = planar_coords[pull_idx][1] - y
             hold_idx = match_cyl["idx"]
             action_vec = [7*dx, 7*dy, 6] # Pull in the direction of the rope (NOTE: 7 is an arbitrary scale for now, 6 is z offset)
+            action_vec = [i * 20 / (action_vec[0]**2 + action_vec[1]**2 + action_vec[2]**2) for i in action_vec] # normalize action to be smaller
             return pull_idx, hold_idx, action_vec # Found! Return the pull, hold, and action
     return -1, last, [0,0,0] # Didn't find a pull/hold
+
+# def take_small_action(params, pull_idx, hold_idx, action_vec):
+
+def undone_check(params, hold_idx):
+    _, hold, _ = find_knot(params)
+    if abs(hold - hold_idx) < 4:
+        return False
+    return True
+
+def take_undo_action(params, start_frame, piece, render):
+    pick, hold, action_vec = find_knot(params)
+    pull_cyl = get_piece(piece, pick)
+    hold_cyl = get_piece(piece, hold)
+
+    ## Undoing
+    take_action(hold_cyl, start_frame + 100, (0,0,0))
+    for step in range(start_frame, start_frame+10):
+        bpy.context.scene.frame_set(step)
+        if render:
+            render_frame(step)
+    take_action(pull_cyl, start_frame + 100, action_vec)
+
+    ## Release both pull, hold
+    toggle_animation(pull_cyl, start_frame + 100, False)
+    toggle_animation(hold_cyl, start_frame + 100, False)
+
+    # Let the rope settle after the action, so we can know where the ends are afterwards
+    for step in range(start_frame + 10, start_frame + 200):
+        bpy.context.scene.frame_set(step)
+        if render:
+            render_frame(step)
+
+    return pick, hold, action_vec, start_frame+200
+
+def take_reid_action(params, start_frame, piece, render, end1, end2):
+    take_action(end1, start_frame + 25, (0, 0, 2))
+    for step in range(start_frame, start_frame + 25):
+        bpy.context.scene.frame_set(step)
+        if render:
+            render_frame(step)
+
+    take_action(end1, start_frame + 75, (6,0,0))
+    for step in range(start_frame+ 25, start_frame + 75):
+        bpy.context.scene.frame_set(step)
+        if render:
+            render_frame(step)
+
+    take_action(end2, start_frame + 100, (0, 0, 2))
+    for step in range(start_frame+ 75, start_frame + 100):
+        bpy.context.scene.frame_set(step)
+        if render:
+            render_frame(step)
+    take_action(end2, start_frame + 175, (-6,0,0))
+
+    # Drop the ends
+    toggle_animation(end1, start_frame + 75, False)
+    toggle_animation(end2, start_frame + 175, False)
+
+    for step in range(start_frame + 100, start_frame + 175):
+        bpy.context.scene.frame_set(step)
+        if render:
+            render_frame(step)
+    return start_frame + 175
+
 
 def render_frame(frame, step=2, filename="%06d.png", folder="images"):
     # Renders a single frame in a sequence (if frame%step == 0)
@@ -104,7 +174,7 @@ def render_frame(frame, step=2, filename="%06d.png", folder="images"):
         bpy.ops.render.render(write_still=True)
 
 def knot_test(params, chain=False, render=False):
-    set_animation_settings(800)
+    set_animation_settings(1800)
     piece = "Torus" if chain else "Cylinder"
     last = 2**(params["chain_len"]+1)-1 if chain else params["num_segments"]-1
 
@@ -145,59 +215,32 @@ def knot_test(params, chain=False, render=False):
         bpy.context.scene.frame_set(step)
         if render:
             render_frame(step)
-    take_action(end1, 375, (5,0,0))
-    for step in range(350, 375):
-        bpy.context.scene.frame_set(step)
-        if render:
-            render_frame(step)
-    take_action(end2, 400, (-5,0,0))
 
-    # Drop the ends
-    toggle_animation(end1, 400, False)
-    toggle_animation(end2, 400, False)
+    # take_action(end1, 375, (5,0,0))
+    # for step in range(350, 375):
+    #     bpy.context.scene.frame_set(step)
+    #     if render:
+    #         render_frame(step)
+    # take_action(end2, 400, (-5,0,0))
+    #
+    # # Drop the ends
+    # toggle_animation(end1, 400, False)
+    # toggle_animation(end2, 400, False)
+    #
+    # for step in range(375, 400):
+    #     bpy.context.scene.frame_set(step)
+    #     if render:
+    #         render_frame(step)
 
-    for step in range(375, 400):
-        bpy.context.scene.frame_set(step)
-        if render:
-            render_frame(step)
+    frame = take_reid_action(params, 350, piece, render, end1, end2)
 
-    pick, hold, action_vec = find_knot(params)
-    pull_cyl = get_piece(piece, pick)
-    hold_cyl = get_piece(piece, hold)
+    _, hold, _, frame = take_undo_action(params, frame, piece, render)
+    while not undone_check(params, hold):
+        _, hold, _, frame = take_undo_action(params, frame, piece, render)
 
-    ## Undoing
-    take_action(hold_cyl, 500, (0,0,0))
-    for step in range(400, 410):
-        bpy.context.scene.frame_set(step)
-        if render:
-            render_frame(step)
-    take_action(pull_cyl, 500, action_vec)
-
-    ## Release both pull, hold
-    toggle_animation(pull_cyl, 500, False)
-    toggle_animation(hold_cyl, 500, False)
-
-    # Let the rope settle after the action, so we can know where the ends are afterwards
-    for step in range(410, 600):
-        bpy.context.scene.frame_set(step)
-        if render:
-            render_frame(step)
-
+    # now we fix all the remaining frames below (originally, frame = 600)
     # Reidemeister #2
-    take_action(end1, 625, (7,0,0))
-    for step in range(600, 625):
-        bpy.context.scene.frame_set(step)
-        if render:
-            render_frame(step)
-    take_action(end2, 650, (-7,0,0))
-
-    toggle_animation(end1, 650, False)
-    toggle_animation(end2, 650, False)
-
-    for step in range(625, 700):
-        bpy.context.scene.frame_set(step)
-        if render:
-            render_frame(step)
+    frame = take_reid_action(params, frame, piece, render, end1, end2)
 
 if __name__ == '__main__':
     with open("rigidbody_params.json", "r") as f:
