@@ -61,8 +61,37 @@ def find_knot(params, chain=False, thresh=0.4, pull_offset=3):
             return pull_idx, hold_idx
     return -1,last
 
+def set_render_settings(engine, render_size):
+    if not os.path.exists("./images"):
+        os.makedirs('./images')
+    else:
+        os.system('rm -r ./images')
+        os.makedirs('./images')
+    scene = bpy.context.scene
+    scene.render.engine = engine
+    render_width, render_height = render_size
+    scene.render.resolution_x = render_width
+    scene.render.resolution_y = render_height
+    #scene.view_settings.exposure = 1.3
+    if engine == 'BLENDER_WORKBENCH':
+        scene.render.display_mode
+        scene.render.image_settings.color_mode = 'RGB'
+        scene.display_settings.display_device = 'None'
+        scene.sequencer_colorspace_settings.name = 'XYZ'
+        scene.render.image_settings.file_format='PNG'
+    elif engine == "BLENDER_EEVEE":
+        scene.eevee.taa_samples = 1
+        scene.view_settings.view_transform = 'Raw'
+        scene.eevee.taa_render_samples = 1
+
+def render_frame(frame, step=2, filename="%06d.png", folder="images"):
+    if frame%step == 0:
+        scene = bpy.context.scene
+        scene.render.filepath = os.path.join(folder, filename) % (frame//step)
+        bpy.ops.render.render(write_still=True)
+
 def knot_test(params, chain=False):
-    set_animation_settings(700)
+    set_animation_settings(800)
     piece = "Torus" if chain else "Cylinder"
     last = 2**(params["chain_len"]+1)-1 if chain else params["num_segments"]-1
 
@@ -101,9 +130,11 @@ def knot_test(params, chain=False):
     ## Reidemeister
     for step in range(1, 350):
         bpy.context.scene.frame_set(step)
+        render_frame(step)
     take_action(end1, 375, (5,0,0))
     for step in range(350, 375):
         bpy.context.scene.frame_set(step)
+        render_frame(step)
     take_action(end2, 400, (-5,0,0))
 
     toggle_animation(end1, 400, False)
@@ -111,9 +142,8 @@ def knot_test(params, chain=False):
 
     for step in range(375, 400):
         bpy.context.scene.frame_set(step)
+        render_frame(step)
 
-    #find_knot(params)
-    #pick, hold = 16, 26
     pick, hold = find_knot(params)
     pull_cyl = get_piece(piece, pick)
     hold_cyl = get_piece(piece, hold)
@@ -122,8 +152,8 @@ def knot_test(params, chain=False):
     take_action(hold_cyl, 500, (0,0,0))
     for step in range(400, 410):
         bpy.context.scene.frame_set(step)
+        render_frame(step)
     take_action(pull_cyl, 500, (-6,-2,3))
-
 
     ### Release both pull, hold
     toggle_animation(pull_cyl, 500, False)
@@ -131,18 +161,26 @@ def knot_test(params, chain=False):
 
     for step in range(410, 600):
         bpy.context.scene.frame_set(step)
+        render_frame(step)
     take_action(end1, 625, (7,0,0))
     for step in range(600, 625):
         bpy.context.scene.frame_set(step)
+        render_frame(step)
     take_action(end2, 650, (-7,0,0))
 
     toggle_animation(end1, 650, False)
     toggle_animation(end2, 650, False)
+
+    for step in range(625, 700):
+        bpy.context.scene.frame_set(step)
+        render_frame(step)
 
 if __name__ == '__main__':
     with open("rigidbody_params.json", "r") as f:
         params = json.load(f)
     clear_scene()
     make_rope(params)
+    add_camera_light()
+    set_render_settings('BLENDER_WORKBENCH',(640,480))
     make_table(params)
     knot_test(params)
