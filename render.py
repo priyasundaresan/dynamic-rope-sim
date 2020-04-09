@@ -56,16 +56,30 @@ def annotate(frame, mapping, num_annotations):
             int(scene.render.resolution_y),
             )
     pixels = []
-    for i in range(50):
+    pull, _, _ = find_knot(50)
+    offset = 5
+    for i in range(pull-offset, pull+offset+1):
         cyl = get_piece("Cylinder", i if i != 0 else -1)
         cyl_verts = list(cyl.data.vertices)
-        vertex_coords = [cyl.matrix_world @ v.co for v in cyl_verts][::50*len(cyl_verts)//(num_annotations)] 
+        #vertex_coords = [cyl.matrix_world @ v.co for v in cyl_verts][::offset*2*len(cyl_verts)//(num_annotations)] 
+        vertex_coords = [cyl.matrix_world @ v.co for v in cyl_verts]
         for i in range(len(vertex_coords)):
             v = vertex_coords[i]
             camera_coord = bpy_extras.object_utils.world_to_camera_view(scene, bpy.context.scene.camera, v)
             pixel = [round(camera_coord.x * render_size[0]), round(render_size[1] - camera_coord.y * render_size[1])]
             pixels.append([pixel])
     mapping[frame] = pixels
+
+    #for i in range(50):
+    #    cyl = get_piece("Cylinder", i if i != 0 else -1)
+    #    cyl_verts = list(cyl.data.vertices)
+    #    vertex_coords = [cyl.matrix_world @ v.co for v in cyl_verts][::50*len(cyl_verts)//(num_annotations)] 
+    #    for i in range(len(vertex_coords)):
+    #        v = vertex_coords[i]
+    #        camera_coord = bpy_extras.object_utils.world_to_camera_view(scene, bpy.context.scene.camera, v)
+    #        pixel = [round(camera_coord.x * render_size[0]), round(render_size[1] - camera_coord.y * render_size[1])]
+    #        pixels.append([pixel])
+    #mapping[frame] = pixels
 
 def get_piece(piece_name, piece_id):
     # Returns the piece with name piece_name, index piece_id
@@ -90,14 +104,13 @@ def take_action(obj, frame, action_vec, animate=True):
     obj.location += Vector((dx,dy,dz))
     obj.keyframe_insert(data_path="location", frame=frame)
 
-def find_knot(params, chain=False, thresh=0.4, pull_offset=3):
+def find_knot(num_segments, chain=False, thresh=0.4, pull_offset=3):
 
     piece = "Torus" if chain else "Cylinder"
-    last = 2**(params["chain_len"]+1)-1 if chain else params["num_segments"]-1
     cache = {}
 
     # Make a single pass, store the xy positions of the cylinders
-    for i in range(last):
+    for i in range(num_segments):
         cyl = get_piece(piece, i if i else -1)
         x,y,z = cyl.matrix_world.translation
         key = tuple((x,y))
@@ -107,7 +120,7 @@ def find_knot(params, chain=False, thresh=0.4, pull_offset=3):
     planar_coords = list(cache.keys())
     neigh.fit(planar_coords)
     # Now traverse and look for the under crossing
-    for i in range(last):
+    for i in range(num_segments):
         cyl = get_piece(piece, i if i else -1)
         x,y,z = cyl.matrix_world.translation
         match_idxs = neigh.kneighbors([(x,y)], 2, return_distance=False) # 1st neighbor is always identical, we want 2nd
@@ -124,7 +137,7 @@ def find_knot(params, chain=False, thresh=0.4, pull_offset=3):
             return pull_idx, hold_idx, action_vec # Found! Return the pull, hold, and action
     return -1, last, [0,0,0] # Didn't find a pull/hold
 
-def render_frame(frame, render_offset=0, step=2, num_annotations=700, filename="%06d.png", folder="images", annot=True, mapping=None):
+def render_frame(frame, render_offset=0, step=2, num_annotations=100, filename="%06d_rgb.png", folder="images", annot=True, mapping=None):
     # Renders a single frame in a sequence (if frame%step == 0)
     frame -= render_offset
     if frame%step == 0:
@@ -240,7 +253,7 @@ def random_loosen(params, start_frame, render=False, render_offset=0, annot=True
     piece = "Cylinder"
     last = params["num_segments"]-1
 
-    pick, hold, _ = find_knot(params)
+    pick, hold, _ = find_knot(params["num_segments"])
     pull_cyl = get_piece(piece, pick)
     hold_cyl = get_piece(piece, hold)
 
