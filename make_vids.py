@@ -1,0 +1,6 @@
+import os
+
+if __name__ == '__main__':
+    os.system('cd ./images && ffmpeg -framerate 15 -i %06d_rgb.png -pix_fmt yuv420p out.mp4 && cd ..')
+    os.system('cd ./annotated && ffmpeg -framerate 15 -i %06d_annotated.png -pix_fmt yuv420p out.mp4 && cd ..')
+    os.system("ffmpeg -i images/out.mp4 -i annotated/out.mp4 -filter_complex '[0:v]pad=iw*2:ih[int];[int][1:v]overlay=W/2:0[vid]' -map [vid] -c:v libx264 -crf 23 -preset veryfast output.mp4")
