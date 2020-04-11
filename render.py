@@ -48,7 +48,7 @@ def set_render_settings(engine, render_size):
         scene.view_settings.view_transform = 'Raw'
         scene.eevee.taa_render_samples = 1
 
-def annotate(frame, mapping, num_annotations, knot_only=False, offset=2):
+def annotate(frame, mapping, num_annotations, knot_only=True, offset=1):
     # knot_only = True:  means only record the under, over crossings
     # knot_only = False:  means record annotations for full rope
     '''Gets num_annotations annotations of cloth image at provided frame #, adds to mapping'''
@@ -93,7 +93,9 @@ def take_action(obj, frame, action_vec, animate=True):
     if animate != obj.rigid_body.kinematic:
         # We are "picking up" a dropped object, so we need its updated location
         obj.location = obj.matrix_world.translation
+        obj.rotation_euler = obj.matrix_world.to_euler()
         obj.keyframe_insert(data_path="location", frame=curr_frame)
+        obj.keyframe_insert(data_path="rotation_euler", frame=curr_frame)
     toggle_animation(obj, curr_frame, animate)
     obj.location += Vector((dx,dy,dz))
     obj.keyframe_insert(data_path="location", frame=frame)
@@ -256,7 +258,8 @@ def random_loosen(params, start_frame, render=False, render_offset=0, annot=True
 
     dx = np.random.uniform(0,1)*random.choice((-1,1))
     dy = np.random.uniform(0,1)*random.choice((-1,1))
-    dz = np.random.uniform(0.5,0.8)
+    #dz = np.random.uniform(0.5,1)
+    dz = np.random.uniform(0.75,2.25)
 
     mid_frame = start_frame + 50
     end_frame = start_frame + 100
@@ -285,7 +288,8 @@ def generate_dataset(params, chain=False, render=False):
     
     knot_end_frame = tie_knot(params, render=False)
     reid_start = knot_end_frame
-    for i in range(2):
+    for i in range(2): 
+    # NOTE: each iteration renders 75 images, ~45 is about 3500 images for generating a training dset
         reid_end_frame = reidemeister(params, reid_start, render=render, render_offset=knot_end_frame, mapping=mapping)
         reid_start = random_loosen(params, reid_end_frame, render=render, render_offset=knot_end_frame, mapping=mapping)
 
