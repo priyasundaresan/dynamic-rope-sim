@@ -55,17 +55,18 @@ def take_action(obj, frame, action_vec, animate=True):
     # Keyframes a displacement for obj given by action_vec at given frame
     curr_frame = bpy.context.scene.frame_current
     dx,dy,dz = action_vec
-    obj.rotation_quaternion = obj.matrix_world.to_quaternion()
-    obj.keyframe_insert(data_path="rotation_quaternion", frame=curr_frame)
     if animate != obj.rigid_body.kinematic:
         # We are "picking up" a dropped object, so we need its updated location
         obj.location = obj.matrix_world.translation
+        obj.rotation_euler = obj.matrix_world.to_euler()
         obj.keyframe_insert(data_path="location", frame=curr_frame)
+        obj.keyframe_insert(data_path="rotation_euler", frame=curr_frame)
     toggle_animation(obj, curr_frame, animate)
     obj.location += Vector((dx,dy,dz))
-    obj.rotation_quaternion = obj.matrix_world.to_quaternion()
+    obj.rotation_euler = obj.matrix_world.to_euler()
     obj.keyframe_insert(data_path="location", frame=frame)
-    obj.keyframe_insert(data_path="rotation_quaternion", frame=frame)
+    obj.keyframe_insert(data_path="rotation_euler", frame=frame)
+    # obj.keyframe_insert(data_path="rotation_quaternion", frame=frame)
 
 def find_knot(params, chain=False, thresh=0.4, pull_offset=3):
 
