@@ -174,7 +174,7 @@ if __name__ == "__main__":
     with open('../cfg/dataset_info.json', 'r') as f:
         dataset_stats = json.load(f)
     dataset_mean, dataset_std_dev = dataset_stats["mean"], dataset_stats["std_dev"]
-    image_dir = '/Users/priyasundaresan/Desktop/blender/dynamic-rope/rope_400_cyl_rot/processed/images'
+    image_dir = '../../rope_400_cyl_rot/processed/images'
     heatmap_vis = HeatmapVisualization(dcn, dataset_mean, dataset_std_dev, image_dir)
     print "starting heatmap vis"
     heatmap_vis.run()
