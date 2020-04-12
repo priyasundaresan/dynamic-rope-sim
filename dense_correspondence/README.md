@@ -1,6 +1,6 @@
 ## 1. Dependencies/Setup
 * Install or ensure you have the dependencies needed (```pip install -r requirements.txt```)
-* Change directories one level higher into pytorch-segmentation-detection. Go to ```pytorch-segmentation-detection/pytorch_segmentation_detection/vision/torchvision/models``` and run ```cp resnet.py path/to/your_virtualenv/lib/python2.7/site-packages/torchvision/models/resnet.py``` (changing the path to your virtualenv as necessary)
+* Change directories to ```/path/to/dynamic-rope/dense_correspondence/pytorch-segmentation-detection/vision/torchvision/models``` and run ```cp resnet.py path/to/your_virtualenv/lib/python2.7/site-packages/torchvision/models/resnet.py``` (changing the path to your virtualenv as necessary)
 
 ^^NOTE: Without this step, when I ran ```python live_heatmap_visualization.py```, I got the following error: ```TypeError: __init__() got an unexpected keyword argument 'fully_conv'```
 ^^TODO: there should be a way to avoid this using ```sys.path.insert``` in the script, though I haven't configured it yet
