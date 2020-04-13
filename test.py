@@ -1,7 +1,5 @@
 import pprint
 import json
-import sys
-import os
 import cv2
 import numpy as np
 import copy
@@ -32,8 +30,9 @@ if __name__ == '__main__':
         pull = [ref_annots["pull_x"], ref_annots["pull_y"]]
         hold = [ref_annots["hold_x"], ref_annots["hold_y"]]
         pixels = [pull, hold]
-    for i in range(1,2):
-        f2 = "rope_400_cyl_rot/processed/images/%06d_rgb.png"%i
+    for i in range(200,400,70):
+        #f2 = "rope_400_cyl_rot/processed/images/%06d_rgb.png"%i
+        f2 = "images/%06d.png"%i
         cf.load_image_pair(f1, f2)
         cf.compute_descriptors()
         best_matches = cf.find_k_best_matches(pixels, 50, mode="median")

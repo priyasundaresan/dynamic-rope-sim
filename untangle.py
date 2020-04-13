@@ -27,7 +27,6 @@ def set_render_settings(engine, render_size):
     render_width, render_height = render_size
     scene.render.resolution_x = render_width
     scene.render.resolution_y = render_height
-    #scene.view_settings.exposure = 0.8
     if engine == 'BLENDER_WORKBENCH':
         scene.render.display_mode
         scene.render.image_settings.color_mode = 'RGB'
@@ -216,22 +215,6 @@ def knot_test(params, chain=False, render=False):
         bpy.context.scene.frame_set(step)
         if render:
             render_frame(step)
-
-    # take_action(end1, 375, (5,0,0))
-    # for step in range(350, 375):
-    #     bpy.context.scene.frame_set(step)
-    #     if render:
-    #         render_frame(step)
-    # take_action(end2, 400, (-5,0,0))
-    #
-    # # Drop the ends
-    # toggle_animation(end1, 400, False)
-    # toggle_animation(end2, 400, False)
-    #
-    # for step in range(375, 400):
-    #     bpy.context.scene.frame_set(step)
-    #     if render:
-    #         render_frame(step)
 
     frame = take_reid_action(params, 350, piece, render, end1, end2)
 
