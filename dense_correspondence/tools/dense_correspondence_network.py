@@ -484,9 +484,9 @@ class DenseCorrespondenceNetwork(nn.Module):
         height, width, _ = res_a.shape
 
         if debug:
-            print "height: ", height
-            print "width: ", width
-            print "res_b.shape: ", res_b.shape
+            print("height: ", height)
+            print("width: ", width)
+            print("res_b.shape: ", res_b.shape)
 
         norm_diffs = np.sqrt(np.sum(np.square(res_b - descriptor_at_pixel), axis=2))
 
@@ -504,9 +504,9 @@ class DenseCorrespondenceNetwork(nn.Module):
         height, width, _ = res_a.shape
 
         if debug:
-            print "height: ", height
-            print "width: ", width
-            print "res_b.shape: ", res_b.shape
+            print("height: ", height)
+            print("width: ", width)
+            print("res_b.shape: ", res_b.shape)
 
         norm_diffs = np.sqrt(np.sum(np.square(res_b - descriptor_at_pixel), axis=2))
 

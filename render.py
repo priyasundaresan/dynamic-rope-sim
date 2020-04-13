@@ -296,7 +296,7 @@ def generate_dataset(params, chain=False, render=False):
     
     knot_end_frame = tie_knot(params, render=False)
     reid_start = knot_end_frame
-    for i in range(1): 
+    for i in range(4): 
     # NOTE: each iteration renders 75 images, ~45 is about 3500 images for generating a training dset
         reid_end_frame = reidemeister(params, reid_start, render=render, render_offset=knot_end_frame, mapping=mapping)
         reid_start = random_loosen(params, reid_end_frame, render=render, render_offset=knot_end_frame, mapping=mapping)

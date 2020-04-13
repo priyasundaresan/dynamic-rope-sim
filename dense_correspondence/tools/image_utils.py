@@ -37,10 +37,10 @@ def maxIOU(img1, img2):
 	the masks.
 	"""
 	assert img1.shape == img2.shape
-        img1 = cv2.resize(img1, (160, 120))
-        img2 = cv2.resize(img2, (160, 120))
-        img1 = inpainted_binary(img1)
-        img2 = inpainted_binary(img2)
+	img1 = cv2.resize(img1, (160, 120))
+	img2 = cv2.resize(img2, (160, 120))
+	img1 = inpainted_binary(img1)
+	img2 = inpainted_binary(img2)
 	nonzero_1, nonzero_2 = (img1 > 0).astype(float), (img2 > 0).astype(float)
 	num_nonzero_1, num_nonzero_2 = nonzero_1.sum(), nonzero_2.sum()
 	correlated = correlate2d(nonzero_1, nonzero_2)
@@ -75,21 +75,6 @@ def sample_nearest_points_on_mask(px, img, halfwidth):
 				pixels.append((px[0] + i, px[1] + j))
 	return np.array(pixels)
 
-def pixel_to_world(camera_intr, depth, T_camera_world, (x, y), rescaled_pixel=None):
-        if rescaled_pixel is not None:
-            pixel = np.array(rescaled_pixel)
-            x, y = rescaled_pixel
-        else:
-            pixel = np.array([x, y])
-        #print "Depth", (depth[y, x])
-        depth_val = depth[y, x]
-        if depth[y, x] == 0:
-            depth_val = 0.805
-	point_cam = camera_intr.deproject_pixel(depth_val, Point(pixel, frame="phoxi"))
-	point_world = T_camera_world * point_cam
-	if list(point_cam.data) == [0, 0, 0]:
-		print "INVALID"
-	return list(point_world.data)
 
 def sample_nonzero_points(img, k):
 	"""
@@ -111,9 +96,9 @@ def locate_circle_center_hough(img):
         circles = cv2.HoughCircles(gray,cv2.HOUGH_GRADIENT,1,20,param1=20,param2=9,minRadius=25,maxRadius=33)
         if circles is not None:
            for i in circles[0,:]:
-               print i[2]
+               print(i[2])
                i = [int(i[0]), int(i[1]), int(i[2])]
-               pixel_val = img[i[1], i[0]] 
+               pixel_val = img[i[1], i[0]]
                cond = pixel_val[0] == 0 and pixel_val[1] == 0 and pixel_val[2] == 0
                if not cond:
                    return (i[0], i[1])
@@ -184,11 +169,11 @@ def sample_sparse_points(img, k=100, dist=50, plot=False):
 		idx = [n[idx] for n in nonzero_indices]
 		annotate_img(original_image, idx[1], idx[0])
 		remove_rect(img, idx, dist)
-                points.append(idx[::-1])
+		points.append(idx[::-1])
 	if plot:
 		cv2.imshow("correspondence", original_image)
 		cv2.waitKey(0)
-        return points
+	return points
 
 
 def prune_close_pixel_indices(pixels):
@@ -216,12 +201,12 @@ def farthest_pixel_correspondence(source_pixels, target_pixels):
         if dist > curr_max_dist:
             curr_max_dist = dist
             farthest_idx = i
-    print "DIST:", curr_max_dist
+    print("DIST:", curr_max_dist)
     paired = list(zip(source_pixels, target_pixels))
     return paired[farthest_idx]
     #return max(paired, key=lambda p: np.linalg.norm(np.array(p[0]) - np.array(p[1])))
 
-        
+
 def downsample_image(image, factor):
 	"""
 	Applies a Gaussian low-pass filter to IMAGE before downsampling by FACTOR.

@@ -38,7 +38,7 @@ class CorrespondenceFinder:
         self.img2_pil = self.get_rgb_image(img2_filename)
         self.img1 = cv2.resize(cv2.imread(img1_filename, 0), (640, 480))
         self.img2 = cv2.resize(cv2.imread(img2_filename, 0), (640, 480))
-        print "loaded images successfully"
+        print("loaded images successfully")
 
     def compute_descriptors(self):
         self.img1 = self.pil_image_to_cv2(self.img1_pil)

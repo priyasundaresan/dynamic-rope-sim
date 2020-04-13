@@ -69,7 +69,8 @@ def make_table(params):
     bpy.ops.rigidbody.object_add()
     table = bpy.context.object
     table.rigid_body.type = 'PASSIVE'
-    table.rigid_body.friction = 0.7
+    #table.rigid_body.friction = 0.7
+    table.rigid_body.friction = 0.8
     bpy.ops.object.select_all(action='DESELECT')
 
 if __name__ == '__main__':
