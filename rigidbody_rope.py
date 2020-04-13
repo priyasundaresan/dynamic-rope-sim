@@ -38,6 +38,10 @@ def make_rope(params):
     num_segments = params["num_segments"]
     bpy.ops.mesh.primitive_cylinder_add(location=(segment_radius*num_segments,0,0))
     bpy.ops.transform.resize(value=(segment_radius, segment_radius, segment_radius))
+    #bpy.ops.mesh.subdivide(number_cuts=1) # Tune this number for cloth detail
+    bpy.ops.object.editmode_toggle()
+    bpy.ops.mesh.subdivide(number_cuts=1, quadcorner='INNERVERT')
+    bpy.ops.object.editmode_toggle()
     cylinder = bpy.context.object
     cylinder.rotation_euler = (0, np.pi/2, 0)
     bpy.ops.rigidbody.object_add()

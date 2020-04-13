@@ -228,12 +228,19 @@ def reidemeister(params, start_frame, render=False, render_offset=0, annot=True,
 
     middle_frame = start_frame+25
     end_frame = start_frame+50
-    take_action(end1, middle_frame, (11-end1.matrix_world.translation[0],0,0))
+    end1_first = random.random() > 0.5
+    if end1_first:
+        take_action(end1, middle_frame, (11-end1.matrix_world.translation[0],0,0))
+    else:
+        take_action(end2, middle_frame, (-9-end2.matrix_world.translation[0],0,0))
     for step in range(start_frame, middle_frame):
         bpy.context.scene.frame_set(step)
         if render:
             render_frame(step, render_offset=render_offset, annot=annot, mapping=mapping)
-    take_action(end2, end_frame, (-9-end2.matrix_world.translation[0],0,0))
+    if end1_first:
+        take_action(end2, end_frame, (-9-end2.matrix_world.translation[0],0,0))
+    else:
+        take_action(end1, end_frame, (11-end1.matrix_world.translation[0],0,0))
 
     # Drop the ends
     toggle_animation(end1, end_frame, False)
@@ -251,7 +258,7 @@ def random_loosen(params, start_frame, render=False, render_offset=0, annot=True
     last = params["num_segments"]-1
 
     pick, hold, _ = find_knot(params["num_segments"])
-    if random.random() < 0.25:
+    if random.random() < 0.5:
         pick = random.choice(range(10, 40))
     pull_cyl = get_piece(piece, pick)
     hold_cyl = get_piece(piece, hold)
@@ -259,7 +266,8 @@ def random_loosen(params, start_frame, render=False, render_offset=0, annot=True
     dx = np.random.uniform(0,1)*random.choice((-1,1))
     dy = np.random.uniform(0,1)*random.choice((-1,1))
     #dz = np.random.uniform(0.5,1)
-    dz = np.random.uniform(0.75,2.25)
+    #dz = np.random.uniform(0.75,2.25)
+    dz = np.random.uniform(0.75,1.75)
 
     mid_frame = start_frame + 50
     end_frame = start_frame + 100
@@ -288,7 +296,7 @@ def generate_dataset(params, chain=False, render=False):
     
     knot_end_frame = tie_knot(params, render=False)
     reid_start = knot_end_frame
-    for i in range(2): 
+    for i in range(1): 
     # NOTE: each iteration renders 75 images, ~45 is about 3500 images for generating a training dset
         reid_end_frame = reidemeister(params, reid_start, render=render, render_offset=knot_end_frame, mapping=mapping)
         reid_start = random_loosen(params, reid_end_frame, render=render, render_offset=knot_end_frame, mapping=mapping)
