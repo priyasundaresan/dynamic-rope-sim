@@ -1,4 +1,4 @@
-#from dense_correspondence_network import DenseCorrespondenceNetwork
+from dense_correspondence_network import DenseCorrespondenceNetwork
 import pprint
 import json
 import sys
@@ -15,19 +15,12 @@ from image_utils import *
 #from pixel_selector import PixelSelector
 
 class CorrespondenceFinder:
-    def __init__(self, dcn, dataset_mean, dataset_std_dev, flip_horizontal=False):
+    def __init__(self, dcn, dataset_mean, dataset_std_dev):
         self.dcn = dcn
         self.dataset_mean = dataset_mean
         self.dataset_std_dev = dataset_std_dev
-        self.flip_horizontal=flip_horizontal
-        self.img1_flipped = False
-        self.img2_flipped = False
 
     def get_rgb_image(self, rgb_filename):
-        """
-        :param depth_filename: string of full path to depth image
-        :return: PIL.Image.Image, in particular an 'RGB' PIL image
-        """
         return Image.open(rgb_filename).convert('RGB').resize((640, 480))
 
     def get_grayscale_image(self, grayscale_filename):
@@ -47,31 +40,9 @@ class CorrespondenceFinder:
         self.img2 = cv2.resize(cv2.imread(img2_filename, 0), (640, 480))
         print "loaded images successfully"
 
-    def flip_images(self):
-        circle1 = locate_circle_center_hough(self.img1)
-        circle2 = locate_circle_center_hough(self.img2)
-        if circle1 is not None:
-            u1, v1 = circle1
-            if u1 > 320:
-                self.img1_pil = self.img1_pil.transpose(Image.FLIP_LEFT_RIGHT)
-                print "flipped 1st"
-                self.img1_flipped = True
-        if self.img1_flipped:
-            print "flipped 2nd"
-            self.img2_pil = self.img2_pil.transpose(Image.FLIP_LEFT_RIGHT)
-            self.img2_flipped = True
-        #if circle2 is not None:
-        #    u2, v2 = circle2
-        #    if u2 > 320:
-        #        print "flipped 2nd"
-        #        self.img2_pil = self.img2_pil.transpose(Image.FLIP_LEFT_RIGHT)
-        #        self.img2_flipped = True
-
     def compute_descriptors(self):
         self.img1 = self.pil_image_to_cv2(self.img1_pil)
         self.img2 = self.pil_image_to_cv2(self.img2_pil)
-        if self.flip_horizontal:
-            self.flip_images()
         self.rgb_1_tensor = self.rgb_image_to_tensor(self.img1_pil)
         self.rgb_2_tensor = self.rgb_image_to_tensor(self.img2_pil)
         self.img1_descriptor = self.dcn.forward_single_image_tensor(self.rgb_1_tensor).data.cpu().numpy()
@@ -81,9 +52,6 @@ class CorrespondenceFinder:
         # Finds k best matches in descriptor space (either by median or mean filtering)
         max_range = float(len(pixels))
         pixel_matches = []
-        if self.flip_horizontal:
-            if self.img1_flipped:
-                pixels = flip_pixels_horizontal(pixels)
         model = None
         # best_matches, norm_diffs, model = self.dcn.find_best_match_for_descriptors_KNN(np.array(pixels), self.img1_descriptor, self.img2_descriptor, k)
         for i, (u, v) in enumerate(pixels):
@@ -100,22 +68,10 @@ class CorrespondenceFinder:
             match = [int(best_match[0]), int(best_match[1])]
             pixel_matches.append(match)
 
-        if self.flip_horizontal:
-            if self.img1_flipped:
-                pixels = flip_pixels_horizontal(pixels)
-            if self.img2_flipped:
-                pixel_matches = flip_pixels_horizontal(pixel_matches)
         for i, (u, v) in enumerate(pixels):
             match = pixel_matches[i]
             if annotate:
                 self.annotate_correspondence(u, v, match[0], match[1])
-
-        #idxs = prune_close_pixel_indices(pixel_matches)
-        #idxs = []
-        #pixels = [pixels[i] for i in range(len(pixels)) if not i in idxs]
-        #pixel_matches = [pixel_matches[i] for i in range(len(pixel_matches)) if not i in idxs]
-        self.img1_flipped = False
-        self.img2_flipped = False
         return pixel_matches, pixels
 
 
@@ -134,34 +90,37 @@ class CorrespondenceFinder:
         color = (np.random.randint(0, 255), np.random.randint(0, 255), np.random.randint(0, 255))
         src = self.img1
         dest = self.img2
-        if flip:
-            src = self.img2
-            dest = self.img1
         cv2.circle(src, (u1, v1), 4, color, -1)
         cv2.circle(dest, (u2, v2), 4, color, -1)
         if line:
             cv2.line(src, (u1, v1), (u2, v2), (255, 255, 255), 4)
 
-    def show_side_by_side(self, flip=False):
-        if flip:
-            vis = np.concatenate((self.img2, self.img1), axis=0)
-        else:
-            vis = np.concatenate((self.img1, self.img2), axis=0)
+    def show_side_by_side(self):
+        vis = np.concatenate((self.img1, self.img2), axis=0)
         cv2.imshow("correspondence", vis)
         k = cv2.waitKey(0)
         if k == 27:         # wait for ESC key to exit
             cv2.destroyAllWindows()
         return vis
 
-
 if __name__ == '__main__':
-    cf = CorrespondenceFinder(None, None, None, flip_horizontal=False)
-    
-    for i in range(3):
-        f1 = '../images/phoxi/segmask_%d.png' % i
-        f2 = '../images/phoxi/segmask_%d.png' % (i + 1)
+    base_dir = '../networks'
+    network_dir = 'rope_400_cyl_rot_16'
+    dcn = DenseCorrespondenceNetwork.from_model_folder(os.path.join(base_dir, network_dir), model_param_file=os.path.join(base_dir, network_dir, '003501.pth'))
+    dcn.eval()
+    with open('../cfg/dataset_info.json', 'r') as f:
+        dataset_stats = json.load(f)
+    dataset_mean, dataset_std_dev = dataset_stats["mean"], dataset_stats["std_dev"]
+    cf = CorrespondenceFinder(dcn, dataset_mean, dataset_std_dev)
+    f1 = "../../reference_images/knot_reference.png"
+    with open('../../reference_images/knot_reference.json', 'r') as f:
+        ref_annots = json.load(f)
+        pull = [ref_annots["pull_x"], ref_annots["pull_y"]]
+        hold = [ref_annots["hold_x"], ref_annots["hold_y"]]
+        pixels = [pull, hold]
+    for i in range(10,50,10):
+        f2 = "../../rope_400_cyl_rot/processed/images/%06d_rgb.png"%i
         cf.load_image_pair(f1, f2)
-        pixels = sample_sparse_points(cf.pil_image_to_cv2(cf.img1_pil), k=100, dist=50)
-        best_matches = cf.find_best_gradient_matches_raw(pixels)
-        print(len(pixels), len(best_matches))
-        vis = cf.show_side_by_side(flip=False)
+        cf.compute_descriptors()
+        best_matches = cf.find_k_best_matches(pixels, 50, mode="median")
+        vis = cf.show_side_by_side()
