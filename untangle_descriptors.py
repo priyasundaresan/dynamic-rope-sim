@@ -1,13 +1,25 @@
 import bpy
 import numpy as np
-
 from math import pi
+import json
+import cv2
+import numpy as np
+import copy
+from PIL import Image
+from torchvision import transforms
+from sklearn.neighbors import NearestNeighbors
 import os
 import sys
+
 sys.path.append(os.getcwd())
+sys.path.insert(0, os.path.join(os.getcwd(), "dense_correspondence/pytorch-segmentation-detection"))
+sys.path.insert(0, os.path.join(os.getcwd(), "dense_correspondence/tools"))
+
+from dense_correspondence_network import DenseCorrespondenceNetwork
+from find_correspondences import CorrespondenceFinder
+from image_utils import * 
 
 from rigidbody_rope import *
-from sklearn.neighbors import NearestNeighbors
 
 def set_animation_settings(anim_end):
     # Sets up the animation to run till frame anim_end (otherwise default terminates @ 250)
@@ -48,45 +60,6 @@ def set_render_settings(engine, render_size):
         scene.view_settings.view_transform = 'Raw'
         scene.eevee.taa_render_samples = 1
 
-# def annotate(frame, mapping, num_annotations, knot_only=True, offset=1):
-def annotate(frame, mapping, num_annotations, knot_only=False, offset=1, bias_knot=3):
-    # knot_only = True:  means only record the under, over crossings
-    # knot_only = False:  means record annotations for full rope
-    '''Gets num_annotations annotations of cloth image at provided frame #, adds to mapping'''
-    scene = bpy.context.scene
-    render_size = (
-            int(scene.render.resolution_x),
-            int(scene.render.resolution_y),
-            )
-    pixels = []
-    if knot_only:
-        pull, hold, _ = find_knot(50)
-        indices = list(range(pull-offset, pull+offset+1)) + list(range(hold-offset, hold+offset+1))
-        knot_indices = indices
-    else:
-        indices = list(range(50))
-        pull, hold, _ = find_knot(50)
-        offset = 3
-        knot_indices = list(range(pull-offset, pull+offset+1)) + list(range(hold-offset, hold+offset+1))
-        # for _ in range(bias_knot):
-        #     indices.extend(knot_indices)
-    for i in indices:
-        cyl = get_piece("Cylinder", i if i != 0 else -1)
-        cyl_verts = list(cyl.data.vertices)
-        step_size = len(indices)*len(cyl_verts)//num_annotations
-        if i in knot_indices:
-            step_size = int(step_size/bias_knot)
-        else:
-            step_size = int(step_size*bias_knot)
-        vertex_coords = [cyl.matrix_world @ v.co for v in cyl_verts][np.random.randint(step_size)::step_size]
-        # vertex_coords = [cyl.matrix_world @ v.co for v in cyl_verts][::step_size]
-        for i in range(len(vertex_coords)):
-            v = vertex_coords[i]
-            camera_coord = bpy_extras.object_utils.world_to_camera_view(scene, bpy.context.scene.camera, v)
-            pixel = [round(camera_coord.x * render_size[0]), round(render_size[1] - camera_coord.y * render_size[1])]
-            pixels.append([pixel])
-    mapping[frame] = pixels
-
 def get_piece(piece_name, piece_id):
     # Returns the piece with name piece_name, index piece_id
     if piece_id == -1:
@@ -111,6 +84,7 @@ def take_action(obj, frame, action_vec, animate=True):
     toggle_animation(obj, curr_frame, animate)
     obj.location += Vector((dx,dy,dz))
     obj.keyframe_insert(data_path="location", frame=frame)
+
 
 def find_knot(num_segments, chain=False, depth_thresh=0.4, idx_thresh=3, pull_offset=3):
 
@@ -144,39 +118,17 @@ def find_knot(num_segments, chain=False, depth_thresh=0.4, idx_thresh=3, pull_of
             hold_idx = match_cyl["idx"]
             action_vec = [7*dx, 7*dy, 6] # Pull in the direction of the rope (NOTE: 7 is an arbitrary scale for now, 6 is z offset)
             return pull_idx, hold_idx, action_vec # Found! Return the pull, hold, and action
-    return -1, None, [0,0,0] # Didn't find a pull/hold
+    return -1, last, [0,0,0] # Didn't find a pull/hold
 
-def center_camera():
-    # move camera to above knot location as crop
-    knot_pull, knot_hold, _ = find_knot(50)
-    if knot_pull is -1 or knot_hold is None:
-        return
-    hold_cyl = get_piece("Cylinder", -1 if knot_hold == 0 else knot_hold)
-    pull_cyl = get_piece("Cylinder", -1 if knot_pull == 0 else knot_pull)
-    hold_loc = hold_cyl.matrix_world.translation
-    pull_loc = pull_cyl.matrix_world.translation
-    # pull_loc = hold_cyl.matrix_world.translation
-    camera_x = (hold_loc[0] + pull_loc[0])/2
-    camera_y = (hold_loc[1] + pull_loc[1])/2
-    camera_z = 2
-    # camera_z = 28
-    # reset camera location:
-    # bpy.context.scene.camera.location = (camera_x, camera_y, camera_z)
-    return
-
-def render_frame(frame, render_offset=0, step=2, num_annotations=400, filename="%06d_rgb.png", folder="images", annot=True, mapping=None):
+def render_frame(frame, render_offset=0, step=2, num_annotations=400, filename="%06d_rgb.png", folder="images"):
     # Renders a single frame in a sequence (if frame%step == 0)
     frame -= render_offset
-    center_camera()
     if frame%step == 0:
         scene = bpy.context.scene
-
         index = frame//step
         render_mask("image_masks/%06d_visible_mask.png", "images_depth/%06d_rgb.png", index)
         scene.render.filepath = os.path.join(folder, filename) % index
         bpy.ops.render.render(write_still=True)
-        if annot:
-            annotate(index, mapping, num_annotations)
 
 def render_mask(mask_filename, depth_filename, index):
     # NOTE: this method is still in progress
@@ -207,7 +159,7 @@ def render_mask(mask_filename, depth_filename, index):
 
     scene.render.filepath = mask_filename % index
     bpy.ops.render.render(write_still=True)
-    # Clean up
+    # Clean up 
     scene.render.engine = saved
     for node in tree.nodes:
         if node.name != "Render Layers":
@@ -251,37 +203,60 @@ def tie_knot(params, chain=False, render=False):
             render_frame(step)
     return 350
 
-def reidemeister(params, start_frame, render=False, render_offset=0, annot=True, mapping=None):
+def pixels_to_cylinders(pixels):
+    '''Gets num_annotations annotations of cloth image at provided frame #, adds to mapping'''
+    scene = bpy.context.scene
+    render_size = (
+            int(scene.render.resolution_x),
+            int(scene.render.resolution_y),
+            )
+    cyl_pixels = []
+    indices = list(range(50))
+    for i in indices:
+        cyl = get_piece("Cylinder", i if i != 0 else -1)
+        camera_coord = bpy_extras.object_utils.world_to_camera_view(scene, bpy.context.scene.camera, cyl.matrix_world.translation)
+        pixel = [round(camera_coord.x * render_size[0]), round(render_size[1] - camera_coord.y * render_size[1])]
+        cyl_pixels.append(pixel)
+    neigh = NearestNeighbors(1, 0)
+    neigh.fit(cyl_pixels)
+    match_idxs = neigh.kneighbors(pixels, 1, return_distance=False) # 1st neighbor is always identical, we want 2nd
+    return match_idxs.squeeze()
+    #nearest = match_idxs.squeeze().tolist()[1:][0]
+    #return nearest
 
+def descriptor_matches(cf, path_to_ref_img, pixels, curr_frame):
+    path_to_curr_img = "images/%06d_rgb.png" % curr_frame
+    cf.load_image_pair(path_to_ref_img, path_to_curr_img)
+    cf.compute_descriptors()
+    best_matches, _ = cf.find_k_best_matches(pixels, 50, mode="median")
+    cf.show_side_by_side()
+    return pixels_to_cylinders(best_matches)
+
+def reidemeister_descriptors(start_frame, cf, path_to_ref_img, ref_end_pixels, render=False, render_offset=0):
     piece = "Cylinder"
-    last = params["num_segments"]-1
-    end1 = get_piece(piece, -1)
-    end2 = get_piece(piece, last)
+    end2_idx, end1_idx = descriptor_matches(cf, path_to_ref_img, ref_end_pixels, start_frame)
+    end2 = get_piece(piece, end2_idx)
 
     middle_frame = start_frame+25
     end_frame = start_frame+50
-    end1_first = random.random() > 0.5
-    if end1_first:
-        take_action(end1, middle_frame, (11-end1.matrix_world.translation[0],0,0))
-    else:
-        take_action(end2, middle_frame, (-9-end2.matrix_world.translation[0],0,0))
+    take_action(end2, middle_frame, (-9-end2.matrix_world.translation[0],0,0))
     for step in range(start_frame, middle_frame):
         bpy.context.scene.frame_set(step)
         if render:
-            render_frame(step, render_offset=render_offset, annot=annot, mapping=mapping)
-    if end1_first:
-        take_action(end2, end_frame, (-9-end2.matrix_world.translation[0],0,0))
-    else:
-        take_action(end1, end_frame, (11-end1.matrix_world.translation[0],0,0))
+            render_frame(step, render_offset=render_offset, step=1)
+
+    end2_idx, end1_idx = descriptor_matches(cf, path_to_ref_img, ref_end_pixels, middle_frame-1)
+    end1 = get_piece(piece, end1_idx)
+    take_action(end1, end_frame, (11-end1.matrix_world.translation[0],0,0))
 
     # Drop the ends
-    toggle_animation(end1, middle_frame, False)
+    toggle_animation(end1, end_frame, False)
     toggle_animation(end2, end_frame, False)
 
     for step in range(middle_frame, end_frame):
         bpy.context.scene.frame_set(step)
         if render:
-            render_frame(step, render_offset=render_offset, annot=annot, mapping=mapping)
+            render_frame(step, render_offset=render_offset, step=1)
     return end_frame
 
 def random_loosen(params, start_frame, render=False, render_offset=0, annot=True, mapping=None):
@@ -297,9 +272,7 @@ def random_loosen(params, start_frame, render=False, render_offset=0, annot=True
 
     dx = np.random.uniform(0,1)*random.choice((-1,1))
     dy = np.random.uniform(0,1)*random.choice((-1,1))
-    #dz = np.random.uniform(0.5,1)
-    # dz = np.random.uniform(0.75, 2.25)
-    dz = np.random.uniform(0.75,1.5)
+    dz = np.random.uniform(0.75,1.75)
 
     mid_frame = start_frame + 50
     end_frame = start_frame + 100
@@ -308,7 +281,7 @@ def random_loosen(params, start_frame, render=False, render_offset=0, annot=True
     for step in range(start_frame, start_frame + 10):
         bpy.context.scene.frame_set(step)
         if render:
-            render_frame(step, render_offset=render_offset, annot=annot, mapping=mapping)
+            render_frame(step, render_offset=render_offset)
 
     take_action(pull_cyl, mid_frame, (dx,dy,dz))
     toggle_animation(pull_cyl, mid_frame, False)
@@ -316,27 +289,39 @@ def random_loosen(params, start_frame, render=False, render_offset=0, annot=True
     for step in range(start_frame + 10, end_frame):
         bpy.context.scene.frame_set(step)
         if render:
-            render_frame(step, render_offset=render_offset, annot=annot, mapping=mapping)
+            render_frame(step, render_offset=render_offset)
     return end_frame
 
-def generate_dataset(params, iters=1, chain=False, render=False):
-
+def run_untangling_rollout(params, cf, path_to_ref_img, ref_pixels, chain=False, render=True):
     set_animation_settings(7000)
     piece = "Cylinder"
     last = params["num_segments"]-1
-    mapping = {}
+
+    ref_knot_pixels = ref_pixels[:2]
+    ref_end_pixels = ref_pixels[2:]
 
     knot_end_frame = tie_knot(params, render=False)
-    reid_start = knot_end_frame
-    for i in range(iters):
-    # NOTE: each iteration renders 75 images, ~45 is about 3500 images for generating a training dset
-        reid_end_frame = reidemeister(params, reid_start, render=render, render_offset=knot_end_frame, mapping=mapping)
-        reid_start = random_loosen(params, reid_end_frame, render=render, render_offset=knot_end_frame, mapping=mapping)
-
-    with open("./images/knots_info.json", 'w') as outfile:
-        json.dump(mapping, outfile, sort_keys=True, indent=2)
+    render_frame(knot_end_frame, step=1)
+    reidemeister_descriptors(knot_end_frame, cf, path_to_ref_img, ref_end_pixels, render=True)
 
 if __name__ == '__main__':
+    base_dir = 'dense_correspondence/networks'
+    network_dir = 'full_length_corr'
+    dcn = DenseCorrespondenceNetwork.from_model_folder(os.path.join(base_dir, network_dir), model_param_file=os.path.join(base_dir, network_dir, '003501.pth'))
+    dcn.eval()
+    with open('dense_correspondence/cfg/dataset_info.json', 'r') as f:
+        dataset_stats = json.load(f)
+    dataset_mean, dataset_std_dev = dataset_stats["mean"], dataset_stats["std_dev"]
+    cf = CorrespondenceFinder(dcn, dataset_mean, dataset_std_dev)
+    path_to_ref_img = "reference_images/reid_ref.png"
+    with open('reference_images/ref_pixels.json', 'r') as f:
+        ref_annots = json.load(f)
+        pull = [ref_annots["pull_x"], ref_annots["pull_y"]]
+        hold = [ref_annots["hold_x"], ref_annots["hold_y"]]
+        left_end = [ref_annots["reid_left_x"], ref_annots["reid_left_y"]]
+        right_end = [ref_annots["reid_right_x"], ref_annots["reid_right_y"]]
+        ref_pixels = [pull, hold, left_end, right_end]
+
     with open("rigidbody_params.json", "r") as f:
         params = json.load(f)
     clear_scene()
@@ -344,5 +329,4 @@ if __name__ == '__main__':
     add_camera_light()
     set_render_settings(params["engine"],(params["render_width"],params["render_height"]))
     make_table(params)
-    generate_dataset(params, iters=40, render=True)
-    # generate_dataset(params, render=True)
+    run_untangling_rollout(params, cf, path_to_ref_img, ref_pixels, render=True)
