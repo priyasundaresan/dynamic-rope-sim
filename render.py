@@ -38,7 +38,7 @@ def set_render_settings(engine, render_size):
     scene.render.resolution_y = render_height
     #scene.view_settings.exposure = 0.8
     if engine == 'BLENDER_WORKBENCH':
-        scene.render.display_mode
+        #scene.render.display_mode
         scene.render.image_settings.color_mode = 'RGB'
         scene.display_settings.display_device = 'None'
         scene.sequencer_colorspace_settings.name = 'XYZ'
@@ -48,7 +48,7 @@ def set_render_settings(engine, render_size):
         scene.view_settings.view_transform = 'Raw'
         scene.eevee.taa_render_samples = 1
 
-# def annotate(frame, mapping, num_annotations, knot_only=True, offset=1):
+r# def annotate(frame, mapping, num_annotations, knot_only=True, offset=1):
 def annotate(frame, mapping, num_annotations, knot_only=False, offset=1, bias_knot=3):
     # knot_only = True:  means only record the under, over crossings
     # knot_only = False:  means record annotations for full rope
@@ -327,6 +327,7 @@ def generate_dataset(params, iters=1, chain=False, render=False):
     mapping = {}
 
     knot_end_frame = tie_knot(params, render=False)
+    
     reid_start = knot_end_frame
     for i in range(iters):
     # NOTE: each iteration renders 75 images, ~45 is about 3500 images for generating a training dset
