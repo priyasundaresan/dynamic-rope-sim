@@ -1,6 +1,8 @@
 import os
 import argparse
 
+# python copy_network --network_dir rope_400_cyl_16
+
 parser = argparse.ArgumentParser()
 parser.add_argument('--network_dir', type=str, help='path to dir with trained network')
 parser.add_argument('--iter', default='003501', type=str, help='iteration pth to copy over')
