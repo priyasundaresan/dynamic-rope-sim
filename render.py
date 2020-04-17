@@ -38,7 +38,7 @@ def set_render_settings(engine, render_size):
     scene.render.resolution_y = render_height
     #scene.view_settings.exposure = 0.8
     if engine == 'BLENDER_WORKBENCH':
-        scene.render.display_mode
+        #scene.render.display_mode
         scene.render.image_settings.color_mode = 'RGB'
         scene.display_settings.display_device = 'None'
         scene.sequencer_colorspace_settings.name = 'XYZ'
@@ -48,7 +48,8 @@ def set_render_settings(engine, render_size):
         scene.view_settings.view_transform = 'Raw'
         scene.eevee.taa_render_samples = 1
 
-def annotate(frame, mapping, num_annotations, knot_only=True, offset=1):
+r# def annotate(frame, mapping, num_annotations, knot_only=True, offset=1):
+def annotate(frame, mapping, num_annotations, knot_only=False, offset=1, bias_knot=3):
     # knot_only = True:  means only record the under, over crossings
     # knot_only = False:  means record annotations for full rope
     '''Gets num_annotations annotations of cloth image at provided frame #, adds to mapping'''
@@ -61,13 +62,24 @@ def annotate(frame, mapping, num_annotations, knot_only=True, offset=1):
     if knot_only:
         pull, hold, _ = find_knot(50)
         indices = list(range(pull-offset, pull+offset+1)) + list(range(hold-offset, hold+offset+1))
+        knot_indices = indices
     else:
         indices = list(range(50))
+        pull, hold, _ = find_knot(50)
+        offset = 3
+        knot_indices = list(range(pull-offset, pull+offset+1)) + list(range(hold-offset, hold+offset+1))
+        # for _ in range(bias_knot):
+        #     indices.extend(knot_indices)
     for i in indices:
         cyl = get_piece("Cylinder", i if i != 0 else -1)
         cyl_verts = list(cyl.data.vertices)
         step_size = len(indices)*len(cyl_verts)//num_annotations
-        vertex_coords = [cyl.matrix_world @ v.co for v in cyl_verts][::step_size] 
+        if i in knot_indices:
+            step_size = int(step_size/bias_knot)
+        else:
+            step_size = int(step_size*bias_knot)
+        vertex_coords = [cyl.matrix_world @ v.co for v in cyl_verts][np.random.randint(step_size)::step_size]
+        # vertex_coords = [cyl.matrix_world @ v.co for v in cyl_verts][::step_size]
         for i in range(len(vertex_coords)):
             v = vertex_coords[i]
             camera_coord = bpy_extras.object_utils.world_to_camera_view(scene, bpy.context.scene.camera, v)
@@ -132,13 +144,33 @@ def find_knot(num_segments, chain=False, depth_thresh=0.4, idx_thresh=3, pull_of
             hold_idx = match_cyl["idx"]
             action_vec = [7*dx, 7*dy, 6] # Pull in the direction of the rope (NOTE: 7 is an arbitrary scale for now, 6 is z offset)
             return pull_idx, hold_idx, action_vec # Found! Return the pull, hold, and action
-    return -1, last, [0,0,0] # Didn't find a pull/hold
+    return -1, None, [0,0,0] # Didn't find a pull/hold
+
+def center_camera():
+    # move camera to above knot location as crop
+    knot_pull, knot_hold, _ = find_knot(50)
+    if knot_pull is -1 or knot_hold is None:
+        return
+    hold_cyl = get_piece("Cylinder", -1 if knot_hold == 0 else knot_hold)
+    pull_cyl = get_piece("Cylinder", -1 if knot_pull == 0 else knot_pull)
+    hold_loc = hold_cyl.matrix_world.translation
+    pull_loc = pull_cyl.matrix_world.translation
+    # pull_loc = hold_cyl.matrix_world.translation
+    camera_x = (hold_loc[0] + pull_loc[0])/2
+    camera_y = (hold_loc[1] + pull_loc[1])/2
+    camera_z = 2
+    # camera_z = 28
+    # reset camera location:
+    # bpy.context.scene.camera.location = (camera_x, camera_y, camera_z)
+    return
 
 def render_frame(frame, render_offset=0, step=2, num_annotations=400, filename="%06d_rgb.png", folder="images", annot=True, mapping=None):
     # Renders a single frame in a sequence (if frame%step == 0)
     frame -= render_offset
+    center_camera()
     if frame%step == 0:
         scene = bpy.context.scene
+
         index = frame//step
         render_mask("image_masks/%06d_visible_mask.png", "images_depth/%06d_rgb.png", index)
         scene.render.filepath = os.path.join(folder, filename) % index
@@ -175,7 +207,7 @@ def render_mask(mask_filename, depth_filename, index):
 
     scene.render.filepath = mask_filename % index
     bpy.ops.render.render(write_still=True)
-    # Clean up 
+    # Clean up
     scene.render.engine = saved
     for node in tree.nodes:
         if node.name != "Render Layers":
@@ -243,7 +275,7 @@ def reidemeister(params, start_frame, render=False, render_offset=0, annot=True,
         take_action(end1, end_frame, (11-end1.matrix_world.translation[0],0,0))
 
     # Drop the ends
-    toggle_animation(end1, end_frame, False)
+    toggle_animation(end1, middle_frame, False)
     toggle_animation(end2, end_frame, False)
 
     for step in range(middle_frame, end_frame):
@@ -266,8 +298,8 @@ def random_loosen(params, start_frame, render=False, render_offset=0, annot=True
     dx = np.random.uniform(0,1)*random.choice((-1,1))
     dy = np.random.uniform(0,1)*random.choice((-1,1))
     #dz = np.random.uniform(0.5,1)
-    #dz = np.random.uniform(0.75,2.25)
-    dz = np.random.uniform(0.75,1.75)
+    # dz = np.random.uniform(0.75, 2.25)
+    dz = np.random.uniform(0.75,1.5)
 
     mid_frame = start_frame + 50
     end_frame = start_frame + 100
@@ -287,16 +319,17 @@ def random_loosen(params, start_frame, render=False, render_offset=0, annot=True
             render_frame(step, render_offset=render_offset, annot=annot, mapping=mapping)
     return end_frame
 
-def generate_dataset(params, chain=False, render=False):
+def generate_dataset(params, iters=1, chain=False, render=False):
 
     set_animation_settings(7000)
     piece = "Cylinder"
     last = params["num_segments"]-1
     mapping = {}
-    
+
     knot_end_frame = tie_knot(params, render=False)
+    
     reid_start = knot_end_frame
-    for i in range(4): 
+    for i in range(iters):
     # NOTE: each iteration renders 75 images, ~45 is about 3500 images for generating a training dset
         reid_end_frame = reidemeister(params, reid_start, render=render, render_offset=knot_end_frame, mapping=mapping)
         reid_start = random_loosen(params, reid_end_frame, render=render, render_offset=knot_end_frame, mapping=mapping)
@@ -312,4 +345,5 @@ if __name__ == '__main__':
     add_camera_light()
     set_render_settings(params["engine"],(params["render_width"],params["render_height"]))
     make_table(params)
-    generate_dataset(params, render=True)
+    generate_dataset(params, iters=40, render=True)
+    # generate_dataset(params, render=True)
