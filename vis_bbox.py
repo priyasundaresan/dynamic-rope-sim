@@ -15,13 +15,34 @@ def show_knots(idx, knots_info, save=True):
     print("Annotating %06d"%idx)
     start, end = pixels
     vis = cv2.rectangle(vis, tuple(start), tuple(end), (255, 0, 0), 2) 
-    #for i, (u, v) in enumerate(pixels):
-    #    (r, g, b) = colorsys.hsv_to_rgb(float(i)/len(pixels), 1.0, 1.0)
-    #    R, G, B = int(255 * r), int(255 * g), int(255 * b)
-    #    cv2.circle(vis,(int(u), int(v)), 1, (R, G, B), -1)
     if save:
     	annotated_filename = "{0:06d}_annotated.png".format(idx)
     	cv2.imwrite('./annotated/{}'.format(annotated_filename), vis)
+
+def generate_crops(idx, knots_info, save_resized=True, aspect=(640, 480)):
+    image_filename = "{0:05d}.jpg".format(idx)
+    img = cv2.imread('images/{}'.format(image_filename))
+    pixels = knots_info[str(idx)]
+    pixels = [i[0] for i in pixels]
+    print("Cropping %06d"%idx)
+    start, end = pixels
+    xmin, ymin = start
+    xmax, ymax = end
+    width = xmax - xmin
+    height = ymax - ymin
+    new_width = int((height*aspect[0])/aspect[1])
+    offset = new_width - width
+    xmin -= int(offset/2)
+    xmax += offset - int(offset/2)
+    crop = img[ymin:ymax, xmin:xmax]
+    if idx==22:
+        cv2.imshow("crop", crop)
+        cv2.waitKey(0)
+    resized = cv2.resize(crop, aspect)
+    result = resized if save_resized else crop
+    cropped_filename = "{0:06d}_cropped.png".format(idx)
+    cv2.imwrite('./crops/{}'.format(cropped_filename), result)
+    #vis = cv2.rectangle(vis, tuple(start), tuple(end), (255, 0, 0), 2) 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -32,9 +53,15 @@ if __name__ == '__main__':
     else:
         os.system("rm -rf ./annotated")
         os.makedirs("./annotated")
+    if not os.path.exists("./crops"):
+        os.makedirs('./crops')
+    else:
+        os.system("rm -rf ./crops")
+        os.makedirs("./crops")
     print("parsed")
     with open("images/knots_info.json", "r") as stream:
     	knots_info = json.load(stream)
     print("loaded knots info")
     for i in range(args.num):
-        show_knots(i, knots_info)
+        #show_knots(i, knots_info)
+        generate_crops(i, knots_info)
