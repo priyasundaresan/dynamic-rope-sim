@@ -48,15 +48,16 @@ def set_render_settings(engine, render_size):
         scene.view_settings.view_transform = 'Raw'
         scene.eevee.taa_render_samples = 1
 
-r# def annotate(frame, mapping, num_annotations, knot_only=True, offset=1):
+# def annotate(frame, mapping, num_annotations, knot_only=True, offset=1):
 def annotate(frame, mapping, num_annotations, knot_only=False, offset=1, bias_knot=3):
     # knot_only = True:  means only record the under, over crossings
     # knot_only = False:  means record annotations for full rope
     '''Gets num_annotations annotations of cloth image at provided frame #, adds to mapping'''
     scene = bpy.context.scene
+    render_scale = scene.render.resolution_percentage / 100
     render_size = (
-            int(scene.render.resolution_x),
-            int(scene.render.resolution_y),
+            int(scene.render.resolution_x * render_scale),
+            int(scene.render.resolution_y * render_scale),
             )
     pixels = []
     if knot_only:
@@ -345,5 +346,5 @@ if __name__ == '__main__':
     add_camera_light()
     set_render_settings(params["engine"],(params["render_width"],params["render_height"]))
     make_table(params)
-    generate_dataset(params, iters=40, render=True)
+    generate_dataset(params, iters=1, render=True)
     # generate_dataset(params, render=True)

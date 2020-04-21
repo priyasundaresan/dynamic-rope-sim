@@ -297,7 +297,8 @@ def random_loosen(params, start_frame, render=False, render_offset=0, annot=True
     dy = np.random.uniform(0,1)*random.choice((-1,1))
     #dz = np.random.uniform(0.5,1)
     #dz = np.random.uniform(0.75,2.25)
-    dz = np.random.uniform(0.75,1.75)
+    #dz = np.random.uniform(0.75,1.75)
+    dz = np.random.uniform(0.75,1.25)
 
     mid_frame = start_frame + 50
     end_frame = start_frame + 100

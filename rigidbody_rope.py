@@ -247,12 +247,10 @@ def make_rope_v3(params):
 
     
 def add_camera_light():
-    #bpy.ops.object.light_add(type='SUN', radius=1, location=(0,0,0))
-    bpy.ops.object.light_add(type='SUN', radius=1, location=(0,0,0), rotation=(36*np.pi/180, -65*np.pi/180, 18*np.pi/180))
-    #bpy.ops.object.camera_add(location=(1,-26,5), rotation=(0.8*pi/2,0,0))
-    #bpy.ops.object.camera_add(location=(0,0,35), rotation=(0,0,0))
-    #bpy.ops.object.camera_add(location=(2,0,28), rotation=(0,0,0))
-    bpy.ops.object.camera_add(location=(11,-33,7.5), rotation=(radians(80), 0, radians(16.5)))
+    bpy.ops.object.light_add(type='SUN', radius=1, location=(0,0,0))
+    #bpy.ops.object.light_add(type='SUN', radius=1, location=(0,0,0), rotation=(36*np.pi/180, -65*np.pi/180, 18*np.pi/180))
+    bpy.ops.object.camera_add(location=(2,0,28), rotation=(0,0,0))
+    #bpy.ops.object.camera_add(location=(11,-33,7.5), rotation=(radians(80), 0, radians(16.5)))
     bpy.context.scene.camera = bpy.context.object
 
 def make_table(params):
