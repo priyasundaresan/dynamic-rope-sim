@@ -3,28 +3,32 @@ import numpy as np
 from math import pi
 import json
 import cv2
-import numpy as np
 import copy
 from PIL import Image
 from torchvision import transforms
+import scipy
 from sklearn.neighbors import NearestNeighbors
 import matplotlib
 from mrcnn.config import Config
 from mrcnn.model import MaskRCNN, load_image_gt
 from mrcnn.model import mold_image
 from mrcnn.utils import Dataset, compute_ap
+import imageio
 import os
 import sys
 
 sys.path.append(os.getcwd())
 sys.path.insert(0, os.path.join(os.getcwd(), "dense_correspondence/pytorch-segmentation-detection"))
 sys.path.insert(0, os.path.join(os.getcwd(), "dense_correspondence/tools"))
+sys.path.insert(0, os.path.join(os.getcwd(), "mrcnn_bbox/tools"))
 
 from dense_correspondence_network import DenseCorrespondenceNetwork
 from find_correspondences import CorrespondenceFinder
 from image_utils import * 
 
 from rigidbody_rope import *
+
+from predict import BBoxFinder, PredictionConfig
 
 def set_animation_settings(anim_end):
     # Sets up the animation to run till frame anim_end (otherwise default terminates @ 250)
@@ -38,22 +42,11 @@ def set_render_settings(engine, render_size):
         os.makedirs('./images')
     else:
         os.system('rm -r ./images')
-    if not os.path.exists("./images_depth"):
-        os.makedirs('./images_depth')
-    else:
-        os.system('rm -r ./images_depth')
-        os.makedirs('./images_depth')
-    if not os.path.exists("./image_masks"):
-        os.makedirs('./image_masks')
-    else:
-        os.system('rm -r ./image_masks')
-        os.makedirs('./image_masks')
     scene = bpy.context.scene
     scene.render.engine = engine
     render_width, render_height = render_size
     scene.render.resolution_x = render_width
     scene.render.resolution_y = render_height
-    #scene.view_settings.exposure = 0.8
     if engine == 'BLENDER_WORKBENCH':
         scene.render.display_mode
         scene.render.image_settings.color_mode = 'RGB'
@@ -228,6 +221,11 @@ def reidemeister_descriptors(start_frame, cf, path_to_ref_img, ref_end_pixels, r
             render_frame(step, render_offset=render_offset, step=1)
     return end_frame
 
+def bbox_untangle(start_frame, bbox_detector, render=False, render_offset=0):
+    path_to_curr_img = "images/%06d_rgb.png" % (start_frame-render_offset)
+    curr_img = imageio.imread(path_to_curr_img)
+    bbox_predictor.predict(curr_img)
+
 def random_loosen(params, start_frame, render=False, render_offset=0, annot=True, mapping=None):
 
     piece = "Cylinder"
@@ -261,7 +259,7 @@ def random_loosen(params, start_frame, render=False, render_offset=0, annot=True
             render_frame(step, render_offset=render_offset)
     return end_frame
 
-def run_untangling_rollout(params, cf, path_to_ref_img, ref_pixels, chain=False, render=True):
+def run_untangling_rollout(params, cf, path_to_ref_img, ref_pixels, bbox_predictor, chain=False, render=True):
     set_animation_settings(7000)
     piece = "Cylinder"
     last = params["num_segments"]-1
@@ -273,7 +271,8 @@ def run_untangling_rollout(params, cf, path_to_ref_img, ref_pixels, chain=False,
     knot_end_frame = tie_knot(params, render=False)
     render_offset = knot_end_frame
     render_frame(knot_end_frame, render_offset=render_offset, step=1)
-    reidemeister_descriptors(knot_end_frame, cf, path_to_ref_img, ref_end_pixels, render=True, render_offset=render_offset)
+    reid_end = reidemeister_descriptors(knot_end_frame, cf, path_to_ref_img, ref_end_pixels, render=True, render_offset=render_offset)
+    bbox_untangle(reid_end, bbox_predictor, render=True, render_offset=reid_end)
 
 if __name__ == '__main__':
     base_dir = 'dense_correspondence/networks'
@@ -284,15 +283,21 @@ if __name__ == '__main__':
         dataset_stats = json.load(f)
     dataset_mean, dataset_std_dev = dataset_stats["mean"], dataset_stats["std_dev"]
     cf = CorrespondenceFinder(dcn, dataset_mean, dataset_std_dev)
-    path_to_ref_img = "reference_images/reid_ref_curvy.png"
-    #with open('reference_images/ref_pixels.json', 'r') as f:
-    with open('reference_images/ref_pixels_2.json', 'r') as f:
+    path_to_ref_img = "reference_images/reid_ref.png"
+    with open('reference_images/ref_pixels.json', 'r') as f:
+    #with open('reference_images/ref_pixels_2.json', 'r') as f:
         ref_annots = json.load(f)
         pull = [ref_annots["pull_x"], ref_annots["pull_y"]]
         hold = [ref_annots["hold_x"], ref_annots["hold_y"]]
         left_end = [ref_annots["reid_left_x"], ref_annots["reid_left_y"]]
         right_end = [ref_annots["reid_right_x"], ref_annots["reid_right_y"]]
         ref_pixels = [pull, hold, left_end, right_end]
+
+    cfg = PredictionConfig()
+    model = MaskRCNN(mode='inference', model_dir='./', config=cfg)
+    model_path = 'mrcnn_bbox/networks/knot_network_1000/mask_rcnn_knot_cfg_0007.h5'
+    model.load_weights(model_path, by_name=True)
+    bbox_predictor = BBoxFinder(model, cfg)
 
     with open("rigidbody_params.json", "r") as f:
         params = json.load(f)
@@ -301,4 +306,4 @@ if __name__ == '__main__':
     add_camera_light()
     set_render_settings(params["engine"],(params["render_width"],params["render_height"]))
     make_table(params)
-    run_untangling_rollout(params, cf, path_to_ref_img, ref_pixels, render=True)
+    run_untangling_rollout(params, cf, path_to_ref_img, ref_pixels, bbox_predictor, render=True)
