@@ -8,7 +8,7 @@ def mask(image_filename, directory, texture):
     img = cv2.imread('./%s/%s'%(directory, image_filename)).copy()
     mask = img/255.0
     mask_filename = image_filename.replace('visible_mask', 'mask')
-    cv2.imwrite('image_masks/{}'.format(mask_filename), mask)
+    cv2.imwrite('./{}/{}'.format(directory, mask_filename), mask)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

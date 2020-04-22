@@ -48,8 +48,8 @@ def set_render_settings(engine, render_size):
         scene.view_settings.view_transform = 'Raw'
         scene.eevee.taa_render_samples = 1
 
-# def annotate(frame, mapping, num_annotations, knot_only=True, offset=1):
-def annotate(frame, mapping, num_annotations, knot_only=False, offset=1, bias_knot=3):
+def annotate(frame, mapping, num_annotations, knot_only=True, offset=1):
+# def annotate(frame, mapping, num_annotations, knot_only=False, offset=1, bias_knot=3):
     # knot_only = True:  means only record the under, over crossings
     # knot_only = False:  means record annotations for full rope
     '''Gets num_annotations annotations of cloth image at provided frame #, adds to mapping'''
@@ -64,6 +64,7 @@ def annotate(frame, mapping, num_annotations, knot_only=False, offset=1, bias_kn
         pull, hold, _ = find_knot(50)
         indices = list(range(pull-offset, pull+offset+1)) + list(range(hold-offset, hold+offset+1))
         knot_indices = indices
+        bias_knot = 1 # no bias
     else:
         indices = list(range(50))
         pull, hold, _ = find_knot(50)
@@ -77,8 +78,8 @@ def annotate(frame, mapping, num_annotations, knot_only=False, offset=1, bias_kn
         step_size = len(indices)*len(cyl_verts)//num_annotations
         if i in knot_indices:
             step_size = int(step_size/bias_knot)
-        else:
-            step_size = int(step_size*bias_knot)
+        # else:
+        #     step_size = int(step_size*bias_knot/2)
         vertex_coords = [cyl.matrix_world @ v.co for v in cyl_verts][np.random.randint(step_size)::step_size]
         # vertex_coords = [cyl.matrix_world @ v.co for v in cyl_verts][::step_size]
         for i in range(len(vertex_coords)):
@@ -147,7 +148,7 @@ def find_knot(num_segments, chain=False, depth_thresh=0.4, idx_thresh=3, pull_of
             return pull_idx, hold_idx, action_vec # Found! Return the pull, hold, and action
     return -1, None, [0,0,0] # Didn't find a pull/hold
 
-def center_camera():
+def center_camera(randomize=True):
     # move camera to above knot location as crop
     knot_pull, knot_hold, _ = find_knot(50)
     if knot_pull is -1 or knot_hold is None:
@@ -159,10 +160,16 @@ def center_camera():
     # pull_loc = hold_cyl.matrix_world.translation
     camera_x = (hold_loc[0] + pull_loc[0])/2
     camera_y = (hold_loc[1] + pull_loc[1])/2
-    camera_z = 2
+    camera_z = 1
     # camera_z = 28
+    offset = 0.1
+    dx = np.random.uniform(-offset, offset) if randomize else 0
+    dy = np.random.uniform(-offset, offset) if randomize else 0
+    dz = np.random.uniform(-0.2, 0) if randomize else 0
+    bpy.context.scene.camera.rotation_euler = (0, 0, 0)
+
     # reset camera location:
-    # bpy.context.scene.camera.location = (camera_x, camera_y, camera_z)
+    bpy.context.scene.camera.location = (camera_x+dx, camera_y+dy, camera_z+dz)
     return
 
 def render_frame(frame, render_offset=0, step=2, num_annotations=400, filename="%06d_rgb.png", folder="images", annot=True, mapping=None):
@@ -328,7 +335,7 @@ def generate_dataset(params, iters=1, chain=False, render=False):
     mapping = {}
 
     knot_end_frame = tie_knot(params, render=False)
-    
+
     reid_start = knot_end_frame
     for i in range(iters):
     # NOTE: each iteration renders 75 images, ~45 is about 3500 images for generating a training dset
@@ -346,5 +353,5 @@ if __name__ == '__main__':
     add_camera_light()
     set_render_settings(params["engine"],(params["render_width"],params["render_height"]))
     make_table(params)
-    generate_dataset(params, iters=1, render=True)
+    generate_dataset(params, iters=40, render=True)
     # generate_dataset(params, render=True)
