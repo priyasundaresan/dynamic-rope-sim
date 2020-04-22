@@ -38,10 +38,11 @@ class HeatmapVisualization(object):
         img1_index = random.choice(range(0, len(os.listdir(self._image_dir))))
         img2_index = random.choice(range(0, len(os.listdir(self._image_dir))))
         print(img1_index, img2_index)
-        filename = "%06d_rgb.png"
+        #filename = "%06d_rgb.png"
         #filename = "%06d.png"
-        #f1 = os.path.join(self._image_dir, filename % img1_index)
-        f1 = os.path.join('../../reference_images/knot_reference.png')
+        filename = "%06d_cropped.png"
+        f1 = os.path.join(self._image_dir, filename % img1_index)
+        #f1 = os.path.join('../../reference_images/knot_reference.png')
         f2 = os.path.join(self._image_dir, filename % img2_index)
         self.img1_pil = Image.open(f1).convert('RGB').resize((self._image_width, self._image_height))
         self.img2_pil = Image.open(f2).convert('RGB').resize((self._image_width, self._image_height))
@@ -165,14 +166,14 @@ if __name__ == "__main__":
     base_dir = '../networks'
     #network_dir = 'rope_cyl_400_dim16'
     #network_dir = 'rope_400_cyl_rot_16'
-    network_dir = 'full_length_corr'
+    network_dir = 'small_crop_blur'
     dcn = DenseCorrespondenceNetwork.from_model_folder(os.path.join(base_dir, network_dir), model_param_file=os.path.join(base_dir, network_dir, '003501.pth'))
     dcn.eval()
     with open('../cfg/dataset_info.json', 'r') as f:
         dataset_stats = json.load(f)
     dataset_mean, dataset_std_dev = dataset_stats["mean"], dataset_stats["std_dev"]
-    image_dir = '../../rope_400_cyl_rot/processed/images'
-    #image_dir = '../../images'
+    #image_dir = '../../small_crop_blur/processed/images'
+    image_dir = '../../crops'
     heatmap_vis = HeatmapVisualization(dcn, dataset_mean, dataset_std_dev, image_dir)
     print "starting heatmap vis"
     heatmap_vis.run()

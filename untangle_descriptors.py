@@ -22,7 +22,7 @@ sys.path.insert(0, os.path.join(os.getcwd(), "dense_correspondence/tools"))
 
 from dense_correspondence_network import DenseCorrespondenceNetwork
 from find_correspondences import CorrespondenceFinder
-from image_utils import * 
+from image_utils import *
 
 from rigidbody_rope import *
 
@@ -228,6 +228,33 @@ def reidemeister_descriptors(start_frame, cf, path_to_ref_img, ref_end_pixels, r
             render_frame(step, render_offset=render_offset, step=1)
     return end_frame
 
+def take_undo_action_descriptors(start_frame, cf, path_to_ref_img, ref_end_pixels, render=False, render_offset=0):
+    pick, hold = descriptor_matches(cf, path_to_ref_img, ref_end_pixels, start_frame)
+    # calculate action vec lol
+    # action_vec =
+    pull_cyl = get_piece(piece, pick)
+    hold_cyl = get_piece(piece, hold)
+
+    ## Undoing
+    take_action(hold_cyl, start_frame + 100, (0,0,0))
+    for step in range(start_frame, start_frame+10):
+        bpy.context.scene.frame_set(step)
+        if render:
+            render_frame(step)
+    take_action(pull_cyl, start_frame + 100, action_vec)
+
+    ## Release both pull, hold
+    toggle_animation(pull_cyl, start_frame + 100, False)
+    toggle_animation(hold_cyl, start_frame + 100, False)
+
+    # Let the rope settle after the action, so we can know where the ends are afterwards
+    for step in range(start_frame + 10, start_frame + 200):
+        bpy.context.scene.frame_set(step)
+        if render:
+            render_frame(step)
+
+    return start_frame+200, pick, hold, action_vec
+
 def random_loosen(params, start_frame, render=False, render_offset=0, annot=True, mapping=None):
 
     piece = "Cylinder"
@@ -274,6 +301,23 @@ def run_untangling_rollout(params, cf, path_to_ref_img, ref_pixels, chain=False,
     render_offset = knot_end_frame
     render_frame(knot_end_frame, render_offset=render_offset, step=1)
     reidemeister_descriptors(knot_end_frame, cf, path_to_ref_img, ref_end_pixels, render=True, render_offset=render_offset)
+
+def load_cf(base_dir, network_dir, reid=True):
+    dcn = DenseCorrespondenceNetwork.from_model_folder(os.path.join(base_dir, network_dir), model_param_file=os.path.join(base_dir, network_dir, '003501.pth'))
+    dcn.eval()
+    with open('dense_correspondence/cfg/dataset_info.json', 'r') as f:
+        dataset_stats = json.load(f)
+    dataset_mean, dataset_std_dev = dataset_stats["mean"], dataset_stats["std_dev"]
+    cf = CorrespondenceFinder(dcn, dataset_mean, dataset_std_dev)
+    path_to_ref_img = "reference_images/reid_ref.png" if reid else "reference_images/undo_ref.png"
+    with open('reference_images/ref_pixels.json', 'r') as f:
+        ref_annots = json.load(f)
+        pull = [ref_annots["pull_x"], ref_annots["pull_y"]]
+        hold = [ref_annots["hold_x"], ref_annots["hold_y"]]
+        left_end = [ref_annots["reid_left_x"], ref_annots["reid_left_y"]]
+        right_end = [ref_annots["reid_right_x"], ref_annots["reid_right_y"]]
+        ref_pixels = [pull, hold, left_end, right_end]
+    return cf, path_to_ref_img, ref_pixels
 
 if __name__ == '__main__':
     base_dir = 'dense_correspondence/networks'
