@@ -8,6 +8,11 @@ import copy
 from PIL import Image
 from torchvision import transforms
 from sklearn.neighbors import NearestNeighbors
+import matplotlib
+from mrcnn.config import Config
+from mrcnn.model import MaskRCNN, load_image_gt
+from mrcnn.model import mold_image
+from mrcnn.utils import Dataset, compute_ap
 import os
 import sys
 
@@ -199,9 +204,9 @@ def reidemeister_descriptors(start_frame, cf, path_to_ref_img, ref_end_pixels, r
     end2_idx, end1_idx = descriptor_matches(cf, path_to_ref_img, ref_end_pixels, start_frame-render_offset)
     end2 = get_piece(piece, end2_idx)
 
-    middle_frame = start_frame+25
-    end_frame = start_frame+50
-    take_action(end2, middle_frame, (-9-end2.matrix_world.translation[0],0,0))
+    middle_frame = start_frame+50
+    end_frame = middle_frame+50
+    take_action(end2, middle_frame, (-8-end2.matrix_world.translation[0],0,0))
     for step in range(start_frame, middle_frame):
         bpy.context.scene.frame_set(step)
         if render:
@@ -209,13 +214,15 @@ def reidemeister_descriptors(start_frame, cf, path_to_ref_img, ref_end_pixels, r
 
     end2_idx, end1_idx = descriptor_matches(cf, path_to_ref_img, ref_end_pixels, middle_frame-1-render_offset)
     end1 = get_piece(piece, end1_idx)
-    take_action(end1, end_frame, (11-end1.matrix_world.translation[0],0,0))
+    toggle_animation(end2, middle_frame, False)
+    take_action(end1, end_frame, (10-end1.matrix_world.translation[0],0,0))
 
     # Drop the ends
+    #toggle_animation(end1, end_frame, False)
     toggle_animation(end1, end_frame, False)
-    toggle_animation(end2, end_frame, False)
 
-    for step in range(middle_frame, end_frame):
+    settle_time = 50
+    for step in range(middle_frame, end_frame+settle_time):
         bpy.context.scene.frame_set(step)
         if render:
             render_frame(step, render_offset=render_offset, step=1)
@@ -277,8 +284,9 @@ if __name__ == '__main__':
         dataset_stats = json.load(f)
     dataset_mean, dataset_std_dev = dataset_stats["mean"], dataset_stats["std_dev"]
     cf = CorrespondenceFinder(dcn, dataset_mean, dataset_std_dev)
-    path_to_ref_img = "reference_images/reid_ref.png"
-    with open('reference_images/ref_pixels.json', 'r') as f:
+    path_to_ref_img = "reference_images/reid_ref_curvy.png"
+    #with open('reference_images/ref_pixels.json', 'r') as f:
+    with open('reference_images/ref_pixels_2.json', 'r') as f:
         ref_annots = json.load(f)
         pull = [ref_annots["pull_x"], ref_annots["pull_y"]]
         hold = [ref_annots["hold_x"], ref_annots["hold_y"]]
