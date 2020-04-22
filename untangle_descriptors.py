@@ -60,7 +60,7 @@ def set_render_settings(engine, render_size):
 
 def get_piece(piece_name, piece_id):
     # Returns the piece with name piece_name, index piece_id
-    if piece_id == -1:
+    if piece_id == 0 or piece_id == -1:
         return bpy.data.objects['%s' % (piece_name)]
     return bpy.data.objects['%s.%03d' % (piece_name, piece_id)]
 
@@ -153,8 +153,13 @@ def tie_knot(params, chain=False, render=False):
     take_action(end2, 230, (-7,0,0))
 
     # Now, we "drop" the rope; no longer animated and will move only based on rigid body physics
-    toggle_animation(end1, 240, False)
-    toggle_animation(end2, 240, False)
+    #toggle_animation(end1, 240, False)
+    #toggle_animation(end2, 240, False)
+
+    take_action(end1, 260, (-1,0,-1))
+    take_action(end2, 260, (1,0,-1))
+    toggle_animation(end1, 280, False)
+    toggle_animation(end2, 280, False)
 
     ## Reidemeister
     for step in range(1, 350):
