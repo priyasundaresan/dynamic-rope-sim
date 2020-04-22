@@ -85,9 +85,7 @@ def take_action(obj, frame, action_vec, animate=True):
     obj.location += Vector((dx,dy,dz))
     obj.keyframe_insert(data_path="location", frame=frame)
 
-
 def find_knot(num_segments, chain=False, depth_thresh=0.4, idx_thresh=3, pull_offset=3):
-
     piece = "Torus" if chain else "Cylinder"
     cache = {}
 
@@ -126,45 +124,9 @@ def render_frame(frame, render_offset=0, step=2, num_annotations=400, filename="
     if frame%step == 0:
         scene = bpy.context.scene
         index = frame//step
-        render_mask("image_masks/%06d_visible_mask.png", "images_depth/%06d_rgb.png", index)
         scene.render.filepath = os.path.join(folder, filename) % index
         bpy.ops.render.render(write_still=True)
 
-def render_mask(mask_filename, depth_filename, index):
-    # NOTE: this method is still in progress
-    scene = bpy.context.scene
-    saved = scene.render.engine
-    scene.render.engine = 'BLENDER_EEVEE'
-    scene.eevee.taa_samples = 1
-    scene.eevee.taa_render_samples = 1
-    scene.use_nodes = True
-    tree = bpy.context.scene.node_tree
-    links = tree.links
-    render_node = tree.nodes["Render Layers"]
-    norm_node = tree.nodes.new(type="CompositorNodeNormalize")
-    inv_node = tree.nodes.new(type="CompositorNodeInvert")
-    math_node = tree.nodes.new(type="CompositorNodeMath")
-    math_node.operation = 'CEIL' # Threshold the depth image
-    composite = tree.nodes.new(type = "CompositorNodeComposite")
-
-    links.new(render_node.outputs["Depth"], inv_node.inputs["Color"])
-    links.new(inv_node.outputs[0], norm_node.inputs[0])
-    links.new(norm_node.outputs[0], composite.inputs["Image"])
-
-    scene.render.filepath = depth_filename % index
-    bpy.ops.render.render(write_still=True)
-
-    links.new(norm_node.outputs[0], math_node.inputs[0])
-    links.new(math_node.outputs[0], composite.inputs["Image"])
-
-    scene.render.filepath = mask_filename % index
-    bpy.ops.render.render(write_still=True)
-    # Clean up 
-    scene.render.engine = saved
-    for node in tree.nodes:
-        if node.name != "Render Layers":
-            tree.nodes.remove(node)
-    scene.use_nodes = False
 
 def tie_knot(params, chain=False, render=False):
 
@@ -200,7 +162,7 @@ def tie_knot(params, chain=False, render=False):
     for step in range(1, 350):
         bpy.context.scene.frame_set(step)
         if render:
-            render_frame(step)
+            render_frame(step, render_offset=render_offset)
     return 350
 
 def pixels_to_cylinders(pixels):
@@ -234,7 +196,7 @@ def descriptor_matches(cf, path_to_ref_img, pixels, curr_frame):
 
 def reidemeister_descriptors(start_frame, cf, path_to_ref_img, ref_end_pixels, render=False, render_offset=0):
     piece = "Cylinder"
-    end2_idx, end1_idx = descriptor_matches(cf, path_to_ref_img, ref_end_pixels, start_frame)
+    end2_idx, end1_idx = descriptor_matches(cf, path_to_ref_img, ref_end_pixels, start_frame-render_offset)
     end2 = get_piece(piece, end2_idx)
 
     middle_frame = start_frame+25
@@ -245,7 +207,7 @@ def reidemeister_descriptors(start_frame, cf, path_to_ref_img, ref_end_pixels, r
         if render:
             render_frame(step, render_offset=render_offset, step=1)
 
-    end2_idx, end1_idx = descriptor_matches(cf, path_to_ref_img, ref_end_pixels, middle_frame-1)
+    end2_idx, end1_idx = descriptor_matches(cf, path_to_ref_img, ref_end_pixels, middle_frame-1-render_offset)
     end1 = get_piece(piece, end1_idx)
     take_action(end1, end_frame, (11-end1.matrix_world.translation[0],0,0))
 
@@ -300,9 +262,11 @@ def run_untangling_rollout(params, cf, path_to_ref_img, ref_pixels, chain=False,
     ref_knot_pixels = ref_pixels[:2]
     ref_end_pixels = ref_pixels[2:]
 
+    #render_offset = 350 # length of a knot action
     knot_end_frame = tie_knot(params, render=False)
-    render_frame(knot_end_frame, step=1)
-    reidemeister_descriptors(knot_end_frame, cf, path_to_ref_img, ref_end_pixels, render=True)
+    render_offset = knot_end_frame
+    render_frame(knot_end_frame, render_offset=render_offset, step=1)
+    reidemeister_descriptors(knot_end_frame, cf, path_to_ref_img, ref_end_pixels, render=True, render_offset=render_offset)
 
 if __name__ == '__main__':
     base_dir = 'dense_correspondence/networks'
