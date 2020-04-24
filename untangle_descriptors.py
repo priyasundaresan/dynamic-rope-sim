@@ -240,11 +240,13 @@ def bbox_untangle(start_frame, bbox_detector, render_offset=0):
     boxes = bbox_predictor.predict(curr_img)
     return boxes[0] # ASSUME first box is knot to be untied
 
-def undone_check(start_frame, bbox_detector, cf, path_to_ref_img, ref_crop_pixels, hold_pos, render_offset=0, thresh=4):
+def undone_check(start_frame, bbox_detector, cf, path_to_ref_img, ref_crop_pixels, hold_pos, render_offset=0, thresh=20):
     pull_pixel, hold_pixel = find_pull_hold(start_frame, bbox_detector, cf, path_to_ref_img, ref_crop_pixels, render_offset=render_offset)
-    if np.linalg.norm(hold_pos - hold_pixel) < thresh: # threshold for when a crossing is undone
-        return False
-    return True
+    diff = np.array(hold_pos) - np.array(hold_pixel)
+    print("DIFF", np.linalg.norm(diff))
+    if np.linalg.norm(diff) < thresh: # threshold for when a crossing is undone
+        return False, pull_pixel, hold_pixel
+    return True, None, None
 
 def crop_and_resize(box, img, aspect=(320,240)):
     x1, y1, x2, y2 = box
@@ -296,10 +298,12 @@ def find_pull_hold(start_frame, bbox_detector, cf, path_to_ref_img, ref_crop_pix
 
     return pull_pixel, hold_pixel
 
-def take_undo_action_descriptors(start_frame, bbox_detector, cf, path_to_ref_img, ref_crop_pixels, render=False, render_offset=0):
+def take_undo_action_descriptors(start_frame, bbox_detector, cf, path_to_ref_img, ref_crop_pixels, render=False, render_offset=0, pixels=None):
     piece = "Cylinder"
-
-    pull_pixel, hold_pixel = find_pull_hold(start_frame, bbox_detector, cf, path_to_ref_img, ref_crop_pixels, render_offset=render_offset)
+    if pixels is None:
+        pull_pixel, hold_pixel = find_pull_hold(start_frame, bbox_detector, cf, path_to_ref_img, ref_crop_pixels, render_offset=render_offset)
+    else:
+        pull_pixel, hold_pixel = pixels
     # calculate action vec
     dx = pull_pixel[0] - hold_pixel[0]
     dy = pull_pixel[1] - hold_pixel[1]
@@ -333,8 +337,9 @@ def take_undo_action_descriptors(start_frame, bbox_detector, cf, path_to_ref_img
     toggle_animation(pull_cyl, start_frame + 100, False)
     toggle_animation(hold_cyl, start_frame + 100, False)
 
+    settle_time = 10
     # Let the rope settle after the action, so we can know where the ends are afterwards
-    for step in range(start_frame + 10, start_frame + 200):
+    for step in range(start_frame + 10, start_frame + 200 + settle_time):
         bpy.context.scene.frame_set(step)
         if render:
             render_frame(step, render_offset=render_offset, step=1)
@@ -394,8 +399,11 @@ def run_untangling_rollout(params, full_cf, crop_cf, path_to_ref_imgs, ref_pixel
 
     # take undo actions
     undo_end_frame, _, hold, _ = take_undo_action_descriptors(reid_end, bbox_predictor, crop_cf, path_to_ref_crop_img, ref_crop_pixels, render=True, render_offset=render_offset)
-    while not undone_check(undo_end_frame, bbox_predictor, crop_cf, path_to_ref_crop_img, ref_crop_pixels, hold, render_offset=render_offset):
-        undo_end_frame, _, hold, _ = take_undo_action_descriptors(undo_end_frame, bbox_predictor, crop_cf, path_to_ref_crop_img, ref_crop_pixels, render=True, render_offset=render_offset)
+    undone, pull_pixel, hold_pixel = undone_check(undo_end_frame, bbox_predictor, crop_cf, path_to_ref_crop_img, ref_crop_pixels, hold, render_offset=render_offset)
+    while not undone:
+        undo_end_frame, _, hold, _ = take_undo_action_descriptors(undo_end_frame, bbox_predictor, crop_cf, path_to_ref_crop_img, ref_crop_pixels, render=True, render_offset=render_offset, pixels=[pull_pixel, hold_pixel])
+        undone, pull_pixel, hold_pixel = undone_check(undo_end_frame, bbox_predictor, crop_cf, path_to_ref_crop_img, ref_crop_pixels, hold, render_offset=render_offset)
+
 
 def load_cf(base_dir, network_dir, crop=False):
     dcn = DenseCorrespondenceNetwork.from_model_folder(os.path.join(base_dir, network_dir), model_param_file=os.path.join(base_dir, network_dir, '003501.pth'))
