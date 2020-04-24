@@ -42,6 +42,10 @@ def set_render_settings(engine, render_size):
         os.makedirs('./images')
     else:
         os.system('rm -r ./images')
+    if os.path.exists("./preds"):
+        os.system('rm -r ./preds')
+    print("making preds folder")
+    os.makedirs('./preds')
     scene = bpy.context.scene
     scene.render.engine = engine
     render_width, render_height = render_size
@@ -194,7 +198,8 @@ def descriptor_matches(cf, path_to_ref_img, pixels, curr_frame, crop=False):
     cf.load_image_pair(path_to_ref_img, path_to_curr_img)
     cf.compute_descriptors()
     best_matches, _ = cf.find_k_best_matches(pixels, 50, mode="median")
-    cf.show_side_by_side()
+    vis = cf.show_side_by_side()
+    cv2.imwrite("preds/%06d_desc.png" % curr_frame, vis)
     # return pixels_to_cylinders(best_matches)
     return best_matches
 
@@ -281,6 +286,7 @@ def find_pull_hold(start_frame, bbox_detector, cf, path_to_ref_img, ref_crop_pix
     # scale box and save to "images/%06d_crop.png" % curr_frame
     crop, rescale_factor, (x_off, y_off) = crop_and_resize(box, img)
     cv2.imwrite("images/%06d_crop.png" % (start_frame-render_offset), crop)
+    cv2.imwrite("preds/%06d_bbox.png" % (start_frame-render_offset), crop)
 
     pull_crop_pixel, hold_crop_pixel = descriptor_matches(cf, path_to_ref_img, ref_crop_pixels, start_frame-render_offset, crop=True)
     
@@ -304,6 +310,7 @@ def take_undo_action_descriptors(start_frame, bbox_detector, cf, path_to_ref_img
     dy = pull_pixel[1] - hold_pixel[1]
     action_vec = [dx, dy, 6] # 6 is arbitrary for dz
     action_vec /= np.linalg.norm(action_vec)
+    action_vec *= 2
 
     print("hold", hold_pixel)
     print("pull", pull_pixel)
@@ -356,8 +363,10 @@ def random_loosen(params, start_frame, render=False, render_offset=0, annot=True
     dy = np.random.uniform(0,1)*random.choice((-1,1))
     dz = np.random.uniform(0.75,1.75)
 
-    mid_frame = start_frame + 50
-    end_frame = start_frame + 100
+    #mid_frame = start_frame + 50
+    #end_frame = start_frame + 100
+    mid_frame = start_frame + 30
+    end_frame = start_frame + 60
 
     take_action(hold_cyl, mid_frame, (0,0,0))
     for step in range(start_frame, start_frame + 10):
