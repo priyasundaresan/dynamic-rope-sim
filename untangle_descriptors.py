@@ -250,49 +250,44 @@ def crop_and_resize(box, img, aspect=(320,240)):
     x1, y1, x2, y2 = box
     x_min, x_max = min(x1,x2), max(x1,x2)
     y_min, y_max = min(y1,y2), max(y1,y2)
-    box_width = y_max - y_min
-    box_height = x_max - x_min
+    box_width = x_max - x_min
+    box_height = y_max - y_min
 
     # resize this crop to be 320x240
-    new_width = int((box_height*aspect[1])/aspect[0])
+    new_width = int((box_height*aspect[0])/aspect[1])
     offset = new_width - box_width
     x_min -= int(offset/2)
     x_max += offset - int(offset/2)
 
     crop = img[y_min:y_max, x_min:x_max]
     resized = cv2.resize(crop, aspect)
-    return resized
+    #rescale_factor = aspect[0]/new_width
+    rescale_factor = new_width/aspect[0]
+    offset = (x_min, y_min)
+    return resized, rescale_factor, offset
 
-def pixel_crop_to_full(box_pixel, box, aspect=(320,240)):
-    x1, y1, x2, y2 = box
-    x_min, x_max = min(x1,x2), max(x1,x2)
-    y_min, y_max = min(y1,y2), max(y1,y2)
-    box_width = y_max - y_min
-    box_height = x_max - x_min
-
-    # resize this crop to be 320x240
-    new_width = int((box_height*aspect[1])/aspect[0])
-    offset = new_width - box_width
-    x_min -= int(offset/2)
-    x_max += offset - int(offset/2)
-
-    box_pixel_x, box_pixel_y = box_pixel
-    full_pixel_x = int(box_pixel_x/aspect[0] * new_width) + x_min
-    full_pixel_y = int(box_pixel_y/aspect[1] * box_height) + y_min
-    return [full_pixel_x, full_pixel_y]
+def pixel_crop_to_full(pixels, crop_rescale_factor, x_offset, y_offset):
+    global_pixels = pixels * crop_rescale_factor
+    global_pixels[:, 0] += x_offset
+    global_pixels[:, 1] += y_offset
+    return global_pixels
 
 def find_pull_hold(start_frame, bbox_detector, cf, path_to_ref_img, ref_crop_pixels, render_offset=0):
     box, confidence = bbox_untangle(start_frame, bbox_detector, render_offset=render_offset)
     path_to_curr_img = "images/%06d_rgb.png" % (start_frame-render_offset)
     img = cv2.imread(path_to_curr_img)
     # scale box and save to "images/%06d_crop.png" % curr_frame
-    crop = crop_and_resize(box, img)
+    crop, rescale_factor, (x_off, y_off) = crop_and_resize(box, img)
     cv2.imwrite("images/%06d_crop.png" % (start_frame-render_offset), crop)
 
     pull_crop_pixel, hold_crop_pixel = descriptor_matches(cf, path_to_ref_img, ref_crop_pixels, start_frame-render_offset, crop=True)
+    
     # transform this pick and hold into overall space (scale and offset)
-    pull_pixel = pixel_crop_to_full(pull_crop_pixel, box)
-    hold_pixel = pixel_crop_to_full(hold_crop_pixel, box)
+    pull_pixel, hold_pixel = pixel_crop_to_full(np.array([pull_crop_pixel, hold_crop_pixel]), rescale_factor, x_off, y_off)
+    pull_pixel = (int(pull_pixel[0]), int(pull_pixel[1]))
+    hold_pixel = (int(hold_pixel[0]), int(hold_pixel[1]))
+    #pull_pixel = pixel_crop_to_full(pull_crop_pixel, box)
+    #hold_pixel = pixel_crop_to_full(hold_crop_pixel, box)
 
     return pull_pixel, hold_pixel
 
