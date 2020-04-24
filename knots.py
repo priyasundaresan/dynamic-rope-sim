@@ -45,7 +45,6 @@ def take_action(obj, frame, action_vec, animate=True):
     # obj.keyframe_insert(data_path="rotation_quaternion", frame=frame)
 
 def tie_pretzel_knot(params, chain=False, render=False):
-    set_animation_settings(500)
 
     piece = "Cylinder"
     last = params["num_segments"]-1
@@ -88,7 +87,6 @@ def tie_pretzel_knot(params, chain=False, render=False):
     return 350
 
 def tie_figure_eight(params, chain=False, render=False):
-    set_animation_settings(500)
 
     piece = "Cylinder"
     last = params["num_segments"]-1
@@ -114,9 +112,9 @@ def tie_figure_eight(params, chain=False, render=False):
     # Take some time to settle
     toggle_animation(end1, 450, False)
     toggle_animation(end2, 450, False)
+    return 450
 
 def tie_stevedore(params, chain=False, render=False):
-    set_animation_settings(550)
 
     piece = "Cylinder"
     last = params["num_segments"]-1
@@ -147,9 +145,9 @@ def tie_stevedore(params, chain=False, render=False):
     # Take some time to settle
     toggle_animation(end1, 470, False)
     toggle_animation(end2, 470, False)
+    return 470
 
 def tie_double_pretzel(params, chain=False, render=False):
-    set_animation_settings(550)
 
     piece = "Cylinder"
     last = params["num_segments"]-1
@@ -173,7 +171,6 @@ def tie_double_pretzel(params, chain=False, render=False):
     take_action(end2, 300, (-3,0,5))
     take_action(end1, 300, (4,0,0))
 
-    #take_action(end1, 300, (0,0,0))
     take_action(end1, 320, (-10,3,-3))
     take_action(end1, 360, (-2,-3.5,0))
     take_action(end1, 380, (1,-1,-2))
@@ -182,9 +179,14 @@ def tie_double_pretzel(params, chain=False, render=False):
     take_action(end1, 460, (-2,1,5))
     take_action(end1, 490, (8,0,0))
 
+    take_action(end1, 490, (0,0,0))
+    take_action(end2, 490, (0,0,0))
+    take_action(end2, 510, (8,0,0))
+    take_action(end1, 510, (8,0,0))
+
     # Take some time to settle
-    toggle_animation(end1, 520, False)
-    toggle_animation(end2, 520, False)
+    toggle_animation(end1, 540, False)
+    toggle_animation(end2, 540, False)
 
 if __name__ == '__main__':
     with open("rigidbody_params.json", "r") as f:
@@ -192,9 +194,10 @@ if __name__ == '__main__':
     clear_scene()
     make_rope(params)
     add_camera_light()
+    set_animation_settings(600)
     #set_render_settings(params["engine"],(params["render_width"],params["render_height"]))
     make_table(params)
-    #tie_figure_eight(params, render=True)
+    tie_figure_eight(params, render=True)
     #tie_pretzel_knot(params, render=True)
     #tie_stevedore(params, render=True)
-    tie_double_pretzel(params, render=True)
+    #tie_double_pretzel(params, render=True)
