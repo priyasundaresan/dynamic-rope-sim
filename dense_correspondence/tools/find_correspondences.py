@@ -11,33 +11,35 @@ from torchvision import transforms
 from sklearn.neighbors import NearestNeighbors
 
 #from image_utils import geometric_median, sample_nearest_points_on_mask, farthest_pixel_correspondence
-from image_utils import * 
+from image_utils import *
 #from pixel_selector import PixelSelector
 
 class CorrespondenceFinder:
-    def __init__(self, dcn, dataset_mean, dataset_std_dev):
+    def __init__(self, dcn, dataset_mean, dataset_std_dev, image_width=640, image_height=480):
         self.dcn = dcn
         self.dataset_mean = dataset_mean
         self.dataset_std_dev = dataset_std_dev
+        self.image_width = image_width
+        self.image_height = image_height
 
     def get_rgb_image(self, rgb_filename):
-        return Image.open(rgb_filename).convert('RGB').resize((640, 480))
+        return Image.open(rgb_filename).convert('RGB').resize((self.image_width, self.image_height))
 
     def get_grayscale_image(self, grayscale_filename):
-        return Image.open(grayscale_filename).resize((640, 480))
+        return Image.open(grayscale_filename).resize((self.image_width, self.image_height))
 
     def pil_image_to_cv2(self, pil_image):
         return np.array(pil_image)[:, :, ::-1].copy() # open and convert between BGR and RGB
-    
+
     def rgb_image_to_tensor(self, img):
-        norm_transform = transforms.Normalize(self.dataset_mean, self.dataset_std_dev) 
+        norm_transform = transforms.Normalize(self.dataset_mean, self.dataset_std_dev)
         return transforms.Compose([transforms.ToTensor(), norm_transform])(img)
 
     def load_image_pair(self, img1_filename, img2_filename):
         self.img1_pil = self.get_rgb_image(img1_filename)
         self.img2_pil = self.get_rgb_image(img2_filename)
-        self.img1 = cv2.resize(cv2.imread(img1_filename, 0), (640, 480))
-        self.img2 = cv2.resize(cv2.imread(img2_filename, 0), (640, 480))
+        self.img1 = cv2.resize(cv2.imread(img1_filename, 0), (self.image_width, self.image_height))
+        self.img2 = cv2.resize(cv2.imread(img2_filename, 0), (self.image_width, self.image_height))
         print("loaded images successfully")
 
     def compute_descriptors(self):

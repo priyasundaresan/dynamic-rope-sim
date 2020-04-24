@@ -189,17 +189,21 @@ def pixels_to_cylinders(pixels):
     #nearest = match_idxs.squeeze().tolist()[1:][0]
     #return nearest
 
-def descriptor_matches(cf, path_to_ref_img, pixels, curr_frame):
-    path_to_curr_img = "images/%06d_rgb.png" % curr_frame
+def descriptor_matches(cf, path_to_ref_img, pixels, curr_frame, crop=False):
+    path_to_curr_img = "images/%06d_crop.png" % curr_frame if crop else "images/%06d_rgb.png" % curr_frame
     cf.load_image_pair(path_to_ref_img, path_to_curr_img)
     cf.compute_descriptors()
     best_matches, _ = cf.find_k_best_matches(pixels, 50, mode="median")
     cf.show_side_by_side()
-    return pixels_to_cylinders(best_matches)
+    # return pixels_to_cylinders(best_matches)
+    return best_matches
 
 def reidemeister_descriptors(start_frame, cf, path_to_ref_img, ref_end_pixels, render=False, render_offset=0):
     piece = "Cylinder"
-    end2_idx, end1_idx = descriptor_matches(cf, path_to_ref_img, ref_end_pixels, start_frame-render_offset)
+    # end2_idx, end1_idx = descriptor_matches(cf, path_to_ref_img, ref_end_pixels, start_frame-render_offset)
+    end2_pixel, end1_pixel = descriptor_matches(cf, path_to_ref_img, ref_end_pixels, start_frame-render_offset)
+    end2_idx = pixels_to_cylinders([end2_pixel])
+    end1_idx = pixels_to_cylinders([end1_pixel])
     end2 = get_piece(piece, end2_idx)
 
     middle_frame = start_frame+50
@@ -210,7 +214,11 @@ def reidemeister_descriptors(start_frame, cf, path_to_ref_img, ref_end_pixels, r
         if render:
             render_frame(step, render_offset=render_offset, step=1)
 
-    end2_idx, end1_idx = descriptor_matches(cf, path_to_ref_img, ref_end_pixels, middle_frame-1-render_offset)
+    # end2_idx, end1_idx = descriptor_matches(cf, path_to_ref_img, ref_end_pixels, middle_frame-1-render_offset)
+    end2_pixel, end1_pixel = descriptor_matches(cf, path_to_ref_img, ref_end_pixels, start_frame-render_offset)
+    end2_idx = pixels_to_cylinders([end2_pixel])
+    end1_idx = pixels_to_cylinders([end1_pixel])
+
     end1 = get_piece(piece, end1_idx)
     toggle_animation(end2, middle_frame, False)
     take_action(end1, end_frame, (10-end1.matrix_world.translation[0],0,0))
@@ -226,24 +234,99 @@ def reidemeister_descriptors(start_frame, cf, path_to_ref_img, ref_end_pixels, r
             render_frame(step, render_offset=render_offset, step=1)
     return end_frame
 
-def bbox_untangle(start_frame, bbox_detector, render=False, render_offset=0):
+def bbox_untangle(start_frame, bbox_detector, render_offset=0):
     path_to_curr_img = "images/%06d_rgb.png" % (start_frame-render_offset)
     curr_img = imageio.imread(path_to_curr_img)
-    bbox_predictor.predict(curr_img)
+    boxes = bbox_predictor.predict(curr_img)
+    return boxes[0] # ASSUME first box is knot to be untied
 
-def take_undo_action_descriptors(start_frame, cf, path_to_ref_img, ref_end_pixels, render=False, render_offset=0):
-    pick, hold = descriptor_matches(cf, path_to_ref_img, ref_end_pixels, start_frame)
-    # calculate action vec lol
-    # action_vec =
-    pull_cyl = get_piece(piece, pick)
-    hold_cyl = get_piece(piece, hold)
+def undone_check(start_frame, bbox_detector, cf, path_to_ref_img, ref_crop_pixels, hold_pos, render_offset=0, thresh=4):
+    pull_pixel, hold_pixel = find_pull_hold(start_frame, bbox_detector, cf, path_to_ref_img, ref_crop_pixels, render_offset=render_offset)
+    if np.linalg.norm(hold_pos - hold_pixel) < thresh: # threshold for when a crossing is undone
+        return False
+    return True
+
+def crop_and_resize(box, img, aspect=(320,240)):
+    x1, y1, x2, y2 = box
+    x_min, x_max = min(x1,x2), max(x1,x2)
+    y_min, y_max = min(y1,y2), max(y1,y2)
+    box_width = y_max - y_min
+    box_height = x_max - x_min
+
+    # resize this crop to be 320x240
+    new_width = int((box_height*aspect[1])/aspect[0])
+    offset = new_width - box_width
+    x_min -= int(offset/2)
+    x_max += offset - int(offset/2)
+
+    crop = img[y_min:y_max, x_min:x_max]
+    resized = cv2.resize(crop, aspect)
+    return resized
+
+def pixel_crop_to_full(box_pixel, box, aspect=(320,240)):
+    x1, y1, x2, y2 = box
+    x_min, x_max = min(x1,x2), max(x1,x2)
+    y_min, y_max = min(y1,y2), max(y1,y2)
+    box_width = y_max - y_min
+    box_height = x_max - x_min
+
+    # resize this crop to be 320x240
+    new_width = int((box_height*aspect[1])/aspect[0])
+    offset = new_width - box_width
+    x_min -= int(offset/2)
+    x_max += offset - int(offset/2)
+
+    box_pixel_x, box_pixel_y = box_pixel
+    full_pixel_x = int(box_pixel_x/aspect[0] * new_width) + x_min
+    full_pixel_y = int(box_pixel_y/aspect[1] * box_height) + y_min
+    return [full_pixel_x, full_pixel_y]
+
+def find_pull_hold(start_frame, bbox_detector, cf, path_to_ref_img, ref_crop_pixels, render_offset=0):
+    box, confidence = bbox_untangle(start_frame, bbox_detector, render_offset=render_offset)
+    path_to_curr_img = "images/%06d_rgb.png" % (start_frame-render_offset)
+    img = cv2.imread(path_to_curr_img)
+    # scale box and save to "images/%06d_crop.png" % curr_frame
+    crop = crop_and_resize(box, img)
+    cv2.imwrite("images/%06d_crop.png" % (start_frame-render_offset), crop)
+
+    pull_crop_pixel, hold_crop_pixel = descriptor_matches(cf, path_to_ref_img, ref_crop_pixels, start_frame-render_offset, crop=True)
+    # transform this pick and hold into overall space (scale and offset)
+    pull_pixel = pixel_crop_to_full(pull_crop_pixel, box)
+    hold_pixel = pixel_crop_to_full(hold_crop_pixel, box)
+
+    return pull_pixel, hold_pixel
+
+def take_undo_action_descriptors(start_frame, bbox_detector, cf, path_to_ref_img, ref_crop_pixels, render=False, render_offset=0):
+    piece = "Cylinder"
+
+    pull_pixel, hold_pixel = find_pull_hold(start_frame, bbox_detector, cf, path_to_ref_img, ref_crop_pixels, render_offset=render_offset)
+    # calculate action vec
+    dx = pull_pixel[0] - hold_pixel[0]
+    dy = pull_pixel[1] - hold_pixel[1]
+    action_vec = [dx, dy, 6] # 6 is arbitrary for dz
+    action_vec /= np.linalg.norm(action_vec)
+
+    print("hold", hold_pixel)
+    print("pull", pull_pixel)
+    path_to_curr_img = "images/%06d_rgb.png" % (start_frame-render_offset)
+    img = cv2.imread(path_to_curr_img)
+    img = cv2.circle(img, tuple(hold_pixel), 5, (255, 0, 0), 2)
+    img = cv2.circle(img, tuple(pull_pixel), 5, (0, 0, 255), 2)
+    img = cv2.arrowedLine(img, tuple(pull_pixel), (pull_pixel[0]+dx*5, pull_pixel[1]+dy*5), (0, 255, 0), 2)
+    cv2.imshow("action", img)
+    cv2.waitKey(0)
+
+    hold_idx = pixels_to_cylinders([hold_pixel])
+    pull_idx = pixels_to_cylinders([pull_pixel])
+    pull_cyl = get_piece(piece, pull_idx)
+    hold_cyl = get_piece(piece, hold_idx)
 
     ## Undoing
     take_action(hold_cyl, start_frame + 100, (0,0,0))
     for step in range(start_frame, start_frame+10):
         bpy.context.scene.frame_set(step)
         if render:
-            render_frame(step)
+            render_frame(step, render_offset=render_offset, step=1)
     take_action(pull_cyl, start_frame + 100, action_vec)
 
     ## Release both pull, hold
@@ -254,9 +337,9 @@ def take_undo_action_descriptors(start_frame, cf, path_to_ref_img, ref_end_pixel
     for step in range(start_frame + 10, start_frame + 200):
         bpy.context.scene.frame_set(step)
         if render:
-            render_frame(step)
+            render_frame(step, render_offset=render_offset, step=1)
 
-    return start_frame+200, pick, hold, action_vec
+    return start_frame+200, pull_pixel, hold_pixel, action_vec
 
 def random_loosen(params, start_frame, render=False, render_offset=0, annot=True, mapping=None):
 
@@ -291,56 +374,57 @@ def random_loosen(params, start_frame, render=False, render_offset=0, annot=True
             render_frame(step, render_offset=render_offset)
     return end_frame
 
-def run_untangling_rollout(params, cf, path_to_ref_img, ref_pixels, bbox_predictor, chain=False, render=True):
+def run_untangling_rollout(params, full_cf, crop_cf, path_to_ref_imgs, ref_pixels, bbox_predictor, chain=False, render=True):
     set_animation_settings(7000)
     piece = "Cylinder"
     last = params["num_segments"]-1
 
     ref_knot_pixels = ref_pixels[:2]
-    ref_end_pixels = ref_pixels[2:]
+    ref_end_pixels = ref_pixels[2:4]
+    ref_crop_pixels = ref_pixels[4:]
+
+    path_to_ref_full_img = os.path.join(path_to_ref_img, 'reid_ref.png')
+    path_to_ref_crop_img = os.path.join(path_to_ref_img, 'crop_ref.png')
 
     #render_offset = 350 # length of a knot action
     knot_end_frame = tie_knot(params, render=False)
     render_offset = knot_end_frame
     render_frame(knot_end_frame, render_offset=render_offset, step=1)
-    reid_end = reidemeister_descriptors(knot_end_frame, cf, path_to_ref_img, ref_end_pixels, render=True, render_offset=render_offset)
-    bbox_untangle(reid_end, bbox_predictor, render=True, render_offset=reid_end)
+    reid_end = reidemeister_descriptors(knot_end_frame, full_cf, path_to_ref_full_img, ref_end_pixels, render=True, render_offset=render_offset)
 
-def load_cf(base_dir, network_dir, reid=True):
+    # take undo actions
+    undo_end_frame, _, hold, _ = take_undo_action_descriptors(reid_end, bbox_predictor, crop_cf, path_to_ref_crop_img, ref_crop_pixels, render=True, render_offset=render_offset)
+    while not undone_check(undo_end_frame, bbox_predictor, crop_cf, path_to_ref_crop_img, ref_crop_pixels, hold, render_offset=render_offset):
+        undo_end_frame, _, hold, _ = take_undo_action_descriptors(undo_end_frame, bbox_predictor, crop_cf, path_to_ref_crop_img, ref_crop_pixels, render=True, render_offset=render_offset)
+
+def load_cf(base_dir, network_dir, crop=False):
     dcn = DenseCorrespondenceNetwork.from_model_folder(os.path.join(base_dir, network_dir), model_param_file=os.path.join(base_dir, network_dir, '003501.pth'))
     dcn.eval()
     with open('dense_correspondence/cfg/dataset_info.json', 'r') as f:
         dataset_stats = json.load(f)
     dataset_mean, dataset_std_dev = dataset_stats["mean"], dataset_stats["std_dev"]
-    cf = CorrespondenceFinder(dcn, dataset_mean, dataset_std_dev)
-    path_to_ref_img = "reference_images/reid_ref.png" if reid else "reference_images/undo_ref.png"
+    image_width = 320 if crop else 640
+    image_height = 240 if crop else 480
+    cf = CorrespondenceFinder(dcn, dataset_mean, dataset_std_dev, image_width=image_width, image_height=image_height)
+    path_to_ref_img = "reference_images"
     with open('reference_images/ref_pixels.json', 'r') as f:
         ref_annots = json.load(f)
-        pull = [ref_annots["pull_x"], ref_annots["pull_y"]]
-        hold = [ref_annots["hold_x"], ref_annots["hold_y"]]
-        left_end = [ref_annots["reid_left_x"], ref_annots["reid_left_y"]]
-        right_end = [ref_annots["reid_right_x"], ref_annots["reid_right_y"]]
-        ref_pixels = [pull, hold, left_end, right_end]
+    pull = [ref_annots["pull_x"], ref_annots["pull_y"]]
+    hold = [ref_annots["hold_x"], ref_annots["hold_y"]]
+    left_end = [ref_annots["reid_left_x"], ref_annots["reid_left_y"]]
+    right_end = [ref_annots["reid_right_x"], ref_annots["reid_right_y"]]
+    crop_pull = [ref_annots["crop_pull_x"], ref_annots["crop_pull_y"]]
+    crop_hold = [ref_annots["crop_hold_x"], ref_annots["crop_hold_y"]]
+    ref_pixels = [pull, hold, left_end, right_end, crop_pull, crop_hold]
     return cf, path_to_ref_img, ref_pixels
 
 if __name__ == '__main__':
     base_dir = 'dense_correspondence/networks'
     network_dir = 'full_length_corr'
-    dcn = DenseCorrespondenceNetwork.from_model_folder(os.path.join(base_dir, network_dir), model_param_file=os.path.join(base_dir, network_dir, '003501.pth'))
-    dcn.eval()
-    with open('dense_correspondence/cfg/dataset_info.json', 'r') as f:
-        dataset_stats = json.load(f)
-    dataset_mean, dataset_std_dev = dataset_stats["mean"], dataset_stats["std_dev"]
-    cf = CorrespondenceFinder(dcn, dataset_mean, dataset_std_dev)
-    path_to_ref_img = "reference_images/reid_ref.png"
-    with open('reference_images/ref_pixels.json', 'r') as f:
-    #with open('reference_images/ref_pixels_2.json', 'r') as f:
-        ref_annots = json.load(f)
-        pull = [ref_annots["pull_x"], ref_annots["pull_y"]]
-        hold = [ref_annots["hold_x"], ref_annots["hold_y"]]
-        left_end = [ref_annots["reid_left_x"], ref_annots["reid_left_y"]]
-        right_end = [ref_annots["reid_right_x"], ref_annots["reid_right_y"]]
-        ref_pixels = [pull, hold, left_end, right_end]
+    full_cf, path_to_ref_img, ref_pixels = load_cf(base_dir, network_dir)
+
+    network_dir = 'crop_s2_blur7-10_unzoomed'
+    crop_cf, path_to_ref_img, ref_pixels = load_cf(base_dir, network_dir, crop=True)
 
     cfg = PredictionConfig()
     model = MaskRCNN(mode='inference', model_dir='./', config=cfg)
@@ -355,4 +439,4 @@ if __name__ == '__main__':
     add_camera_light()
     set_render_settings(params["engine"],(params["render_width"],params["render_height"]))
     make_table(params)
-    run_untangling_rollout(params, cf, path_to_ref_img, ref_pixels, bbox_predictor, render=True)
+    run_untangling_rollout(params, full_cf, crop_cf, path_to_ref_img, ref_pixels, bbox_predictor, render=True)

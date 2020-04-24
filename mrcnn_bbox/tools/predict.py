@@ -44,4 +44,5 @@ class BBoxFinder:
         if plot:
             cv2.imshow("predicted", vis)
             cv2.waitKey(0)
+        boxes.sort(key = lambda x: x[1])
         return boxes
