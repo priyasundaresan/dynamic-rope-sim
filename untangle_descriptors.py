@@ -188,10 +188,18 @@ def pixels_to_cylinders(pixels):
         cyl_pixels.append(pixel)
     neigh = NearestNeighbors(1, 0)
     neigh.fit(cyl_pixels)
-    match_idxs = neigh.kneighbors(pixels, 1, return_distance=False) # 1st neighbor is always identical, we want 2nd
-    return match_idxs.squeeze()
-    #nearest = match_idxs.squeeze().tolist()[1:][0]
-    #return nearest
+    #match_idxs = neigh.kneighbors(pixels, 1, return_distance=False) # 1st neighbor is always identical, we want 2nd
+    two_match_idxs = neigh.kneighbors(pixels, 2, return_distance=False)
+    idx1, idx2 = two_match_idxs.squeeze()
+    cyl_1, cyl_2 = get_piece("Cylinder", idx1), get_piece("Cylinder", idx2)
+    match = idx1
+    pixel_dist = np.linalg.norm(np.array(cyl_pixels[idx1]) - np.array(cyl_pixels[idx2]))
+    thresh = 10
+    print("pixeldist", pixel_dist)
+    if pixel_dist < thresh:
+        if cyl_2.matrix_world.translation[2] > cyl_1.matrix_world.translation[2]:
+            match = idx2
+    return match
 
 def descriptor_matches(cf, path_to_ref_img, pixels, curr_frame, crop=False):
     path_to_curr_img = "images/%06d_crop.png" % curr_frame if crop else "images/%06d_rgb.png" % curr_frame
@@ -245,7 +253,7 @@ def bbox_untangle(start_frame, bbox_detector, render_offset=0):
     boxes = bbox_predictor.predict(curr_img)
     return boxes[0] # ASSUME first box is knot to be untied
 
-def undone_check(start_frame, bbox_detector, cf, path_to_ref_img, ref_crop_pixels, hold_pos, render_offset=0, thresh=20):
+def undone_check(start_frame, bbox_detector, cf, path_to_ref_img, ref_crop_pixels, hold_pos, render_offset=0, thresh=40):
     pull_pixel, hold_pixel = find_pull_hold(start_frame, bbox_detector, cf, path_to_ref_img, ref_crop_pixels, render_offset=render_offset)
     diff = np.array(hold_pos) - np.array(hold_pixel)
     print("DIFF", np.linalg.norm(diff))
@@ -289,7 +297,7 @@ def find_pull_hold(start_frame, bbox_detector, cf, path_to_ref_img, ref_crop_pix
     cv2.imwrite("preds/%06d_bbox.png" % (start_frame-render_offset), crop)
 
     pull_crop_pixel, hold_crop_pixel = descriptor_matches(cf, path_to_ref_img, ref_crop_pixels, start_frame-render_offset, crop=True)
-    
+
     # transform this pick and hold into overall space (scale and offset)
     pull_pixel, hold_pixel = pixel_crop_to_full(np.array([pull_crop_pixel, hold_crop_pixel]), rescale_factor, x_off, y_off)
     pull_pixel = (int(pull_pixel[0]), int(pull_pixel[1]))
@@ -400,11 +408,13 @@ def run_untangling_rollout(params, full_cf, crop_cf, path_to_ref_imgs, ref_pixel
     render_offset = knot_end_frame
     render_frame(knot_end_frame, render_offset=render_offset, step=1)
     reid_end = reidemeister_descriptors(knot_end_frame, full_cf, path_to_ref_full_img, ref_end_pixels, render=True, render_offset=render_offset)
+    # reid_end = knot_end_frame
 
     # take undo actions
     undo_end_frame, _, hold, _ = take_undo_action_descriptors(reid_end, bbox_predictor, crop_cf, path_to_ref_crop_img, ref_crop_pixels, render=True, render_offset=render_offset)
     undone, pull_pixel, hold_pixel = undone_check(undo_end_frame, bbox_predictor, crop_cf, path_to_ref_crop_img, ref_crop_pixels, hold, render_offset=render_offset)
-    while not undone:
+    # while not undone:
+    for i in range(1):
         undo_end_frame, _, hold, _ = take_undo_action_descriptors(undo_end_frame, bbox_predictor, crop_cf, path_to_ref_crop_img, ref_crop_pixels, render=True, render_offset=render_offset, pixels=[pull_pixel, hold_pixel])
         undone, pull_pixel, hold_pixel = undone_check(undo_end_frame, bbox_predictor, crop_cf, path_to_ref_crop_img, ref_crop_pixels, hold, render_offset=render_offset)
 
