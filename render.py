@@ -48,7 +48,7 @@ def set_render_settings(engine, render_size):
         scene.view_settings.view_transform = 'Raw'
         scene.eevee.taa_render_samples = 1
 
-def annotate(frame, mapping, num_annotations, knot_only=True, offset=1):
+def annotate(frame, mapping, num_annotations, knot_only=False, end_only=True, offset=1):
 # def annotate(frame, mapping, num_annotations, knot_only=False, offset=1, bias_knot=3):
     # knot_only = True:  means only record the under, over crossings
     # knot_only = False:  means record annotations for full rope
@@ -65,23 +65,16 @@ def annotate(frame, mapping, num_annotations, knot_only=True, offset=1):
         indices = list(range(pull-offset, pull+offset+1)) + list(range(hold-offset, hold+offset+1))
         knot_indices = indices
         bias_knot = 1 # no bias
+    elif end_only:
+        indices = list(range(4)) + list(range(46,50))
     else:
         indices = list(range(50))
-        pull, hold, _ = find_knot(50)
-        offset = 3
-        knot_indices = list(range(pull-offset, pull+offset+1)) + list(range(hold-offset, hold+offset+1))
-        # for _ in range(bias_knot):
-        #     indices.extend(knot_indices)
     for i in indices:
         cyl = get_piece("Cylinder", i if i != 0 else -1)
         cyl_verts = list(cyl.data.vertices)
         step_size = len(indices)*len(cyl_verts)//num_annotations
-        if i in knot_indices:
-            step_size = int(step_size/bias_knot)
-        # else:
-        #     step_size = int(step_size*bias_knot/2)
-        vertex_coords = [cyl.matrix_world @ v.co for v in cyl_verts][np.random.randint(step_size)::step_size]
-        # vertex_coords = [cyl.matrix_world @ v.co for v in cyl_verts][::step_size]
+        #vertex_coords = [cyl.matrix_world @ v.co for v in cyl_verts][np.random.randint(step_size)::step_size]
+        vertex_coords = [cyl.matrix_world @ v.co for v in cyl_verts][::step_size]
         for i in range(len(vertex_coords)):
             v = vertex_coords[i]
             camera_coord = bpy_extras.object_utils.world_to_camera_view(scene, bpy.context.scene.camera, v)
@@ -144,7 +137,10 @@ def find_knot(num_segments, chain=False, depth_thresh=0.4, idx_thresh=3, pull_of
             dx = planar_coords[pull_idx][0] - x
             dy = planar_coords[pull_idx][1] - y
             hold_idx = match_cyl["idx"]
-            action_vec = [7*dx, 7*dy, 6] # Pull in the direction of the rope (NOTE: 7 is an arbitrary scale for now, 6 is z offset)
+            SCALE_X = 7
+            SCALE_Y = 7
+            Z_OFF = 6
+            action_vec = [SCALE_X*dx, SCALE_Y*dy, Z_OFF] # Pull in the direction of the rope (NOTE: 7 is an arbitrary scale for now, 6 is z offset)
             return pull_idx, hold_idx, action_vec # Found! Return the pull, hold, and action
     return -1, None, [0,0,0] # Didn't find a pull/hold
 
@@ -175,7 +171,7 @@ def center_camera(randomize=True):
 def render_frame(frame, render_offset=0, step=2, num_annotations=400, filename="%06d_rgb.png", folder="images", annot=True, mapping=None):
     # Renders a single frame in a sequence (if frame%step == 0)
     frame -= render_offset
-    center_camera()
+    #center_camera()
     if frame%step == 0:
         scene = bpy.context.scene
 
@@ -259,38 +255,6 @@ def tie_knot(params, chain=False, render=False):
             render_frame(step)
     return 350
 
-def reidemeister(params, start_frame, render=False, render_offset=0, annot=True, mapping=None):
-
-    piece = "Cylinder"
-    last = params["num_segments"]-1
-    end1 = get_piece(piece, -1)
-    end2 = get_piece(piece, last)
-
-    middle_frame = start_frame+25
-    end_frame = start_frame+50
-    end1_first = random.random() > 0.5
-    if end1_first:
-        take_action(end1, middle_frame, (11-end1.matrix_world.translation[0],0,0))
-    else:
-        take_action(end2, middle_frame, (-9-end2.matrix_world.translation[0],0,0))
-    for step in range(start_frame, middle_frame):
-        bpy.context.scene.frame_set(step)
-        if render:
-            render_frame(step, render_offset=render_offset, annot=annot, mapping=mapping)
-    if end1_first:
-        take_action(end2, end_frame, (-9-end2.matrix_world.translation[0],0,0))
-    else:
-        take_action(end1, end_frame, (11-end1.matrix_world.translation[0],0,0))
-
-    # Drop the ends
-    toggle_animation(end1, middle_frame, False)
-    toggle_animation(end2, end_frame, False)
-
-    for step in range(middle_frame, end_frame):
-        bpy.context.scene.frame_set(step)
-        if render:
-            render_frame(step, render_offset=render_offset, annot=annot, mapping=mapping)
-    return end_frame
 
 def random_loosen(params, start_frame, render=False, render_offset=0, annot=True, mapping=None):
 
@@ -327,6 +291,77 @@ def random_loosen(params, start_frame, render=False, render_offset=0, annot=True
             render_frame(step, render_offset=render_offset, annot=annot, mapping=mapping)
     return end_frame
 
+def reidemeister(params, start_frame, render=False, render_offset=0, annot=True, mapping=None):
+
+    piece = "Cylinder"
+    last = params["num_segments"]-1
+    end1 = get_piece(piece, -1)
+    end2 = get_piece(piece, last)
+
+    middle_frame = start_frame+25
+    end_frame = start_frame+50
+    #end1_first = random.random() > 0.5
+    end1_first = True
+    if end1_first:
+        take_action(end1, middle_frame, (11-end1.matrix_world.translation[0],0,0))
+    else:
+        take_action(end2, middle_frame, (-8-end2.matrix_world.translation[0],0,0))
+    for step in range(start_frame, middle_frame):
+        bpy.context.scene.frame_set(step)
+        if render:
+            render_frame(step, render_offset=render_offset, annot=annot, mapping=mapping)
+    if end1_first:
+        take_action(end2, end_frame, (-8-end2.matrix_world.translation[0],0,0))
+    else:
+        take_action(end1, end_frame, (11-end1.matrix_world.translation[0],0,0))
+
+    # Drop the ends
+    toggle_animation(end1, middle_frame, False)
+    #toggle_animation(end1, end_frame, False)
+    toggle_animation(end2, end_frame, False)
+
+    for step in range(middle_frame, end_frame):
+        bpy.context.scene.frame_set(step)
+        if render:
+            render_frame(step, render_offset=render_offset, annot=annot, mapping=mapping)
+    return end_frame
+
+def random_end_pick_place(params, start_frame, render=False, render_offset=0, annot=True, mapping=None):
+
+    piece = "Cylinder"
+    last = params["num_segments"]-1
+    end1 = get_piece(piece, -1)
+    end2 = get_piece(piece, last)
+    
+    dx1 = np.random.uniform(-5,0)
+    dy1 = np.random.uniform(-2,2)
+    dz1 = np.random.uniform(4,6)
+    #dz1 = np.random.uniform(0,0)
+
+    dx2 = np.random.uniform(0,5)
+    dy2 = np.random.uniform(-2,2)
+    dz2 = np.random.uniform(4,6)
+    #dz2 = np.random.uniform(0,0)
+
+    middle_frame = start_frame+25
+    end_frame = start_frame+50
+    end1_first = random.random() > 0.5
+
+    take_action(end1, middle_frame, (dx1,dy1,dz1))
+    for step in range(start_frame, middle_frame):
+        bpy.context.scene.frame_set(step)
+        if render:
+            render_frame(step, render_offset=render_offset, annot=annot, mapping=mapping)
+    take_action(end2, end_frame, (dx2,dy2,dz2))
+    toggle_animation(end1, middle_frame, False)
+    toggle_animation(end2, end_frame-10, False)
+
+    for step in range(middle_frame, end_frame+20):
+        bpy.context.scene.frame_set(step)
+        if render:
+            render_frame(step, render_offset=render_offset, annot=annot, mapping=mapping)
+    return end_frame+20
+
 def generate_dataset(params, iters=1, chain=False, render=False):
 
     set_animation_settings(7000)
@@ -340,7 +375,8 @@ def generate_dataset(params, iters=1, chain=False, render=False):
     for i in range(iters):
     # NOTE: each iteration renders 75 images, ~45 is about 3500 images for generating a training dset
         reid_end_frame = reidemeister(params, reid_start, render=render, render_offset=knot_end_frame, mapping=mapping)
-        reid_start = random_loosen(params, reid_end_frame, render=render, render_offset=knot_end_frame, mapping=mapping)
+        #reid_start = random_loosen(params, reid_end_frame, render=render, render_offset=knot_end_frame, mapping=mapping)
+        reid_start = random_end_pick_place(params, reid_end_frame, render=render, render_offset=knot_end_frame, mapping=mapping)
 
     with open("./images/knots_info.json", 'w') as outfile:
         json.dump(mapping, outfile, sort_keys=True, indent=2)
@@ -353,5 +389,5 @@ if __name__ == '__main__':
     add_camera_light()
     set_render_settings(params["engine"],(params["render_width"],params["render_height"]))
     make_table(params)
-    generate_dataset(params, iters=40, render=True)
+    generate_dataset(params, iters=1, render=True)
     # generate_dataset(params, render=True)

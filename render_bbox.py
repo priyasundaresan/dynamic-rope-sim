@@ -8,6 +8,7 @@ import os
 import sys
 sys.path.append(os.getcwd())
 
+from knots import tie_pretzel_knot, tie_stevedore, tie_figure_eight, tie_double_pretzel
 from rigidbody_rope import *
 from sklearn.neighbors import NearestNeighbors
 
@@ -256,24 +257,20 @@ def reidemeister(params, start_frame, render=False, render_offset=0, annot=True,
     end1 = get_piece(piece, -1)
     end2 = get_piece(piece, last)
 
-    middle_frame = start_frame+25
-    end_frame = start_frame+50
-    end1_first = random.random() > 0.5
-    if end1_first:
-        take_action(end1, middle_frame, (11-end1.matrix_world.translation[0],0,0))
-    else:
-        take_action(end2, middle_frame, (-9-end2.matrix_world.translation[0],0,0))
+    middle_frame = start_frame+50
+    end_frame = start_frame+100
+
+    print("DIST", 11-end1.matrix_world.translation[0])
+    take_action(end1, middle_frame, (np.random.uniform(9,11)-end1.matrix_world.translation[0],np.random.uniform(-2,2),0))
     for step in range(start_frame, middle_frame):
         bpy.context.scene.frame_set(step)
         if render:
             render_frame(step, render_offset=render_offset, annot=annot, mapping=mapping)
-    if end1_first:
-        take_action(end2, end_frame, (-9-end2.matrix_world.translation[0],0,0))
-    else:
-        take_action(end1, end_frame, (11-end1.matrix_world.translation[0],0,0))
-
+    take_action(end2, end_frame, (np.random.uniform(-6,-8)-end2.matrix_world.translation[0],np.random.uniform(-2,2),0))
     # Drop the ends
-    toggle_animation(end1, end_frame, False)
+
+    toggle_animation(end1, middle_frame, False)
+    #toggle_animation(end1, end_frame, False)
     toggle_animation(end2, end_frame, False)
 
     for step in range(middle_frame, end_frame):
@@ -293,12 +290,13 @@ def random_loosen(params, start_frame, render=False, render_offset=0, annot=True
     pull_cyl = get_piece(piece, pick)
     hold_cyl = get_piece(piece, hold)
 
-    dx = np.random.uniform(0,1)*random.choice((-1,1))
-    dy = np.random.uniform(0,1)*random.choice((-1,1))
+    dx = np.random.uniform(0,3)*random.choice((-1,1))
+    dy = np.random.uniform(0,3)*random.choice((-1,1))
     #dz = np.random.uniform(0.5,1)
     #dz = np.random.uniform(0.75,2.25)
     #dz = np.random.uniform(0.75,1.75)
-    dz = np.random.uniform(0.75,1.25)
+    #dz = np.random.uniform(0.75,1.25)
+    dz = np.random.uniform(0,3)
 
     mid_frame = start_frame + 50
     end_frame = start_frame + 100
@@ -320,17 +318,35 @@ def random_loosen(params, start_frame, render=False, render_offset=0, annot=True
 
 def generate_dataset(params, chain=False, render=False):
 
-    set_animation_settings(7000)
+    set_animation_settings(15000)
     piece = "Cylinder"
     last = params["num_segments"]-1
     mapping = {}
     
-    knot_end_frame = tie_knot(params, render=False)
-    reid_start = knot_end_frame
-    for i in range(1): 
-    # NOTE: each iteration renders 75 images, ~45 is about 3500 images for generating a training dset
-        reid_end_frame = reidemeister(params, reid_start, render=render, render_offset=knot_end_frame, mapping=mapping)
-        reid_start = random_loosen(params, reid_end_frame, render=render, render_offset=knot_end_frame, mapping=mapping)
+    #knot_end_frame = tie_pretzel_knot(params, render=False)
+    #reid_start = knot_end_frame
+    #for i in range(1): 
+    ## NOTE: each iteration renders 75 images, ~45 is about 3500 images for generating a training dset
+    #    reid_end_frame = reidemeister(params, reid_start, render=render, render_offset=knot_end_frame, mapping=mapping)
+    #    reid_start = random_loosen(params, reid_end_frame, render=render, render_offset=knot_end_frame, mapping=mapping)
+
+    render_offset = 0
+    for i in range(7):
+        knot_type = random.choice(range(3))
+        if knot_type==0:
+            knot_end_frame = tie_pretzel_knot(params, render=False)
+        elif knot_type==1:
+            knot_end_frame = tie_figure_eight(params, render=False)
+        else:
+            knot_end_frame = tie_stevedore(params, render=False)
+        render_offset += knot_end_frame
+        reid_end_frame = reidemeister(params, knot_end_frame, render=render, render_offset=render_offset, mapping=mapping)
+        loosen_end_frame = random_loosen(params, reid_end_frame, render=render, render_offset=render_offset, mapping=mapping)
+        #loosen_end_frame = random_loosen(params, loosen_end_frame, render=render, render_offset=render_offset, mapping=mapping)
+        render_offset -= loosen_end_frame
+        bpy.context.scene.frame_set(0)
+        for a in bpy.data.actions:
+            bpy.data.actions.remove(a)
 
     with open("./images/knots_info.json", 'w') as outfile:
         json.dump(mapping, outfile, sort_keys=True, indent=2)

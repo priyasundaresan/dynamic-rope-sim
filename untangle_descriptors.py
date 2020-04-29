@@ -188,10 +188,18 @@ def pixels_to_cylinders(pixels):
         cyl_pixels.append(pixel)
     neigh = NearestNeighbors(1, 0)
     neigh.fit(cyl_pixels)
-    match_idxs = neigh.kneighbors(pixels, 1, return_distance=False) # 1st neighbor is always identical, we want 2nd
-    return match_idxs.squeeze()
-    #nearest = match_idxs.squeeze().tolist()[1:][0]
-    #return nearest
+    #match_idxs = neigh.kneighbors(pixels, 1, return_distance=False) # 1st neighbor is always identical, we want 2nd
+    two_match_idxs = neigh.kneighbors(pixels, 2, return_distance=False) 
+    idx1, idx2 = two_match_idxs.squeeze()
+    cyl_1, cyl_2 = get_piece("Cylinder", idx1), get_piece("Cylinder", idx2)
+    match = idx1
+    pixel_dist = np.linalg.norm(np.array(cyl_pixels[idx1]) - np.array(cyl_pixels[idx2]))
+    thresh = 10
+    print("pixeldist", pixel_dist)
+    if pixel_dist < thresh:
+        if cyl_2.matrix_world.translation[2] > cyl_1.matrix_world.translation[2]:
+            match = idx2
+    return match
 
 def descriptor_matches(cf, path_to_ref_img, pixels, curr_frame, crop=False):
     path_to_curr_img = "images/%06d_crop.png" % curr_frame if crop else "images/%06d_rgb.png" % curr_frame

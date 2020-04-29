@@ -80,7 +80,7 @@ def tie_pretzel_knot(params, chain=False, render=False):
     toggle_animation(end2, 280, False)
 
     ## Reidemeister
-    for step in range(1, 400):
+    for step in range(1, 350):
         bpy.context.scene.frame_set(step)
         #if render:
         #    render_frame(step, render_offset=render_offset)
@@ -112,7 +112,12 @@ def tie_figure_eight(params, chain=False, render=False):
     # Take some time to settle
     toggle_animation(end1, 450, False)
     toggle_animation(end2, 450, False)
-    return 450
+    
+    for step in range(1, 500):
+        bpy.context.scene.frame_set(step)
+        if render:
+            render_frame(step)
+    return 500
 
 def tie_stevedore(params, chain=False, render=False):
 
@@ -143,8 +148,12 @@ def tie_stevedore(params, chain=False, render=False):
     take_action(end1, 400, (8,-2,-5))
 
     # Take some time to settle
-    toggle_animation(end1, 470, False)
-    toggle_animation(end2, 470, False)
+    toggle_animation(end1, 430, False)
+    toggle_animation(end2, 430, False)
+    for step in range(1, 470):
+        bpy.context.scene.frame_set(step)
+        #if render:
+        #    render_frame(step)
     return 470
 
 def tie_double_pretzel(params, chain=False, render=False):
@@ -188,6 +197,21 @@ def tie_double_pretzel(params, chain=False, render=False):
     toggle_animation(end1, 540, False)
     toggle_animation(end2, 540, False)
 
+def test(params, chain=False, render=False):
+
+    piece = "Cylinder"
+    last = params["num_segments"]-1
+    end1 = get_piece(piece, -1)
+    end2 = get_piece(piece, last)
+    for i in range(last+1):
+        obj = get_piece(piece, i if i != 0 else -1)
+        take_action(obj, 1, (0,0,0), animate=(i==0 or i==last))
+
+    take_action(end2, 80, (2,0,-1))
+    take_action(end1, 80, (-2,2,2))
+    toggle_animation(end1, 80, False)
+    toggle_animation(end2, 80, False)
+
 if __name__ == '__main__':
     with open("rigidbody_params.json", "r") as f:
         params = json.load(f)
@@ -195,9 +219,9 @@ if __name__ == '__main__':
     make_rope(params)
     add_camera_light()
     set_animation_settings(600)
-    #set_render_settings(params["engine"],(params["render_width"],params["render_height"]))
     make_table(params)
-    tie_figure_eight(params, render=True)
+    #test(params, render=True)
+    #tie_figure_eight(params, render=True)
     #tie_pretzel_knot(params, render=True)
-    #tie_stevedore(params, render=True)
+    tie_stevedore(params, render=True)
     #tie_double_pretzel(params, render=True)

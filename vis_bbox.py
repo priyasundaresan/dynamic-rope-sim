@@ -63,5 +63,5 @@ if __name__ == '__main__':
     	knots_info = json.load(stream)
     print("loaded knots info")
     for i in range(args.num):
-        #show_knots(i, knots_info)
-        generate_crops(i, knots_info)
+        show_knots(i, knots_info)
+        #generate_crops(i, knots_info)
