@@ -142,7 +142,8 @@ def tie_knot(params, chain=False, render=False):
 
     # Wrap endpoint one circularly around endpoint 2
     take_action(end2, 80, (10,0,0))
-    take_action(end1, 80, (-15,5,0))
+    # take_action(end1, 80, (-15,5,0))
+    take_action(end1, 80, (-14.5,5,0))
     take_action(end1, 120, (-1,-7,0))
     take_action(end1, 150, (3,0,-4))
     take_action(end1, 170, (0,2.5,0))
@@ -253,13 +254,41 @@ def bbox_untangle(start_frame, bbox_detector, render_offset=0):
     boxes = bbox_predictor.predict(curr_img)
     return boxes[0] # ASSUME first box is knot to be untied
 
-def undone_check(start_frame, bbox_detector, cf, path_to_ref_img, ref_crop_pixels, hold_pos, render_offset=0, thresh=40):
+def undone_check_hold_thresh(start_frame, bbox_detector, cf, path_to_ref_img, ref_crop_pixels, hold_pos, render_offset=0, thresh=40):
     pull_pixel, hold_pixel = find_pull_hold(start_frame, bbox_detector, cf, path_to_ref_img, ref_crop_pixels, render_offset=render_offset)
     diff = np.array(hold_pos) - np.array(hold_pixel)
     print("DIFF", np.linalg.norm(diff))
     if np.linalg.norm(diff) < thresh: # threshold for when a crossing is undone
         return False, pull_pixel, hold_pixel
     return True, None, None
+
+def undone_check_endpoint_pass(start_frame, ends_cf, path_to_ref_full_img, ref_end_pixels, prev_pull, prev_hold, prev_action_vec, render_offset=0):
+    piece = "Cylinder"
+
+    hold_idx = pixels_to_cylinders([prev_hold])
+    pull_idx = pixels_to_cylinders([prev_pull])
+    pull_cyl = get_piece(piece, pull_idx)
+    hold_cyl = get_piece(piece, hold_idx)
+
+    # get endpoints from cf
+    end2_pixel, end1_pixel = descriptor_matches(ends_cf, path_to_ref_full_img, ref_end_pixels, start_frame-render_offset)
+    end2_idx = pixels_to_cylinders([end2_pixel])
+    end1_idx = pixels_to_cylinders([end1_pixel])
+
+    end_idx = end2_idx if abs(pull_idx-end2_idx) < abs(pull_idx-end1_idx) else end1_idx
+    print("end_idx", end_idx)
+    print("pull_idx", pull_idx)
+    end_cyl = get_piece(piece, end_idx)
+    end_loc = end_cyl.matrix_world.translation
+    hold_loc = hold_cyl.matrix_world.translation
+    pull_loc = pull_cyl.matrix_world.translation
+
+    print("action_vec", prev_action_vec[:-1])
+    print("end_loc - hold_loc", np.array(end_loc - hold_loc)[:-1])
+    print("dot", np.dot(prev_action_vec[:-1], np.array(end_loc - hold_loc)[:-1]))
+    if np.dot(prev_action_vec[:-1], np.array(end_loc - hold_loc)[:-1]) > 0:
+        return True
+    return False
 
 def crop_and_resize(box, img, aspect=(320,240)):
     x1, y1, x2, y2 = box
@@ -391,7 +420,7 @@ def random_loosen(params, start_frame, render=False, render_offset=0, annot=True
             render_frame(step, render_offset=render_offset)
     return end_frame
 
-def run_untangling_rollout(params, full_cf, crop_cf, path_to_ref_imgs, ref_pixels, bbox_predictor, chain=False, render=True):
+def run_untangling_rollout(params, full_cf, crop_cf, ends_cf, path_to_ref_imgs, ref_pixels, bbox_predictor, chain=False, render=True):
     set_animation_settings(7000)
     piece = "Cylinder"
     last = params["num_segments"]-1
@@ -411,12 +440,16 @@ def run_untangling_rollout(params, full_cf, crop_cf, path_to_ref_imgs, ref_pixel
     # reid_end = knot_end_frame
 
     # take undo actions
-    undo_end_frame, _, hold, _ = take_undo_action_descriptors(reid_end, bbox_predictor, crop_cf, path_to_ref_crop_img, ref_crop_pixels, render=True, render_offset=render_offset)
-    undone, pull_pixel, hold_pixel = undone_check(undo_end_frame, bbox_predictor, crop_cf, path_to_ref_crop_img, ref_crop_pixels, hold, render_offset=render_offset)
-    # while not undone:
-    for i in range(1):
-        undo_end_frame, _, hold, _ = take_undo_action_descriptors(undo_end_frame, bbox_predictor, crop_cf, path_to_ref_crop_img, ref_crop_pixels, render=True, render_offset=render_offset, pixels=[pull_pixel, hold_pixel])
-        undone, pull_pixel, hold_pixel = undone_check(undo_end_frame, bbox_predictor, crop_cf, path_to_ref_crop_img, ref_crop_pixels, hold, render_offset=render_offset)
+    undo_end_frame, pull, hold, action_vec = take_undo_action_descriptors(reid_end, bbox_predictor, crop_cf, path_to_ref_crop_img, ref_crop_pixels, render=True, render_offset=render_offset)
+    undone = undone_check_endpoint_pass(undo_end_frame, ends_cf, path_to_ref_full_img, ref_end_pixels, pull, hold, action_vec, render_offset=render_offset)
+    # undone, pull_pixel, hold_pixel = undone_check_hold_thresh(undo_end_frame, bbox_predictor, crop_cf, path_to_ref_crop_img, ref_crop_pixels, hold, render_offset=render_offset)
+    while not undone:
+    # for i in range(1):
+        undo_end_frame, pull, hold, action_vec = take_undo_action_descriptors(undo_end_frame, bbox_predictor, crop_cf, path_to_ref_crop_img, ref_crop_pixels, render=True, render_offset=render_offset)
+        undone = undone_check_endpoint_pass(undo_end_frame, ends_cf, path_to_ref_full_img, ref_end_pixels, pull, hold, action_vec, render_offset=render_offset)
+        # undo_end_frame, _, hold, _ = take_undo_action_descriptors(undo_end_frame, bbox_predictor, crop_cf, path_to_ref_crop_img, ref_crop_pixels, render=True, render_offset=render_offset, pixels=[pull_pixel, hold_pixel])
+        # undone, pull_pixel, hold_pixel = undone_check_hold_thresh(undo_end_frame, bbox_predictor, crop_cf, path_to_ref_crop_img, ref_crop_pixels, hold, render_offset=render_offset)
+    reid_end = reidemeister_descriptors(undo_end_frame, full_cf, path_to_ref_full_img, ref_end_pixels, render=True, render_offset=render_offset)
 
 
 def load_cf(base_dir, network_dir, crop=False):
@@ -446,7 +479,12 @@ if __name__ == '__main__':
     full_cf, path_to_ref_img, ref_pixels = load_cf(base_dir, network_dir)
 
     network_dir = 'crop_s2_blur7-10_unzoomed'
+    # network_dir = 'crop_loose_knot'
     crop_cf, path_to_ref_img, ref_pixels = load_cf(base_dir, network_dir, crop=True)
+
+    network_dir = 'ends'
+    # network_dir = 'crop_loose_knot'
+    ends_cf, path_to_ref_img, ref_pixels = load_cf(base_dir, network_dir)
 
     cfg = PredictionConfig()
     model = MaskRCNN(mode='inference', model_dir='./', config=cfg)
@@ -461,4 +499,4 @@ if __name__ == '__main__':
     add_camera_light()
     set_render_settings(params["engine"],(params["render_width"],params["render_height"]))
     make_table(params)
-    run_untangling_rollout(params, full_cf, crop_cf, path_to_ref_img, ref_pixels, bbox_predictor, render=True)
+    run_untangling_rollout(params, full_cf, crop_cf, ends_cf, path_to_ref_img, ref_pixels, bbox_predictor, render=True)
