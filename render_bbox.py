@@ -68,7 +68,7 @@ def create_labimg_xml(annotation_idx, annotation_list):
         f.write(xmlstr)
     #tree.write(xml_file_name, pretty_print=True)
 
-def annotate(frame, mapping, offset=4):
+def annotate(frame, offset=4):
     # knot_only = True:  means only record the under, over crossings
     # knot_only = False:  means record annotations for full rope
     '''Gets num_annotations annotations of cloth image at provided frame #, adds to mapping'''
@@ -77,33 +77,35 @@ def annotate(frame, mapping, offset=4):
             int(scene.render.resolution_x),
             int(scene.render.resolution_y),
             )
-    pull, hold, _ = find_knot(50)
-    pull_idx_min, pull_idx_max = max(0,pull-offset), min(49,pull+offset+1)
-    hold_idx_min, hold_idx_max = max(0,hold-offset), min(49,hold+offset+1)
-    indices = list(range(pull_idx_min, pull_idx_max)) + list(range(hold_idx_min, hold_idx_max))
-    min_x = scene.render.resolution_x
-    max_x = 0
-    min_y = scene.render.resolution_y
-    max_y = 0
-    for i in indices:
-        cyl = get_piece("Cylinder", i if i != 0 else -1)
-        camera_coord = bpy_extras.object_utils.world_to_camera_view(scene, bpy.context.scene.camera, cyl.matrix_world.translation)
-        x, y = [round(camera_coord.x * render_size[0]), round(render_size[1] - camera_coord.y * render_size[1])]
-        if x > max_x:
-            max_x = x
-        if x < min_x:
-            min_x = x
-        if y > max_y:
-            max_y = y
-        if y < min_y:
-            min_y = y
-    min_x -= 13
-    min_y -= 13
-    max_x += 13
-    max_y += 13
-    annot_list = [[min_x,min_y,max_x,max_y]]
-    pixels = [[[min_x,min_y]], [[max_x,max_y]]]
-    mapping[frame] = pixels
+    annot_list = []
+    knots = find_knot(50)
+    for knot in knots:
+        pull, hold, _ = knot
+        print(pull, offset)
+        pull_idx_min, pull_idx_max = max(0,pull-offset), min(49,pull+offset+1)
+        hold_idx_min, hold_idx_max = max(0,hold-offset), min(49,hold+offset+1)
+        indices = list(range(pull_idx_min, pull_idx_max)) + list(range(hold_idx_min, hold_idx_max))
+        min_x = scene.render.resolution_x
+        max_x = 0
+        min_y = scene.render.resolution_y
+        max_y = 0
+        for i in indices:
+            cyl = get_piece("Cylinder", i if i != 0 else -1)
+            camera_coord = bpy_extras.object_utils.world_to_camera_view(scene, bpy.context.scene.camera, cyl.matrix_world.translation)
+            x, y = [round(camera_coord.x * render_size[0]), round(render_size[1] - camera_coord.y * render_size[1])]
+            if x > max_x:
+                max_x = x
+            if x < min_x:
+                min_x = x
+            if y > max_y:
+                max_y = y
+            if y < min_y:
+                min_y = y
+        min_x -= 13
+        min_y -= 13
+        max_x += 13
+        max_y += 13
+        annot_list.append([min_x,min_y,max_x,max_y])
     create_labimg_xml(frame, annot_list)
 
 def get_piece(piece_name, piece_id):
@@ -147,7 +149,10 @@ def find_knot(num_segments, chain=False, depth_thresh=0.43, idx_thresh=3, pull_o
     planar_coords = list(cache.keys())
     neigh.fit(planar_coords)
     # Now traverse and look for the under crossing
-    for i in range(num_segments):
+    knots  = []
+    #for i in range(num_segments):
+    i = 0
+    while i < num_segments - pull_offset:
         cyl = get_piece(piece, i if i else -1)
         x,y,z = cyl.matrix_world.translation
         match_idxs = neigh.kneighbors([(x,y)], 2, return_distance=False) # 1st neighbor is always identical, we want 2nd
@@ -162,8 +167,13 @@ def find_knot(num_segments, chain=False, depth_thresh=0.43, idx_thresh=3, pull_o
             dy = planar_coords[pull_idx][1] - y
             hold_idx = match_cyl["idx"]
             action_vec = [7*dx, 7*dy, 6] # Pull in the direction of the rope (NOTE: 7 is an arbitrary scale for now, 6 is z offset)
-            return pull_idx, hold_idx, action_vec # Found! Return the pull, hold, and action
-    return -1, last, [0,0,0] # Didn't find a pull/hold
+            knots.append([pull_idx, hold_idx, action_vec])
+            i += 25
+            continue
+            #return pull_idx, hold_idx, action_vec # Found! Return the pull, hold, and action
+        i += 1
+    return knots
+    #return -1, last, [0,0,0] # Didn't find a pull/hold
 
 def render_frame(frame, render_offset=0, step=2, filename="%05d.jpg", folder="images", annot=True, mapping=None):
     # Renders a single frame in a sequence (if frame%step == 0)
@@ -175,7 +185,7 @@ def render_frame(frame, render_offset=0, step=2, filename="%05d.jpg", folder="im
         scene.render.filepath = os.path.join(folder, filename) % index
         bpy.ops.render.render(write_still=True)
         if annot:
-            annotate(index, mapping)
+            annotate(index)
 
 def render_mask(mask_filename, depth_filename, index):
     # NOTE: this method is still in progress
@@ -261,12 +271,12 @@ def reidemeister(params, start_frame, render=False, render_offset=0, annot=True,
     end_frame = start_frame+100
 
     print("DIST", 11-end1.matrix_world.translation[0])
-    take_action(end1, middle_frame, (np.random.uniform(9,11)-end1.matrix_world.translation[0],np.random.uniform(-2,2),0))
+    take_action(end1, middle_frame, (np.random.uniform(9,11)-end1.matrix_world.translation[0],np.random.uniform(-3,3),0))
     for step in range(start_frame, middle_frame):
         bpy.context.scene.frame_set(step)
         if render:
             render_frame(step, render_offset=render_offset, annot=annot, mapping=mapping)
-    take_action(end2, end_frame, (np.random.uniform(-6,-8)-end2.matrix_world.translation[0],np.random.uniform(-2,2),0))
+    take_action(end2, end_frame, (np.random.uniform(-6,-8)-end2.matrix_world.translation[0],np.random.uniform(-3,3),0))
     # Drop the ends
 
     toggle_animation(end1, middle_frame, False)
@@ -284,14 +294,15 @@ def random_loosen(params, start_frame, render=False, render_offset=0, annot=True
     piece = "Cylinder"
     last = params["num_segments"]-1
 
-    pick, hold, _ = find_knot(params["num_segments"])
+    knots = find_knot(params["num_segments"])
+    pick, hold, _ = knots[random.choice(range(len(knots)))]
     if random.random() < 0.5:
         pick = random.choice(range(10, 40))
     pull_cyl = get_piece(piece, pick)
     hold_cyl = get_piece(piece, hold)
 
-    dx = np.random.uniform(0,3)*random.choice((-1,1))
-    dy = np.random.uniform(0,3)*random.choice((-1,1))
+    dx = np.random.uniform(0,2)*random.choice((-1,1))
+    dy = np.random.uniform(0,2)*random.choice((-1,1))
     #dz = np.random.uniform(0.5,1)
     #dz = np.random.uniform(0.75,2.25)
     #dz = np.random.uniform(0.75,1.75)
@@ -321,7 +332,7 @@ def generate_dataset(params, chain=False, render=False):
     set_animation_settings(15000)
     piece = "Cylinder"
     last = params["num_segments"]-1
-    mapping = {}
+    mapping = None
     
     #knot_end_frame = tie_pretzel_knot(params, render=False)
     #reid_start = knot_end_frame
@@ -331,25 +342,23 @@ def generate_dataset(params, chain=False, render=False):
     #    reid_start = random_loosen(params, reid_end_frame, render=render, render_offset=knot_end_frame, mapping=mapping)
 
     render_offset = 0
-    for i in range(7):
-        knot_type = random.choice(range(3))
-        if knot_type==0:
+    for i in range(4):
+        #knot_type = random.choice(range(3))
+        if i%4==0:
             knot_end_frame = tie_pretzel_knot(params, render=False)
-        elif knot_type==1:
+        elif i%4==1:
             knot_end_frame = tie_figure_eight(params, render=False)
+        elif i%4==2:
+            knot_end_frame = tie_double_pretzel(params, render=False)
         else:
             knot_end_frame = tie_stevedore(params, render=False)
         render_offset += knot_end_frame
         reid_end_frame = reidemeister(params, knot_end_frame, render=render, render_offset=render_offset, mapping=mapping)
         loosen_end_frame = random_loosen(params, reid_end_frame, render=render, render_offset=render_offset, mapping=mapping)
-        #loosen_end_frame = random_loosen(params, loosen_end_frame, render=render, render_offset=render_offset, mapping=mapping)
         render_offset -= loosen_end_frame
         bpy.context.scene.frame_set(0)
         for a in bpy.data.actions:
             bpy.data.actions.remove(a)
-
-    with open("./images/knots_info.json", 'w') as outfile:
-        json.dump(mapping, outfile, sort_keys=True, indent=2)
 
 if __name__ == '__main__':
     with open("rigidbody_params.json", "r") as f:

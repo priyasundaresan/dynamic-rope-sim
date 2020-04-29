@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 import argparse
+from xml.etree import ElementTree
 import os
 import math
 import json
@@ -18,6 +19,28 @@ def show_knots(idx, knots_info, save=True):
     if save:
     	annotated_filename = "{0:06d}_annotated.png".format(idx)
     	cv2.imwrite('./annotated/{}'.format(annotated_filename), vis)
+
+def show_boxes(idx, save=True):
+    # load and parse the file
+    image_filename = "{0:05d}.jpg".format(idx)
+    img = cv2.imread('images/{}'.format(image_filename))
+    vis = img.copy()
+    filename = 'annots/%05d.xml'%idx
+    tree = ElementTree.parse(filename)
+    # get the root of the document
+    root = tree.getroot()
+    # extract each bounding box
+    for box in root.findall('.//bndbox'):
+        xmin = int(box.find('xmin').text)
+        ymin = int(box.find('ymin').text)
+        xmax = int(box.find('xmax').text)
+        ymax = int(box.find('ymax').text)
+        vis = cv2.rectangle(vis, (xmin,ymin), (xmax,ymax), (255, 0, 0), 2)
+    if save:
+    	annotated_filename = "{0:06d}_annotated.png".format(idx)
+    	cv2.imwrite('./annotated/{}'.format(annotated_filename), vis)
+        #coors = [xmin, ymin, xmax, ymax]
+        #boxes.append(coors)
 
 def generate_crops(idx, knots_info, save_resized=True, aspect=(640, 480)):
     image_filename = "{0:05d}.jpg".format(idx)
@@ -59,9 +82,7 @@ if __name__ == '__main__':
         os.system("rm -rf ./crops")
         os.makedirs("./crops")
     print("parsed")
-    with open("images/knots_info.json", "r") as stream:
-    	knots_info = json.load(stream)
     print("loaded knots info")
     for i in range(args.num):
-        show_knots(i, knots_info)
+        show_boxes(i)
         #generate_crops(i, knots_info)

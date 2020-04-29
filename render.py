@@ -333,13 +333,13 @@ def random_end_pick_place(params, start_frame, render=False, render_offset=0, an
     end1 = get_piece(piece, -1)
     end2 = get_piece(piece, last)
     
-    dx1 = np.random.uniform(-5,0)
-    dy1 = np.random.uniform(-2,2)
+    dx1 = np.random.uniform(-8,0)
+    dy1 = np.random.uniform(-3,3)
     dz1 = np.random.uniform(4,6)
     #dz1 = np.random.uniform(0,0)
 
     dx2 = np.random.uniform(0,5)
-    dy2 = np.random.uniform(-2,2)
+    dy2 = np.random.uniform(-3,3)
     dz2 = np.random.uniform(4,6)
     #dz2 = np.random.uniform(0,0)
 
@@ -375,8 +375,10 @@ def generate_dataset(params, iters=1, chain=False, render=False):
     for i in range(iters):
     # NOTE: each iteration renders 75 images, ~45 is about 3500 images for generating a training dset
         reid_end_frame = reidemeister(params, reid_start, render=render, render_offset=knot_end_frame, mapping=mapping)
-        #reid_start = random_loosen(params, reid_end_frame, render=render, render_offset=knot_end_frame, mapping=mapping)
-        reid_start = random_end_pick_place(params, reid_end_frame, render=render, render_offset=knot_end_frame, mapping=mapping)
+        if random.random() < 0.15:
+            reid_start = random_loosen(params, reid_end_frame, render=render, render_offset=knot_end_frame, mapping=mapping)
+        else:
+            reid_start = random_end_pick_place(params, reid_end_frame, render=render, render_offset=knot_end_frame, mapping=mapping)
 
     with open("./images/knots_info.json", 'w') as outfile:
         json.dump(mapping, outfile, sort_keys=True, indent=2)
@@ -389,5 +391,5 @@ if __name__ == '__main__':
     add_camera_light()
     set_render_settings(params["engine"],(params["render_width"],params["render_height"]))
     make_table(params)
-    generate_dataset(params, iters=1, render=True)
+    generate_dataset(params, iters=45, render=True)
     # generate_dataset(params, render=True)

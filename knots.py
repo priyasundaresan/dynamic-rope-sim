@@ -197,6 +197,12 @@ def tie_double_pretzel(params, chain=False, render=False):
     toggle_animation(end1, 540, False)
     toggle_animation(end2, 540, False)
 
+    for step in range(1, 560):
+        bpy.context.scene.frame_set(step)
+        if render:
+            render_frame(step)
+    return 560
+
 def test(params, chain=False, render=False):
 
     piece = "Cylinder"
