@@ -7,7 +7,7 @@ import sys
 sys.path.append(os.getcwd())
 
 from rigidbody_rope import *
-from sklearn.neighbors import NearestNeighbors
+#from sklearn.neighbors import NearestNeighbors
 
 def set_animation_settings(anim_end):
     # Sets up the animation to run till frame anim_end (otherwise default terminates @ 250)
@@ -107,7 +107,7 @@ def tie_figure_eight(params, chain=False, render=False):
     take_action(end2, 400, (-18,0,0))
 
     take_action(end1, 350, (0,0,0))
-    take_action(end1, 400, (10,-2,-2))
+    take_action(end1, 400, (12,-2,-2))
 
     # Take some time to settle
     toggle_animation(end1, 450, False)
@@ -115,8 +115,8 @@ def tie_figure_eight(params, chain=False, render=False):
     
     for step in range(1, 500):
         bpy.context.scene.frame_set(step)
-        if render:
-            render_frame(step)
+        #if render:
+        #    render_frame(step)
     return 500
 
 def tie_stevedore(params, chain=False, render=False):
@@ -141,7 +141,7 @@ def tie_stevedore(params, chain=False, render=False):
     take_action(end2, 230, (0,-2,0))
 
     take_action(end2, 300, (3.5,-0.25,-6))
-    take_action(end2, 310, (0,0,-2))
+    take_action(end2, 310, (0,0,-3))
     take_action(end2, 350, (9,0,8))
     take_action(end1, 350, (0,0,0))
     take_action(end2, 400, (-16,0,-3))
@@ -190,8 +190,8 @@ def tie_double_pretzel(params, chain=False, render=False):
 
     take_action(end1, 490, (0,0,0))
     take_action(end2, 490, (0,0,0))
-    take_action(end2, 510, (8,0,0))
-    take_action(end1, 510, (8,0,0))
+    take_action(end2, 510, (8,-4,0))
+    take_action(end1, 510, (8,-4,0))
 
     # Take some time to settle
     toggle_animation(end1, 540, False)
@@ -199,11 +199,11 @@ def tie_double_pretzel(params, chain=False, render=False):
 
     for step in range(1, 560):
         bpy.context.scene.frame_set(step)
-        if render:
-            render_frame(step)
+        #if render:
+        #    render_frame(step)
     return 560
 
-def test(params, chain=False, render=False):
+def tie_double_pretzel_v2(params, chain=False, render=False):
 
     piece = "Cylinder"
     last = params["num_segments"]-1
@@ -213,21 +213,50 @@ def test(params, chain=False, render=False):
         obj = get_piece(piece, i if i != 0 else -1)
         take_action(obj, 1, (0,0,0), animate=(i==0 or i==last))
 
-    take_action(end2, 80, (2,0,-1))
-    take_action(end1, 80, (-2,2,2))
-    toggle_animation(end1, 80, False)
-    toggle_animation(end2, 80, False)
+    take_action(end2, 80, (5,0,-1))
+    take_action(end1, 80, (-20,2,2))
+
+    take_action(end2, 100, (2,2,0))
+    take_action(end1, 100, (0,0,0))
+    take_action(end1, 150, (6,-1,0))
+    take_action(end2, 150, (0,0,0))
+    take_action(end2, 200, (2,-1.5,-3))
+    take_action(end2, 220, (0,0,-3))
+    take_action(end2, 240, (-6,0,0))
+    take_action(end1, 240, (0,0,0))
+    take_action(end2, 300, (-3,0,5))
+    take_action(end1, 300, (4,0,0))
+
+    take_action(end1, 320, (0,0,0))
+    take_action(end1, 360, (-11,3,-5))
+    take_action(end1, 380, (-1,-3,0))
+    take_action(end1, 410, (1,1,-2))
+    take_action(end1, 430, (-2,6,2))
+    take_action(end1, 460, (0,0,0))
+    #take_action(end1, 490, (8,-3,0))
+    take_action(end1, 490, (0,-5,3))
+    take_action(end2, 490, (0,0,0))
+    take_action(end2, 520, (8,0,-2))
+    take_action(end1, 520, (16,-3,-2))
+    toggle_animation(end1, 540, False)
+    toggle_animation(end2, 540, False)
+
+    for step in range(1, 560):
+        bpy.context.scene.frame_set(step)
+        #if render:
+        #    render_frame(step)
+    return 560
 
 if __name__ == '__main__':
     with open("rigidbody_params.json", "r") as f:
         params = json.load(f)
     clear_scene()
-    make_rope(params)
+    make_capsule_rope(params)
+    #make_rope(params)
     add_camera_light()
     set_animation_settings(600)
     make_table(params)
-    #test(params, render=True)
     #tie_figure_eight(params, render=True)
     #tie_pretzel_knot(params, render=True)
-    tie_stevedore(params, render=True)
-    #tie_double_pretzel(params, render=True)
+    #tie_stevedore(params, render=True)
+    tie_double_pretzel_v2(params, render=True)

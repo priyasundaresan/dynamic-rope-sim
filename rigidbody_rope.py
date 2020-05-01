@@ -10,7 +10,6 @@ import random
 import numpy as np
 import random
 from random import sample
-from sklearn.cluster import KMeans
 import bmesh
 
 '''Usage: blender -P rigidbody-rope.py'''
@@ -38,11 +37,11 @@ def make_rope(params):
     num_segments = params["num_segments"]
     bpy.ops.mesh.primitive_cylinder_add(location=(segment_radius*num_segments,0,0))
     bpy.ops.transform.resize(value=(segment_radius, segment_radius, segment_radius))
-    #bpy.ops.mesh.subdivide(number_cuts=1) # Tune this number for cloth detail
     bpy.ops.object.editmode_toggle()
     bpy.ops.mesh.subdivide(number_cuts=1, quadcorner='INNERVERT')
     bpy.ops.object.editmode_toggle()
     cylinder = bpy.context.object
+    cylinder.name = "Cylinder"
     cylinder.rotation_euler = (0, np.pi/2, 0)
     bpy.ops.rigidbody.object_add()
     cylinder.rigid_body.mass = params["segment_mass"]
@@ -59,86 +58,41 @@ def make_rope(params):
 
     return [bpy.data.objects['Cylinder.%03d' % (i) if i>0 else "Cylinder"] for i in range(num_segments)]
 
-def make_rope_v2(params):
-    segment_radius = params["segment_radius"]
-    num_segments = params["num_segments"]
-    bend_stiffness = 0.1
-    bend_damping = 0.1
-    twist_stiffness = 0 #1.0
-    twist_damping = 0.5
-
-    stretch_limit = segment_radius * 0.1
-    stretch_stiffness = 100
-    stretch_damping = 10.0
-
-    links = []
-
-    # Create all the links of the rope
-    for i in range(num_segments):
-        # See: https://blender.stackexchange.com/questions/26890/how-can-i-make-a-pill-shape-capsule
-        if hasattr(bpy.ops.mesh, 'primitive_round_cube_add'):
-            bpy.ops.mesh.primitive_round_cube_add(
-                radius=segment_radius-0.01, arc_div=12,
-                size=(0, 0, segment_radius*4),
-                location=(segment_radius*num_segments - 2*i*segment_radius,0,0),
-                rotation=(0, np.pi/2, 0))
-        else:
-            bpy.ops.mesh.primitive_cylinder_add(
-                radius=segment_radius, depth=segment_radius*2,
-                location=(segment_radius*num_segments - 2*i*segment_radius,0,0),
-                rotation=(0, np.pi/2, 0))
-        
-        cylinder = bpy.context.object
-        cylinder.name = ('Cylinder.%03d' % (i)) if i > 0 else 'Cylinder'
-        bpy.ops.rigidbody.object_add()
-        cylinder.rigid_body.mass = params["segment_mass"]
-        cylinder.rigid_body.friction = params["segment_friction"]
-        #cylinder.rigid_body.linear_damping = params["linear_damping"]
-        #cylinder.rigid_body.angular_damping = params["angular_damping"] # NOTE: this makes the rope a lot less wiggly
-        links.append(cylinder)
-
-    # Create spring connections between the links
-    for i in range(1,num_segments):
-        bpy.ops.object.empty_add(type='ARROWS', radius=1, location=(segment_radius*(num_segments + 1 - 2*i), 0, 0))
-        bpy.ops.rigidbody.constraint_add()
-        joint = bpy.context.object
-        joint.name = 'joint_' + str(i-1) + ':' + str(i)
-        joint.rigid_body_constraint.type = 'GENERIC_SPRING'
-        joint.rigid_body_constraint.object1 = links[i-1]
-        joint.rigid_body_constraint.object2 = links[i]
-
-        # limit the allowed linear translation:
-        joint.rigid_body_constraint.use_limit_lin_x = True
-        joint.rigid_body_constraint.use_limit_lin_y = True
-        joint.rigid_body_constraint.use_limit_lin_z = True
-        joint.rigid_body_constraint.limit_lin_x_lower = -stretch_limit
-        joint.rigid_body_constraint.limit_lin_x_upper = 0
-        joint.rigid_body_constraint.limit_lin_y_lower = 0
-        joint.rigid_body_constraint.limit_lin_y_upper = 0
-        joint.rigid_body_constraint.limit_lin_z_lower = 0
-        joint.rigid_body_constraint.limit_lin_z_upper = 0
-
-        # Make the rope stretchy
-        joint.rigid_body_constraint.use_spring_x = stretch_limit > 0 and stretch_stiffness > 0
-        joint.rigid_body_constraint.spring_stiffness_x = stretch_stiffness
-        joint.rigid_body_constraint.spring_damping_x = stretch_damping
-
-        # set spring constraints on rotation.
-        # rotations about y and z control how the rope bends
-        # rotations about x control how the rope twists
-        joint.rigid_body_constraint.use_spring_ang_x = twist_stiffness > 0
-        joint.rigid_body_constraint.use_spring_ang_y = bend_stiffness > 0
-        joint.rigid_body_constraint.use_spring_ang_z = bend_stiffness > 0
-        joint.rigid_body_constraint.spring_stiffness_ang_x = twist_stiffness
-        joint.rigid_body_constraint.spring_damping_ang_x = twist_damping
-        joint.rigid_body_constraint.spring_stiffness_ang_y = bend_stiffness
-        joint.rigid_body_constraint.spring_damping_ang_y = bend_damping
-        joint.rigid_body_constraint.spring_stiffness_ang_z = bend_stiffness
-        joint.rigid_body_constraint.spring_damping_ang_z = bend_damping
-
-    bpy.context.scene.rigidbody_world.steps_per_second = 500 # note: lower values (e.g., 120) cause an explosion + bus error
-    bpy.context.scene.rigidbody_world.solver_iterations = 1000
-
+def make_capsule_rope(params):
+    radius = params["segment_radius"]
+    #rope_length = radius * params["num_segments"] * 2 * 0.9 # HACKY -- shortening the rope artificially by 10% for now
+    rope_length = radius * params["num_segments"] 
+    num_segments = int(rope_length / radius)
+    separation = radius*1.1 # HACKY - artificially increase the separation to avoid link-to-link collision
+    link_mass = params["segment_mass"] # TODO: this may need to be scaled
+    link_friction = params["segment_friction"]
+    twist_stiffness = 20
+    twist_damping = 10
+    bend_stiffness = 0
+    bend_damping = 5
+    num_joints = int(radius/separation)*2+1
+    bpy.ops.import_mesh.stl(filepath="capsule_12_8_1_2.stl")
+    loc0 = (radius*num_segments,0,0)
+    link0 = bpy.context.object
+    link0.location = loc0
+    loc0 = loc0[0]
+    link0.name = "Cylinder"
+    bpy.ops.transform.resize(value=(radius, radius, radius))
+    link0.rotation_euler = (0, pi/2, 0)
+    bpy.ops.rigidbody.object_add()
+    link0.rigid_body.mass = link_mass
+    link0.rigid_body.friction = link_friction
+    link0.rigid_body.linear_damping = params["linear_damping"]
+    link0.rigid_body.angular_damping = params["angular_damping"] # NOTE: this makes the rope a lot less wiggly
+    #link0.rigid_body.collision_shape = 'CAPSULE'
+    bpy.context.scene.rigidbody_world.steps_per_second = 120
+    bpy.context.scene.rigidbody_world.solver_iterations = 20
+    for i in range(num_segments-1):
+        bpy.ops.object.duplicate_move(TRANSFORM_OT_translate={"value":(-2*radius, 0, 0)})
+    bpy.ops.object.select_all(action='SELECT')
+    bpy.ops.rigidbody.connect(con_type='POINT', connection_pattern='CHAIN_DISTANCE')
+    bpy.ops.object.select_all(action='DESELECT')
+    links = [bpy.data.objects['Cylinder.%03d' % (i) if i>0 else "Cylinder"] for i in range(num_segments)]
     return links
 
 def make_rope_v3(params):
@@ -170,7 +124,8 @@ def make_rope_v3(params):
     # 1 = radius, 2 = height..
     bpy.ops.import_mesh.stl(filepath="capsule_12_8_1_2.stl")
     link0 = bpy.context.object
-    link0.name = "link_0"
+    #link0.name = "link_0"
+    link0.name = "Cylinder"
     bpy.ops.transform.resize(value=(radius, radius, radius))
     # The link has Z-axis up, and the origin is in its center.
     link0.rotation_euler = (0, pi/2, 0)
@@ -187,7 +142,8 @@ def make_rope_v3(params):
         # copy link0 to create each additional link
         linki = link0.copy()
         linki.data = link0.data.copy()
-        linki.name = "link_" + str(i)
+        #linki.name = "link_" + str(i)
+        #linki.name = "link_" + str(i)
         linki.location = (loc0 - i*separation, 0, 0)
         bpy.context.collection.objects.link(linki)
 

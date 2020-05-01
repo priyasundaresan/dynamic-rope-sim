@@ -68,7 +68,7 @@ def create_labimg_xml(annotation_idx, annotation_list):
         f.write(xmlstr)
     #tree.write(xml_file_name, pretty_print=True)
 
-def annotate(frame, offset=4):
+def annotate(frame, offset=4, num_knots=1):
     # knot_only = True:  means only record the under, over crossings
     # knot_only = False:  means record annotations for full rope
     '''Gets num_annotations annotations of cloth image at provided frame #, adds to mapping'''
@@ -78,7 +78,7 @@ def annotate(frame, offset=4):
             int(scene.render.resolution_y),
             )
     annot_list = []
-    knots = find_knot(50)
+    knots = find_knot(50, num_knots=num_knots)
     for knot in knots:
         pull, hold, _ = knot
         print(pull, offset)
@@ -101,10 +101,10 @@ def annotate(frame, offset=4):
                 max_y = y
             if y < min_y:
                 min_y = y
-        min_x -= 13
-        min_y -= 13
-        max_x += 13
-        max_y += 13
+        min_x -= np.random.randint(12, 15)
+        min_y -= np.random.randint(12, 15)
+        max_x += np.random.randint(12, 15)
+        max_y += np.random.randint(12, 15)
         annot_list.append([min_x,min_y,max_x,max_y])
     create_labimg_xml(frame, annot_list)
 
@@ -133,7 +133,7 @@ def take_action(obj, frame, action_vec, animate=True):
     obj.location += Vector((dx,dy,dz))
     obj.keyframe_insert(data_path="location", frame=frame)
 
-def find_knot(num_segments, chain=False, depth_thresh=0.43, idx_thresh=3, pull_offset=3):
+def find_knot(num_segments, chain=False, num_knots=1, depth_thresh=0.43, idx_thresh=3, pull_offset=3):
 
     piece = "Torus" if chain else "Cylinder"
     cache = {}
@@ -168,6 +168,8 @@ def find_knot(num_segments, chain=False, depth_thresh=0.43, idx_thresh=3, pull_o
             hold_idx = match_cyl["idx"]
             action_vec = [7*dx, 7*dy, 6] # Pull in the direction of the rope (NOTE: 7 is an arbitrary scale for now, 6 is z offset)
             knots.append([pull_idx, hold_idx, action_vec])
+            if len(knots) == num_knots:
+                break
             i += 25
             continue
             #return pull_idx, hold_idx, action_vec # Found! Return the pull, hold, and action
@@ -175,8 +177,20 @@ def find_knot(num_segments, chain=False, depth_thresh=0.43, idx_thresh=3, pull_o
     return knots
     #return -1, last, [0,0,0] # Didn't find a pull/hold
 
-def render_frame(frame, render_offset=0, step=2, filename="%05d.jpg", folder="images", annot=True, mapping=None):
+def randomize_camera():
+    rot = np.random.uniform(-pi/12, pi/12)
+    xoffset = 0.1
+    yoffset = 0.1
+    zoffset = 0.1
+    dx = np.random.uniform(-xoffset, xoffset)
+    dy = np.random.uniform(-yoffset, yoffset)
+    dz = np.random.uniform(-zoffset, zoffset)
+    bpy.context.scene.camera.rotation_euler = (0, 0, rot)
+    bpy.context.scene.camera.location += Vector((dx, dy, dz))
+    
+def render_frame(frame, render_offset=0, step=5, filename="%05d.jpg", folder="images", annot=True, num_knots=1, mapping=None):
     # Renders a single frame in a sequence (if frame%step == 0)
+    randomize_camera()
     frame -= render_offset
     if frame%step == 0:
         scene = bpy.context.scene
@@ -185,7 +199,7 @@ def render_frame(frame, render_offset=0, step=2, filename="%05d.jpg", folder="im
         scene.render.filepath = os.path.join(folder, filename) % index
         bpy.ops.render.render(write_still=True)
         if annot:
-            annotate(index)
+            annotate(index, num_knots=num_knots)
 
 def render_mask(mask_filename, depth_filename, index):
     # NOTE: this method is still in progress
@@ -223,44 +237,8 @@ def render_mask(mask_filename, depth_filename, index):
             tree.nodes.remove(node)
     scene.use_nodes = False
 
-def tie_knot(params, chain=False, render=False):
 
-    piece = "Cylinder"
-    last = params["num_segments"]-1
-    end1 = get_piece(piece, -1)
-    end2 = get_piece(piece, last)
-    for i in range(last+1):
-        obj = get_piece(piece, i if i != 0 else -1)
-        take_action(obj, 1, (0,0,0), animate=(i==0 or i==last))
-
-    # Wrap endpoint one circularly around endpoint 2
-    take_action(end2, 80, (10,0,0))
-    take_action(end1, 80, (-15,5,0))
-    take_action(end1, 120, (-1,-7,0))
-    take_action(end1, 150, (3,0,-4))
-    take_action(end1, 170, (0,2.5,0))
-
-    # Thread endpoint 1 through the loop (downward)
-    take_action(end1, 180, (0,0,-2))
-
-    # Pull to tighten knot
-    take_action(end1, 200, (5,0,2))
-    take_action(end2, 200, (0,0,0))
-    take_action(end1, 230, (7,0,5))
-    take_action(end2, 230, (-7,0,0))
-
-    # Now, we "drop" the rope; no longer animated and will move only based on rigid body physics
-    toggle_animation(end1, 240, False)
-    toggle_animation(end2, 240, False)
-
-    ## Reidemeister
-    for step in range(1, 350):
-        bpy.context.scene.frame_set(step)
-        if render:
-            render_frame(step)
-    return 350
-
-def reidemeister(params, start_frame, render=False, render_offset=0, annot=True, mapping=None):
+def reidemeister(params, start_frame, render=False, render_offset=0, annot=True, num_knots=1, mapping=None):
 
     piece = "Cylinder"
     last = params["num_segments"]-1
@@ -275,7 +253,7 @@ def reidemeister(params, start_frame, render=False, render_offset=0, annot=True,
     for step in range(start_frame, middle_frame):
         bpy.context.scene.frame_set(step)
         if render:
-            render_frame(step, render_offset=render_offset, annot=annot, mapping=mapping)
+            render_frame(step, render_offset=render_offset, annot=annot, mapping=mapping, num_knots=num_knots)
     take_action(end2, end_frame, (np.random.uniform(-6,-8)-end2.matrix_world.translation[0],np.random.uniform(-3,3),0))
     # Drop the ends
 
@@ -286,15 +264,15 @@ def reidemeister(params, start_frame, render=False, render_offset=0, annot=True,
     for step in range(middle_frame, end_frame):
         bpy.context.scene.frame_set(step)
         if render:
-            render_frame(step, render_offset=render_offset, annot=annot, mapping=mapping)
+            render_frame(step, render_offset=render_offset, annot=annot, mapping=mapping, num_knots=num_knots)
     return end_frame
 
-def random_loosen(params, start_frame, render=False, render_offset=0, annot=True, mapping=None):
+def random_loosen(params, start_frame, render=False, render_offset=0, annot=True, num_knots=1, mapping=None):
 
     piece = "Cylinder"
     last = params["num_segments"]-1
 
-    knots = find_knot(params["num_segments"])
+    knots = find_knot(params["num_segments"], num_knots=num_knots)
     pick, hold, _ = knots[random.choice(range(len(knots)))]
     if random.random() < 0.5:
         pick = random.choice(range(10, 40))
@@ -316,7 +294,7 @@ def random_loosen(params, start_frame, render=False, render_offset=0, annot=True
     for step in range(start_frame, start_frame + 10):
         bpy.context.scene.frame_set(step)
         if render:
-            render_frame(step, render_offset=render_offset, annot=annot, mapping=mapping)
+            render_frame(step, render_offset=render_offset, annot=annot, mapping=mapping, num_knots=num_knots)
 
     take_action(pull_cyl, mid_frame, (dx,dy,dz))
     toggle_animation(pull_cyl, mid_frame, False)
@@ -324,7 +302,7 @@ def random_loosen(params, start_frame, render=False, render_offset=0, annot=True
     for step in range(start_frame + 10, end_frame):
         bpy.context.scene.frame_set(step)
         if render:
-            render_frame(step, render_offset=render_offset, annot=annot, mapping=mapping)
+            render_frame(step, render_offset=render_offset, annot=annot, mapping=mapping, num_knots=num_knots)
     return end_frame
 
 def generate_dataset(params, chain=False, render=False):
@@ -342,19 +320,21 @@ def generate_dataset(params, chain=False, render=False):
     #    reid_start = random_loosen(params, reid_end_frame, render=render, render_offset=knot_end_frame, mapping=mapping)
 
     render_offset = 0
-    for i in range(4):
+    for i in range(6):
         #knot_type = random.choice(range(3))
-        if i%4==0:
+        num_knots = 1
+        if i%6==0:
             knot_end_frame = tie_pretzel_knot(params, render=False)
-        elif i%4==1:
+        elif i%6==1:
             knot_end_frame = tie_figure_eight(params, render=False)
-        elif i%4==2:
-            knot_end_frame = tie_double_pretzel(params, render=False)
-        else:
+        elif i%6==2:
             knot_end_frame = tie_stevedore(params, render=False)
+        else:
+            knot_end_frame = tie_double_pretzel(params, render=False)
+            num_knots = 2
         render_offset += knot_end_frame
-        reid_end_frame = reidemeister(params, knot_end_frame, render=render, render_offset=render_offset, mapping=mapping)
-        loosen_end_frame = random_loosen(params, reid_end_frame, render=render, render_offset=render_offset, mapping=mapping)
+        reid_end_frame = reidemeister(params, knot_end_frame, render=render, render_offset=render_offset, num_knots=num_knots, mapping=mapping)
+        loosen_end_frame = random_loosen(params, reid_end_frame, render=render, render_offset=render_offset, num_knots=num_knots, mapping=mapping)
         render_offset -= loosen_end_frame
         bpy.context.scene.frame_set(0)
         for a in bpy.data.actions:
