@@ -320,7 +320,7 @@ def generate_dataset(params, chain=False, render=False):
     #    reid_start = random_loosen(params, reid_end_frame, render=render, render_offset=knot_end_frame, mapping=mapping)
 
     render_offset = 0
-    for i in range(20):
+    for i in range(6):
         #knot_type = random.choice(range(3))
         num_knots = 1
         if i%6==0:

@@ -163,7 +163,8 @@ def center_camera(randomize=True):
     rot = np.random.uniform(-np.pi/16, np.pi/16)
     x_rot = np.random.uniform(-np.pi/64, np.pi/64) 
     y_rot = np.random.uniform(-np.pi/64, np.pi/64) 
-    bpy.context.scene.camera.rotation_euler = (x_rot, y_rot, rot) # Allowing non-planar rotation a little bit too
+    #bpy.context.scene.camera.rotation_euler = (x_rot, y_rot, rot) # Allowing non-planar rotation a little bit too
+    bpy.context.scene.camera.rotation_euler = (0, 0, rot) # Allowing non-planar rotation a little bit too
 
     # reset camera location:
     bpy.context.scene.camera.location = (camera_x+dx, camera_y+dy, camera_z+dz)
@@ -384,12 +385,12 @@ def generate_dataset(params, iters=1, chain=False, render=False):
     num_loosens = 3 # For each knot, we can do num_loosens loosening actions
     for i in range(iters):
         num_knots = 1
-        if i%3==0:
+        if i%2==0:
             knot_end_frame = tie_pretzel_knot(params, render=False)
-        elif i%3==1:
+        elif i%2==1:
             knot_end_frame = tie_figure_eight(params, render=False)
-        elif i%3==2:
-            knot_end_frame = tie_stevedore(params, render=False)
+        #elif i%3==2:
+        #    knot_end_frame = tie_stevedore(params, render=False)
         reid_end_frame = reidemeister(params, knot_end_frame, render=False) # For generating knots, we don't need to render the reid frames
         render_offset += reid_end_frame
         
@@ -414,4 +415,4 @@ if __name__ == '__main__':
     add_camera_light()
     set_render_settings(params["engine"],(params["render_width"],params["render_height"]))
     make_table(params)
-    generate_dataset(params, iters=3, render=True)
+    generate_dataset(params, iters=2, render=True)
