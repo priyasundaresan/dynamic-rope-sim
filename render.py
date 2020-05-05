@@ -8,6 +8,7 @@ sys.path.append(os.getcwd())
 
 from rigidbody_rope import *
 from sklearn.neighbors import NearestNeighbors
+from knots import tie_pretzel_knot, tie_stevedore, tie_figure_eight, tie_double_pretzel
 
 def set_animation_settings(anim_end):
     # Sets up the animation to run till frame anim_end (otherwise default terminates @ 250)
@@ -48,7 +49,7 @@ def set_render_settings(engine, render_size):
         scene.view_settings.view_transform = 'Raw'
         scene.eevee.taa_render_samples = 1
 
-def annotate(frame, mapping, num_annotations, knot_only=False, end_only=True, offset=1):
+def annotate(frame, mapping, num_annotations, knot_only=True, end_only=False, offset=1):
 # def annotate(frame, mapping, num_annotations, knot_only=False, offset=1, bias_knot=3):
     # knot_only = True:  means only record the under, over crossings
     # knot_only = False:  means record annotations for full rope
@@ -153,25 +154,29 @@ def center_camera(randomize=True):
     pull_cyl = get_piece("Cylinder", -1 if knot_pull == 0 else knot_pull)
     hold_loc = hold_cyl.matrix_world.translation
     pull_loc = pull_cyl.matrix_world.translation
-    # pull_loc = hold_cyl.matrix_world.translation
     camera_x = (hold_loc[0] + pull_loc[0])/2
     camera_y = (hold_loc[1] + pull_loc[1])/2
     camera_z = 1
-    # camera_z = 28
-    offset = 0.1
+    #offset = 0.1
+    offset = 0.05
     dx = np.random.uniform(-offset, offset) if randomize else 0
     dy = np.random.uniform(-offset, offset) if randomize else 0
-    dz = np.random.uniform(-0.2, 0) if randomize else 0
-    bpy.context.scene.camera.rotation_euler = (0, 0, 0)
+    #dz = np.random.uniform(-0.2, 0) if randomize else 0
+    #dz = np.random.uniform(-1.5, -0.8) if randomize else 0
+    dz = np.random.uniform(0.5, 1.5) if randomize else 0
+    rot = np.random.uniform(-np.pi/16, np.pi/16)
+    x_rot = np.random.uniform(-np.pi/64, np.pi/64) 
+    y_rot = np.random.uniform(-np.pi/64, np.pi/64) 
+    bpy.context.scene.camera.rotation_euler = (x_rot, y_rot, rot)
 
     # reset camera location:
     bpy.context.scene.camera.location = (camera_x+dx, camera_y+dy, camera_z+dz)
     return
 
-def render_frame(frame, render_offset=0, step=2, num_annotations=400, filename="%06d_rgb.png", folder="images", annot=True, mapping=None):
+def render_frame(frame, render_offset=0, step=2, num_annotations=300, filename="%06d_rgb.png", folder="images", annot=True, mapping=None):
     # Renders a single frame in a sequence (if frame%step == 0)
     frame -= render_offset
-    #center_camera()
+    center_camera()
     if frame%step == 0:
         scene = bpy.context.scene
 
@@ -203,8 +208,8 @@ def render_mask(mask_filename, depth_filename, index):
     links.new(inv_node.outputs[0], norm_node.inputs[0])
     links.new(norm_node.outputs[0], composite.inputs["Image"])
 
-    scene.render.filepath = depth_filename % index
-    bpy.ops.render.render(write_still=True)
+    #scene.render.filepath = depth_filename % index
+    #bpy.ops.render.render(write_still=True)
 
     links.new(norm_node.outputs[0], math_node.inputs[0])
     links.new(math_node.outputs[0], composite.inputs["Image"])
@@ -262,16 +267,16 @@ def random_loosen(params, start_frame, render=False, render_offset=0, annot=True
     last = params["num_segments"]-1
 
     pick, hold, _ = find_knot(params["num_segments"])
-    if random.random() < 0.5:
-        pick = random.choice(range(10, 40))
     pull_cyl = get_piece(piece, pick)
     hold_cyl = get_piece(piece, hold)
 
-    dx = np.random.uniform(0,1)*random.choice((-1,1))
-    dy = np.random.uniform(0,1)*random.choice((-1,1))
-    #dz = np.random.uniform(0.5,1)
-    # dz = np.random.uniform(0.75, 2.25)
-    dz = np.random.uniform(0.75,1.5)
+    #dx = np.random.uniform(0,1)*random.choice((-1,1))
+    #dy = np.random.uniform(0,1)*random.choice((-1,1))
+    #dz = np.random.uniform(0.75,1.5)
+
+    dx = np.random.uniform(0,2)*random.choice((-1,1))
+    dy = np.random.uniform(0,2)*random.choice((-1,1))
+    dz = np.random.uniform(0.5,1.5)
 
     mid_frame = start_frame + 50
     end_frame = start_frame + 100
@@ -300,12 +305,13 @@ def reidemeister(params, start_frame, render=False, render_offset=0, annot=True,
 
     middle_frame = start_frame+25
     end_frame = start_frame+50
-    #end1_first = random.random() > 0.5
     end1_first = True
     if end1_first:
-        take_action(end1, middle_frame, (11-end1.matrix_world.translation[0],0,0))
+        #take_action(end1, middle_frame, (11-end1.matrix_world.translation[0],0,0))
+        take_action(end1, middle_frame, (8-end1.matrix_world.translation[0],0,0))
     else:
-        take_action(end2, middle_frame, (-8-end2.matrix_world.translation[0],0,0))
+        #take_action(end2, middle_frame, (-8-end2.matrix_world.translation[0],0,0))
+        take_action(end2, middle_frame, (-5-end2.matrix_world.translation[0],0,0))
     for step in range(start_frame, middle_frame):
         bpy.context.scene.frame_set(step)
         if render:
@@ -364,22 +370,43 @@ def random_end_pick_place(params, start_frame, render=False, render_offset=0, an
 
 def generate_dataset(params, iters=1, chain=False, render=False):
 
-    set_animation_settings(7000)
+    set_animation_settings(15000)
     piece = "Cylinder"
     last = params["num_segments"]-1
     mapping = {}
 
-    knot_end_frame = tie_knot(params, render=False)
+    #knot_end_frame = tie_knot(params, render=False)
+    #reid_start = knot_end_frame
+    #for i in range(iters):
+    #    reid_end_frame = reidemeister(params, reid_start, render=render, render_offset=knot_end_frame, mapping=mapping)
+    #    if random.random() < 0.15:
+    #        reid_start = random_loosen(params, reid_end_frame, render=render, render_offset=knot_end_frame, mapping=mapping)
+    #    else:
+    #        reid_start = random_end_pick_place(params, reid_end_frame, render=render, render_offset=knot_end_frame, mapping=mapping)
 
-    reid_start = knot_end_frame
+    render_offset = 0
+    num_loosens = 2
     for i in range(iters):
-    # NOTE: each iteration renders 75 images, ~45 is about 3500 images for generating a training dset
-        reid_end_frame = reidemeister(params, reid_start, render=render, render_offset=knot_end_frame, mapping=mapping)
-        if random.random() < 0.15:
-            reid_start = random_loosen(params, reid_end_frame, render=render, render_offset=knot_end_frame, mapping=mapping)
-        else:
-            reid_start = random_end_pick_place(params, reid_end_frame, render=render, render_offset=knot_end_frame, mapping=mapping)
-
+        num_knots = 1
+        if i%3==0:
+            knot_end_frame = tie_pretzel_knot(params, render=False)
+        elif i%3==1:
+            knot_end_frame = tie_figure_eight(params, render=False)
+        elif i%3==2:
+            knot_end_frame = tie_stevedore(params, render=False)
+        #render_offset += knot_end_frame
+        #reid_end_frame = reidemeister(params, knot_end_frame, render=render, render_offset=render_offset, mapping=mapping)
+        reid_end_frame = reidemeister(params, knot_end_frame, render=False)
+        render_offset += reid_end_frame
+        
+        loosen_start = reid_end_frame
+        for i in range(num_loosens):
+            loosen_end_frame = random_loosen(params, loosen_start, render=render, render_offset=render_offset, mapping=mapping)
+            loosen_start = loosen_end_frame
+        render_offset -= loosen_end_frame
+        bpy.context.scene.frame_set(0)
+        for a in bpy.data.actions:
+            bpy.data.actions.remove(a)
     with open("./images/knots_info.json", 'w') as outfile:
         json.dump(mapping, outfile, sort_keys=True, indent=2)
 
@@ -387,9 +414,9 @@ if __name__ == '__main__':
     with open("rigidbody_params.json", "r") as f:
         params = json.load(f)
     clear_scene()
-    make_rope(params)
+    #make_rope(params)
+    make_capsule_rope(params)
     add_camera_light()
     set_render_settings(params["engine"],(params["render_width"],params["render_height"]))
     make_table(params)
-    generate_dataset(params, iters=45, render=True)
-    # generate_dataset(params, render=True)
+    generate_dataset(params, iters=3, render=True)

@@ -81,7 +81,6 @@ def annotate(frame, offset=4, num_knots=1):
     knots = find_knot(50, num_knots=num_knots)
     for knot in knots:
         pull, hold, _ = knot
-        print(pull, offset)
         pull_idx_min, pull_idx_max = max(0,pull-offset), min(49,pull+offset+1)
         hold_idx_min, hold_idx_max = max(0,hold-offset), min(49,hold+offset+1)
         indices = list(range(pull_idx_min, pull_idx_max)) + list(range(hold_idx_min, hold_idx_max))
@@ -178,7 +177,8 @@ def find_knot(num_segments, chain=False, num_knots=1, depth_thresh=0.43, idx_thr
     #return -1, last, [0,0,0] # Didn't find a pull/hold
 
 def randomize_camera():
-    rot = np.random.uniform(-pi/12, pi/12)
+    #rot = np.random.uniform(-pi/12, pi/12)
+    rot = np.random.uniform(-pi/8, pi/8) + random.choice((0, np.pi))
     xoffset = 0.1
     yoffset = 0.1
     zoffset = 0.1
@@ -274,18 +274,18 @@ def random_loosen(params, start_frame, render=False, render_offset=0, annot=True
 
     knots = find_knot(params["num_segments"], num_knots=num_knots)
     pick, hold, _ = knots[random.choice(range(len(knots)))]
-    if random.random() < 0.5:
-        pick = random.choice(range(10, 40))
+    #if random.random() < 0.5:
+    #    pick = random.choice(range(10, 40))
     pull_cyl = get_piece(piece, pick)
     hold_cyl = get_piece(piece, hold)
 
-    dx = np.random.uniform(0,2)*random.choice((-1,1))
-    dy = np.random.uniform(0,2)*random.choice((-1,1))
+    dx = np.random.uniform(0,2.5)*random.choice((-1,1))
+    dy = np.random.uniform(0,2.5)*random.choice((-1,1))
     #dz = np.random.uniform(0.5,1)
     #dz = np.random.uniform(0.75,2.25)
     #dz = np.random.uniform(0.75,1.75)
     #dz = np.random.uniform(0.75,1.25)
-    dz = np.random.uniform(0,3)
+    dz = np.random.uniform(1.5,3.5)
 
     mid_frame = start_frame + 50
     end_frame = start_frame + 100
@@ -320,7 +320,7 @@ def generate_dataset(params, chain=False, render=False):
     #    reid_start = random_loosen(params, reid_end_frame, render=render, render_offset=knot_end_frame, mapping=mapping)
 
     render_offset = 0
-    for i in range(6):
+    for i in range(20):
         #knot_type = random.choice(range(3))
         num_knots = 1
         if i%6==0:
@@ -344,7 +344,8 @@ if __name__ == '__main__':
     with open("rigidbody_params.json", "r") as f:
         params = json.load(f)
     clear_scene()
-    make_rope(params)
+    #make_rope(params)
+    make_capsule_rope(params)
     add_camera_light()
     set_render_settings(params["engine"],(params["render_width"],params["render_height"]))
     make_table(params)

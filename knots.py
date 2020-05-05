@@ -67,8 +67,8 @@ def tie_pretzel_knot(params, chain=False, render=False):
     # Pull to tighten knot
     take_action(end1, 200, (5,0,2))
     take_action(end2, 200, (0,0,0))
-    take_action(end1, 230, (7,0,5))
-    take_action(end2, 230, (-7,0,0))
+    take_action(end1, 230, (8,0,5))
+    take_action(end2, 230, (-6,0,0))
 
     # Now, we "drop" the rope; no longer animated and will move only based on rigid body physics
     #toggle_animation(end1, 240, False)
@@ -104,10 +104,10 @@ def tie_figure_eight(params, chain=False, render=False):
     take_action(end2, 250, (4.5,-0.25,-6))
     take_action(end2, 300, (0,0,-2))
     take_action(end2, 350, (9,0,8))
-    take_action(end2, 400, (-18,0,0))
+    take_action(end2, 400, (-16,0,0))
 
     take_action(end1, 350, (0,0,0))
-    take_action(end1, 400, (12,-2,-2))
+    take_action(end1, 400, (14,-2,-2))
 
     # Take some time to settle
     toggle_animation(end1, 450, False)
@@ -144,8 +144,10 @@ def tie_stevedore(params, chain=False, render=False):
     take_action(end2, 310, (0,0,-3))
     take_action(end2, 350, (9,0,8))
     take_action(end1, 350, (0,0,0))
-    take_action(end2, 400, (-16,0,-3))
-    take_action(end1, 400, (8,-2,-5))
+    #take_action(end2, 400, (-16,0,-3))
+    #take_action(end1, 400, (8,-2,-5))
+    take_action(end2, 400, (-12,0,-3))
+    take_action(end1, 400, (12,-2,-5))
 
     # Take some time to settle
     toggle_animation(end1, 430, False)
@@ -156,54 +158,54 @@ def tie_stevedore(params, chain=False, render=False):
         #    render_frame(step)
     return 470
 
+#def tie_double_pretzel(params, chain=False, render=False):
+#
+#    piece = "Cylinder"
+#    last = params["num_segments"]-1
+#    end1 = get_piece(piece, -1)
+#    end2 = get_piece(piece, last)
+#    for i in range(last+1):
+#        obj = get_piece(piece, i if i != 0 else -1)
+#        take_action(obj, 1, (0,0,0), animate=(i==0 or i==last))
+#
+#    take_action(end2, 80, (5,0,-1))
+#    take_action(end1, 80, (-20,2,2))
+#
+#    take_action(end2, 100, (2,2,0))
+#    take_action(end1, 100, (0,0,0))
+#    take_action(end1, 150, (6,-1,0))
+#    take_action(end2, 150, (0,0,0))
+#    take_action(end2, 200, (2,-1.5,-3))
+#    take_action(end2, 220, (0,0,-3))
+#    take_action(end2, 240, (-6,0,0))
+#    take_action(end1, 240, (0,0,0))
+#    take_action(end2, 300, (-3,0,5))
+#    take_action(end1, 300, (4,0,0))
+#
+#    take_action(end1, 320, (-10,3,-3))
+#    take_action(end1, 360, (-2,-3.5,0))
+#    take_action(end1, 380, (1,-1,-2))
+#    take_action(end1, 410, (0,0,-3))
+#    take_action(end1, 430, (0,3,0))
+#    take_action(end1, 460, (-2,1,5))
+#    take_action(end1, 490, (8,0,0))
+#
+#    take_action(end1, 490, (0,0,0))
+#    take_action(end2, 490, (0,0,0))
+#    take_action(end2, 510, (8,-4,0))
+#    take_action(end1, 510, (8,-4,0))
+#
+#    # Take some time to settle
+#    toggle_animation(end1, 540, False)
+#    toggle_animation(end2, 540, False)
+#
+#    for step in range(1, 560):
+#        bpy.context.scene.frame_set(step)
+#        #if render:
+#        #    render_frame(step)
+#    return 560
+
 def tie_double_pretzel(params, chain=False, render=False):
-
-    piece = "Cylinder"
-    last = params["num_segments"]-1
-    end1 = get_piece(piece, -1)
-    end2 = get_piece(piece, last)
-    for i in range(last+1):
-        obj = get_piece(piece, i if i != 0 else -1)
-        take_action(obj, 1, (0,0,0), animate=(i==0 or i==last))
-
-    take_action(end2, 80, (5,0,-1))
-    take_action(end1, 80, (-20,2,2))
-
-    take_action(end2, 100, (2,2,0))
-    take_action(end1, 100, (0,0,0))
-    take_action(end1, 150, (6,-1,0))
-    take_action(end2, 150, (0,0,0))
-    take_action(end2, 200, (2,-1.5,-3))
-    take_action(end2, 220, (0,0,-3))
-    take_action(end2, 240, (-6,0,0))
-    take_action(end1, 240, (0,0,0))
-    take_action(end2, 300, (-3,0,5))
-    take_action(end1, 300, (4,0,0))
-
-    take_action(end1, 320, (-10,3,-3))
-    take_action(end1, 360, (-2,-3.5,0))
-    take_action(end1, 380, (1,-1,-2))
-    take_action(end1, 410, (0,0,-3))
-    take_action(end1, 430, (0,3,0))
-    take_action(end1, 460, (-2,1,5))
-    take_action(end1, 490, (8,0,0))
-
-    take_action(end1, 490, (0,0,0))
-    take_action(end2, 490, (0,0,0))
-    take_action(end2, 510, (8,-4,0))
-    take_action(end1, 510, (8,-4,0))
-
-    # Take some time to settle
-    toggle_animation(end1, 540, False)
-    toggle_animation(end2, 540, False)
-
-    for step in range(1, 560):
-        bpy.context.scene.frame_set(step)
-        #if render:
-        #    render_frame(step)
-    return 560
-
-def tie_double_pretzel_v2(params, chain=False, render=False):
 
     piece = "Cylinder"
     last = params["num_segments"]-1
@@ -233,11 +235,10 @@ def tie_double_pretzel_v2(params, chain=False, render=False):
     take_action(end1, 410, (1,1,-2))
     take_action(end1, 430, (-2,6,2))
     take_action(end1, 460, (0,0,0))
-    #take_action(end1, 490, (8,-3,0))
     take_action(end1, 490, (0,-5,3))
     take_action(end2, 490, (0,0,0))
-    take_action(end2, 520, (8,0,-2))
-    take_action(end1, 520, (16,-3,-2))
+    take_action(end2, 520, (11,0,-2))
+    take_action(end1, 520, (18,-3,-2))
     toggle_animation(end1, 540, False)
     toggle_animation(end2, 540, False)
 
@@ -259,4 +260,4 @@ if __name__ == '__main__':
     #tie_figure_eight(params, render=True)
     #tie_pretzel_knot(params, render=True)
     #tie_stevedore(params, render=True)
-    tie_double_pretzel_v2(params, render=True)
+    tie_double_pretzel(params, render=True)
