@@ -50,9 +50,6 @@ def set_render_settings(engine, render_size):
         scene.eevee.taa_render_samples = 1
 
 def annotate(frame, mapping, num_annotations, knot_only=True, end_only=False, offset=1):
-# def annotate(frame, mapping, num_annotations, knot_only=False, offset=1, bias_knot=3):
-    # knot_only = True:  means only record the under, over crossings
-    # knot_only = False:  means record annotations for full rope
     '''Gets num_annotations annotations of cloth image at provided frame #, adds to mapping'''
     scene = bpy.context.scene
     render_scale = scene.render.resolution_percentage / 100
@@ -162,12 +159,11 @@ def center_camera(randomize=True):
     dx = np.random.uniform(-offset, offset) if randomize else 0
     dy = np.random.uniform(-offset, offset) if randomize else 0
     #dz = np.random.uniform(-0.2, 0) if randomize else 0
-    #dz = np.random.uniform(-1.5, -0.8) if randomize else 0
-    dz = np.random.uniform(0.5, 1.5) if randomize else 0
+    dz = np.random.uniform(0.5, 1.5) if randomize else 0 # Tweaked this to be higher, see more of the knot
     rot = np.random.uniform(-np.pi/16, np.pi/16)
     x_rot = np.random.uniform(-np.pi/64, np.pi/64) 
     y_rot = np.random.uniform(-np.pi/64, np.pi/64) 
-    bpy.context.scene.camera.rotation_euler = (x_rot, y_rot, rot)
+    bpy.context.scene.camera.rotation_euler = (x_rot, y_rot, rot) # Allowing non-planar rotation a little bit too
 
     # reset camera location:
     bpy.context.scene.camera.location = (camera_x+dx, camera_y+dy, camera_z+dz)
@@ -385,7 +381,7 @@ def generate_dataset(params, iters=1, chain=False, render=False):
     #        reid_start = random_end_pick_place(params, reid_end_frame, render=render, render_offset=knot_end_frame, mapping=mapping)
 
     render_offset = 0
-    num_loosens = 2
+    num_loosens = 3 # For each knot, we can do num_loosens loosening actions
     for i in range(iters):
         num_knots = 1
         if i%3==0:
@@ -394,9 +390,7 @@ def generate_dataset(params, iters=1, chain=False, render=False):
             knot_end_frame = tie_figure_eight(params, render=False)
         elif i%3==2:
             knot_end_frame = tie_stevedore(params, render=False)
-        #render_offset += knot_end_frame
-        #reid_end_frame = reidemeister(params, knot_end_frame, render=render, render_offset=render_offset, mapping=mapping)
-        reid_end_frame = reidemeister(params, knot_end_frame, render=False)
+        reid_end_frame = reidemeister(params, knot_end_frame, render=False) # For generating knots, we don't need to render the reid frames
         render_offset += reid_end_frame
         
         loosen_start = reid_end_frame
@@ -404,9 +398,10 @@ def generate_dataset(params, iters=1, chain=False, render=False):
             loosen_end_frame = random_loosen(params, loosen_start, render=render, render_offset=render_offset, mapping=mapping)
             loosen_start = loosen_end_frame
         render_offset -= loosen_end_frame
+        # Delete all keyframes to make a new knot and reset the frame counter
         bpy.context.scene.frame_set(0)
         for a in bpy.data.actions:
-            bpy.data.actions.remove(a)
+            bpy.data.actions.remove(a) 
     with open("./images/knots_info.json", 'w') as outfile:
         json.dump(mapping, outfile, sort_keys=True, indent=2)
 
