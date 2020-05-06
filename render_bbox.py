@@ -346,6 +346,7 @@ if __name__ == '__main__':
     clear_scene()
     #make_rope(params)
     make_capsule_rope(params)
+    rig_rope(params)
     add_camera_light()
     set_render_settings(params["engine"],(params["render_width"],params["render_height"]))
     make_table(params)

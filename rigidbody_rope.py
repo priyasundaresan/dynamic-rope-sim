@@ -107,10 +107,9 @@ def createNewBone(obj, new_bone_name, head, tail):
     target_obj_name = "Cylinder" if new_bone_name == "Bone.000" else new_bone_name.replace("Bone", "Cylinder") 
     constraint.target = bpy.data.objects[target_obj_name]
 
-def make_rigid_rope(params, bezier):
+def make_braid_rig(params, bezier):
     n = params["num_segments"]
     radius = params["segment_radius"]
-    #bpy.ops.mesh.primitive_circle_add(location=(-10,0,0))
     bpy.ops.mesh.primitive_circle_add(location=(0,0,0))
     radius = 0.125
     bpy.ops.transform.resize(value=(radius, radius, radius))
@@ -128,13 +127,20 @@ def make_rigid_rope(params, bezier):
     bpy.ops.object.modifier_add(type='SCREW')
     rope = bpy.context.object
     rope.rotation_euler = (0,pi/2,0)
-    rope.modifiers["Screw"].screw_offset = 12
-    rope.modifiers["Screw"].iterations = 15
+    rope.modifiers["Screw"].screw_offset = 12 # Arbitrary
+    rope.modifiers["Screw"].iterations = 15 # Arbitrary
     bpy.ops.object.modifier_add(type='CURVE')
     rope.modifiers["Curve"].object = bezier
     rope.modifiers["Curve"].show_in_editmode = True
     rope.modifiers["Curve"].show_on_cage = True
     return rope
+
+def make_cable_rig(params, bezier):
+    bpy.ops.object.modifier_add(type='CURVE')
+    bpy.ops.curve.primitive_bezier_circle_add(radius=0.02)
+    bezier.data.bevel_object = bpy.data.objects["BezierCircle"]
+    bpy.context.view_layer.objects.active = bezier
+    return bezier
 
 def rig_rope(params):
     bpy.ops.object.armature_add(enter_editmode=False, location=(0, 0, 0))
@@ -148,15 +154,13 @@ def rig_rope(params):
     bezier_scale = n*radius
     bpy.ops.transform.resize(value=(bezier_scale, bezier_scale, bezier_scale))
     bezier = bpy.context.active_object
-    #bpy.ops.object.modifier_add(type='CURVE')
-    #bpy.ops.curve.primitive_bezier_circle_add(radius=0.02)
-    #bezier.data.bevel_object = bpy.data.objects["BezierCircle"]
-    #bpy.context.view_layer.objects.active = bezier
     bpy.ops.object.mode_set(mode='EDIT')
     bpy.ops.curve.select_all(action='SELECT')
     bpy.ops.curve.handle_type_set(type='VECTOR')
     bpy.ops.curve.handle_type_set(type='AUTOMATIC')
-    num_control_points = 20
+    # NOTE: it segfaults for num_control_points > 20 for the braided rope!!
+    #num_control_points = 20 # Tune this
+    num_control_points = 20 # Tune this
     bpy.ops.curve.subdivide(number_cuts=num_control_points-2)
     bpy.ops.object.mode_set(mode='OBJECT')
     bezier_points = bezier.data.splines[0].bezier_points
@@ -175,8 +179,10 @@ def rig_rope(params):
     for i in range(n):
         obj_name = "Cylinder.%03d"%i if i else "Cylinder"
         bpy.data.objects[obj_name].hide_set(True)
+        bpy.data.objects[obj_name].hide_render = True
     bezier.select_set(False)
-    rope = make_rigid_rope(params, bezier)
+    #rope = make_braid_rig(params, bezier)
+    rope = make_cable_rig(params, bezier)
 
 
 def make_rope_v3(params):
