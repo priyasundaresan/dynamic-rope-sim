@@ -116,17 +116,38 @@ def rig_rope(params):
         loc = 2*radius*((n-i) - n//2)
         createNewBone(arm, "Bone.%03d"%i, (loc,0,0), (loc,0,1))
     bpy.ops.curve.primitive_bezier_curve_add(location=(radius,0,0))
-    bezier_scale = 2.5
+    bezier_scale = n*radius
     bpy.ops.transform.resize(value=(bezier_scale, bezier_scale, bezier_scale))
+    bezier = bpy.context.active_object
+    bpy.ops.curve.primitive_bezier_circle_add(radius=0.02)
+    bpy.context.view_layer.objects.active = bezier
+    bezier.data.bevel_object = bpy.data.objects["BezierCircle"]
     bpy.ops.object.mode_set(mode='EDIT')
-    #bpy.ops.transform.resize(value=(1, 0, 1))
     bpy.ops.curve.select_all(action='SELECT')
     bpy.ops.curve.handle_type_set(type='VECTOR')
     bpy.ops.curve.handle_type_set(type='AUTOMATIC')
-    bpy.ops.curve.subdivide(number_cuts=n-2)
+    #bpy.ops.curve.subdivide(number_cuts=n-2)
+    num_control_points = 20
+    bpy.ops.curve.subdivide(number_cuts=num_control_points-2)
     bpy.ops.object.mode_set(mode='OBJECT')
-    bezier = bpy.context.active_object
     bezier_points = bezier.data.splines[0].bezier_points
+    bpy.ops.object.mode_set(mode='EDIT')
+    bpy.ops.curve.select_all(action='DESELECT')
+    #for i in range(len(bezier_points)):
+    for i in range(num_control_points):
+        bpy.ops.curve.select_all(action='DESELECT')
+        hook = bezier.modifiers.new(name = "Hook.%03d"%i, type = 'HOOK' )
+        hook.object = arm
+        hook.subtarget = "Bone.%03d"%(n-1-(i*n/num_control_points))
+        pt = bpy.data.curves['BezierCurve'].splines[0].bezier_points[i]
+        pt.select_control_point = True
+        bpy.ops.object.hook_assign(modifier="Hook.%03d"%i)
+        pt.select_control_point = False
+    bpy.ops.object.mode_set(mode='OBJECT')
+    for i in range(n):
+        obj_name = "Cylinder.%03d"%i if i else "Cylinder"
+        bpy.data.objects[obj_name].hide_set(True)
+
 
 def make_rope_v3(params):
     # This method relies on an STL file that contains a mesh for a

@@ -260,5 +260,5 @@ if __name__ == '__main__':
     make_table(params)
     #tie_figure_eight(params, render=True)
     #tie_pretzel_knot(params, render=True)
-    #tie_stevedore(params, render=True)
+    tie_stevedore(params, render=True)
     #tie_double_pretzel(params, render=True)
