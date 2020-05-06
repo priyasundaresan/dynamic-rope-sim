@@ -129,7 +129,7 @@ def make_rigid_rope(params, bezier):
     rope = bpy.context.object
     rope.rotation_euler = (0,pi/2,0)
     rope.modifiers["Screw"].screw_offset = 12
-    rope.modifiers["Screw"].iterations = 16
+    rope.modifiers["Screw"].iterations = 15
     bpy.ops.object.modifier_add(type='CURVE')
     rope.modifiers["Curve"].object = bezier
     rope.modifiers["Curve"].show_in_editmode = True
