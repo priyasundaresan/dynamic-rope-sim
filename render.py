@@ -49,7 +49,7 @@ def set_render_settings(engine, render_size):
         scene.view_settings.view_transform = 'Raw'
         scene.eevee.taa_render_samples = 1
 
-def annotate(frame, mapping, num_annotations, knot_only=True, end_only=False, offset=1):
+def annotate(frame, mapping, num_annotations, knot_only=False, end_only=True, offset=1):
     '''Gets num_annotations annotations of cloth image at provided frame #, adds to mapping'''
     scene = bpy.context.scene
     render_scale = scene.render.resolution_percentage / 100
@@ -173,7 +173,7 @@ def center_camera(randomize=True):
 def render_frame(frame, render_offset=0, step=2, num_annotations=300, filename="%06d_rgb.png", folder="images", annot=True, mapping=None):
     # Renders a single frame in a sequence (if frame%step == 0)
     frame -= render_offset
-    center_camera()
+    #center_camera()
     if frame%step == 0:
         scene = bpy.context.scene
 
@@ -304,11 +304,11 @@ def reidemeister(params, start_frame, render=False, render_offset=0, annot=True,
     end_frame = start_frame+50
     end1_first = True
     if end1_first:
-        #take_action(end1, middle_frame, (11-end1.matrix_world.translation[0],0,0))
-        take_action(end1, middle_frame, (8-end1.matrix_world.translation[0],0,0))
+        take_action(end1, middle_frame, (11-end1.matrix_world.translation[0],0,0))
+        #take_action(end1, middle_frame, (8-end1.matrix_world.translation[0],0,0))
     else:
-        #take_action(end2, middle_frame, (-8-end2.matrix_world.translation[0],0,0))
-        take_action(end2, middle_frame, (-5-end2.matrix_world.translation[0],0,0))
+        take_action(end2, middle_frame, (-8-end2.matrix_world.translation[0],0,0))
+        #take_action(end2, middle_frame, (-5-end2.matrix_world.translation[0],0,0))
     for step in range(start_frame, middle_frame):
         bpy.context.scene.frame_set(step)
         if render:
@@ -337,12 +337,12 @@ def random_end_pick_place(params, start_frame, render=False, render_offset=0, an
     end2 = get_piece(piece, last)
     
     dx1 = np.random.uniform(-8,0)
-    dy1 = np.random.uniform(-3,3)
+    dy1 = np.random.uniform(-2,2.1)
     dz1 = np.random.uniform(4,6)
     #dz1 = np.random.uniform(0,0)
 
     dx2 = np.random.uniform(0,5)
-    dy2 = np.random.uniform(-3,3)
+    dy2 = np.random.uniform(-2,2.1)
     dz2 = np.random.uniform(4,6)
     #dz2 = np.random.uniform(0,0)
 
@@ -372,37 +372,37 @@ def generate_dataset(params, iters=1, chain=False, render=False):
     last = params["num_segments"]-1
     mapping = {}
 
-    #knot_end_frame = tie_knot(params, render=False)
-    #reid_start = knot_end_frame
-    #for i in range(iters):
-    #    reid_end_frame = reidemeister(params, reid_start, render=render, render_offset=knot_end_frame, mapping=mapping)
-    #    if random.random() < 0.15:
-    #        reid_start = random_loosen(params, reid_end_frame, render=render, render_offset=knot_end_frame, mapping=mapping)
-    #    else:
-    #        reid_start = random_end_pick_place(params, reid_end_frame, render=render, render_offset=knot_end_frame, mapping=mapping)
-
-    render_offset = 0
-    num_loosens = 3 # For each knot, we can do num_loosens loosening actions
+    knot_end_frame = tie_knot(params, render=False)
+    reid_start = knot_end_frame
     for i in range(iters):
-        num_knots = 1
-        if i%2==0:
-            knot_end_frame = tie_pretzel_knot(params, render=False)
-        elif i%2==1:
-            knot_end_frame = tie_figure_eight(params, render=False)
-        #elif i%3==2:
-        #    knot_end_frame = tie_stevedore(params, render=False)
-        reid_end_frame = reidemeister(params, knot_end_frame, render=False) # For generating knots, we don't need to render the reid frames
-        render_offset += reid_end_frame
-        
-        loosen_start = reid_end_frame
-        for i in range(num_loosens):
-            loosen_end_frame = random_loosen(params, loosen_start, render=render, render_offset=render_offset, mapping=mapping)
-            loosen_start = loosen_end_frame
-        render_offset -= loosen_end_frame
-        # Delete all keyframes to make a new knot and reset the frame counter
-        bpy.context.scene.frame_set(0)
-        for a in bpy.data.actions:
-            bpy.data.actions.remove(a) 
+        reid_end_frame = reidemeister(params, reid_start, render=render, render_offset=knot_end_frame, mapping=mapping)
+        if random.random() < 0.15:
+            reid_start = random_loosen(params, reid_end_frame, render=render, render_offset=knot_end_frame, mapping=mapping)
+        else:
+            reid_start = random_end_pick_place(params, reid_end_frame, render=render, render_offset=knot_end_frame, mapping=mapping)
+
+    #render_offset = 0
+    #num_loosens = 3 # For each knot, we can do num_loosens loosening actions
+    #for i in range(iters):
+    #    num_knots = 1
+    #    if i%2==0:
+    #        knot_end_frame = tie_pretzel_knot(params, render=False)
+    #    elif i%2==1:
+    #        knot_end_frame = tie_figure_eight(params, render=False)
+    #    #elif i%3==2:
+    #    #    knot_end_frame = tie_stevedore(params, render=False)
+    #    reid_end_frame = reidemeister(params, knot_end_frame, render=False) # For generating knots, we don't need to render the reid frames
+    #    render_offset += reid_end_frame
+    #    
+    #    loosen_start = reid_end_frame
+    #    for i in range(num_loosens):
+    #        loosen_end_frame = random_loosen(params, loosen_start, render=render, render_offset=render_offset, mapping=mapping)
+    #        loosen_start = loosen_end_frame
+    #    render_offset -= loosen_end_frame
+    #    # Delete all keyframes to make a new knot and reset the frame counter
+    #    bpy.context.scene.frame_set(0)
+    #    for a in bpy.data.actions:
+    #        bpy.data.actions.remove(a) 
     with open("./images/knots_info.json", 'w') as outfile:
         json.dump(mapping, outfile, sort_keys=True, indent=2)
 
@@ -415,4 +415,4 @@ if __name__ == '__main__':
     add_camera_light()
     set_render_settings(params["engine"],(params["render_width"],params["render_height"]))
     make_table(params)
-    generate_dataset(params, iters=2, render=True)
+    generate_dataset(params, iters=50, render=True)

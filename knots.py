@@ -253,6 +253,7 @@ if __name__ == '__main__':
         params = json.load(f)
     clear_scene()
     make_capsule_rope(params)
+    rig_rope(params)
     #make_rope(params)
     add_camera_light()
     set_animation_settings(600)
@@ -260,4 +261,4 @@ if __name__ == '__main__':
     #tie_figure_eight(params, render=True)
     #tie_pretzel_knot(params, render=True)
     #tie_stevedore(params, render=True)
-    tie_double_pretzel(params, render=True)
+    #tie_double_pretzel(params, render=True)

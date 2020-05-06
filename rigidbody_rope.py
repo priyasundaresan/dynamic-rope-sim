@@ -95,6 +95,39 @@ def make_capsule_rope(params):
     links = [bpy.data.objects['Cylinder.%03d' % (i) if i>0 else "Cylinder"] for i in range(num_segments)]
     return links
 
+def createNewBone(obj, new_bone_name, head, tail):
+    bpy.ops.object.editmode_toggle()
+    bpy.ops.armature.bone_primitive_add(name=new_bone_name)
+    new_edit_bone = obj.data.edit_bones[new_bone_name]
+    new_edit_bone.head = head
+    new_edit_bone.tail = tail
+    bpy.ops.object.editmode_toggle()
+    bone = obj.pose.bones[-1]
+    constraint = bone.constraints.new('COPY_TRANSFORMS')
+    target_obj_name = "Cylinder" if new_bone_name == "Bone.000" else new_bone_name.replace("Bone", "Cylinder") 
+    constraint.target = bpy.data.objects[target_obj_name]
+
+def rig_rope(params):
+    bpy.ops.object.armature_add(enter_editmode=False, location=(0, 0, 0))
+    arm = bpy.context.object
+    n = params["num_segments"]
+    radius = params["segment_radius"]
+    for i in range(n):
+        loc = 2*radius*((n-i) - n//2)
+        createNewBone(arm, "Bone.%03d"%i, (loc,0,0), (loc,0,1))
+    bpy.ops.curve.primitive_bezier_curve_add(location=(radius,0,0))
+    bezier_scale = 2.5
+    bpy.ops.transform.resize(value=(bezier_scale, bezier_scale, bezier_scale))
+    bpy.ops.object.mode_set(mode='EDIT')
+    #bpy.ops.transform.resize(value=(1, 0, 1))
+    bpy.ops.curve.select_all(action='SELECT')
+    bpy.ops.curve.handle_type_set(type='VECTOR')
+    bpy.ops.curve.handle_type_set(type='AUTOMATIC')
+    bpy.ops.curve.subdivide(number_cuts=n-2)
+    bpy.ops.object.mode_set(mode='OBJECT')
+    bezier = bpy.context.active_object
+    bezier_points = bezier.data.splines[0].bezier_points
+
 def make_rope_v3(params):
     # This method relies on an STL file that contains a mesh for a
     # capsule.  The capsule cannot be non-unformly scaled without
