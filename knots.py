@@ -253,8 +253,7 @@ if __name__ == '__main__':
         params = json.load(f)
     clear_scene()
     make_capsule_rope(params)
-    rig_rope(params)
-    #make_rope(params)
+    rig_rope(params) # UNCOMMENT TO SEE CYLINDER REPR
     add_camera_light()
     set_animation_settings(600)
     make_table(params)

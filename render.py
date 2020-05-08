@@ -415,4 +415,4 @@ if __name__ == '__main__':
     add_camera_light()
     set_render_settings(params["engine"],(params["render_width"],params["render_height"]))
     make_table(params)
-    generate_dataset(params, iters=2, render=True)
+    generate_dataset(params, iters=4, render=True)
