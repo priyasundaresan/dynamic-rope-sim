@@ -379,6 +379,10 @@ def run_untangling_rollout(params, crop_cf, ends_cf, path_to_ref_imgs, ref_pixel
     knot_end_frame = tie_pretzel_knot(params, render=False)
     render_offset = knot_end_frame
     render_frame(knot_end_frame, render_offset=render_offset, step=1)
+
+    # Policy = 0: oracle (ground truth)
+    # Policy = 1: with descriptors
+    # Policy = 2: (TODO) bounding box random action
     if policy==1:
         reid_end = reidemeister_descriptors(knot_end_frame, ends_cf, path_to_ref_full_img, ref_end_pixels, render=True, render_offset=render_offset)
     elif policy==0:
