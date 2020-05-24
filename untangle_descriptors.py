@@ -27,6 +27,7 @@ from find_correspondences import CorrespondenceFinder
 from image_utils import *
 
 from rigidbody_rope import *
+from knots import *
 
 from predict import BBoxFinder, PredictionConfig
 
@@ -209,7 +210,6 @@ def descriptor_matches(cf, path_to_ref_img, pixels, curr_frame, crop=False):
     best_matches, _ = cf.find_k_best_matches(pixels, 50, mode="median")
     vis = cf.show_side_by_side()
     cv2.imwrite("preds/%06d_desc.png" % curr_frame, vis)
-    # return pixels_to_cylinders(best_matches)
     return best_matches
 
 def reidemeister_descriptors(start_frame, cf, path_to_ref_img, ref_end_pixels, render=False, render_offset=0):
@@ -221,15 +221,16 @@ def reidemeister_descriptors(start_frame, cf, path_to_ref_img, ref_end_pixels, r
     end2 = get_piece(piece, end2_idx)
 
     middle_frame = start_frame+50
-    end_frame = middle_frame+50
-    take_action(end2, middle_frame, (-8-end2.matrix_world.translation[0],0,0))
+    end_frame = middle_frame + 50
+    # take_action(end2, middle_frame, (-8-end2.matrix_world.translation[0],0,0))
+    take_action(end2, middle_frame, (-15-end2.matrix_world.translation[0],0,0))
     for step in range(start_frame, middle_frame):
         bpy.context.scene.frame_set(step)
         if render:
             render_frame(step, render_offset=render_offset, step=1)
 
     # end2_idx, end1_idx = descriptor_matches(cf, path_to_ref_img, ref_end_pixels, middle_frame-1-render_offset)
-    end2_pixel, end1_pixel = descriptor_matches(cf, path_to_ref_img, ref_end_pixels, start_frame-render_offset)
+    end2_pixel, end1_pixel = descriptor_matches(cf, path_to_ref_img, ref_end_pixels, middle_frame-1-render_offset)
     end2_idx = pixels_to_cylinders([end2_pixel])
     end1_idx = pixels_to_cylinders([end1_pixel])
 
@@ -238,7 +239,6 @@ def reidemeister_descriptors(start_frame, cf, path_to_ref_img, ref_end_pixels, r
     take_action(end1, end_frame, (10-end1.matrix_world.translation[0],0,0))
 
     # Drop the ends
-    #toggle_animation(end1, end_frame, False)
     toggle_animation(end1, end_frame, False)
 
     settle_time = 50
@@ -254,6 +254,8 @@ def bbox_untangle(start_frame, bbox_detector, render_offset=0):
     boxes = bbox_predictor.predict(curr_img)
     # undo furthest right box first
     boxes = sorted(boxes, key=lambda box: box[0][2])
+    if len(boxes) == 0:
+        return None, 0
     return boxes[0] # ASSUME first box is knot to be untied
 
 def undone_check_hold_thresh(start_frame, bbox_detector, cf, path_to_ref_img, ref_crop_pixels, hold_pos, render_offset=0, thresh=40):
@@ -323,6 +325,9 @@ def pixel_crop_to_full(pixels, crop_rescale_factor, x_offset, y_offset):
 
 def find_pull_hold(start_frame, bbox_detector, cf, path_to_ref_img, ref_crop_pixels, render_offset=0):
     box, confidence = bbox_untangle(start_frame, bbox_detector, render_offset=render_offset)
+    print("BOX",box)
+    if box is None:
+        return None, None
     path_to_curr_img = "images/%06d_rgb.png" % (start_frame-render_offset)
     img = cv2.imread(path_to_curr_img)
     # scale box and save to "images/%06d_crop.png" % curr_frame
@@ -347,6 +352,8 @@ def take_undo_action_descriptors(start_frame, bbox_detector, cf, path_to_ref_img
         pull_pixel, hold_pixel = find_pull_hold(start_frame, bbox_detector, cf, path_to_ref_img, ref_crop_pixels, render_offset=render_offset)
     else:
         pull_pixel, hold_pixel = pixels
+    if pull_pixel is None:
+        return start_frame, None, None, None
     # calculate action vec
     dx = pull_pixel[0] - hold_pixel[0]
     dy = pull_pixel[1] - hold_pixel[1]
@@ -429,8 +436,8 @@ def run_untangling_rollout(params, crop_cf, ends_cf, path_to_ref_imgs, ref_pixel
     set_animation_settings(7000)
     piece = "Cylinder"
     last = params["num_segments"]-1
+    undone=True
 
-    # ref_knot_pixels = ref_pixels[:2]
     index = 2
     if armature == 1:
         index = 6
@@ -451,22 +458,29 @@ def run_untangling_rollout(params, crop_cf, ends_cf, path_to_ref_imgs, ref_pixel
         path_to_ref_crop_img = os.path.join(path_to_ref_img, 'crop_ref.png')
 
     #render_offset = 350 # length of a knot action
-    knot_end_frame = tie_knot(params, render=False)
+    # knot_end_frame = tie_knot(params, render=False)
+    # knot_end_frame = tie_double_pretzel(params, render=False)
+    knot_end_frame = tie_cornell1_knot(params, render=False)
+
     render_offset = knot_end_frame
     render_frame(knot_end_frame, render_offset=render_offset, step=1)
     reid_end = reidemeister_descriptors(knot_end_frame, ends_cf, path_to_ref_full_img, ref_end_pixels, render=True, render_offset=render_offset)
-    # reid_end = knot_end_frame
 
     # take undo actions
     undo_end_frame, pull, hold, action_vec = take_undo_action_descriptors(reid_end, bbox_predictor, crop_cf, path_to_ref_crop_img, ref_crop_pixels, render=True, render_offset=render_offset)
-    undone = undone_check_endpoint_pass(undo_end_frame, ends_cf, path_to_ref_full_img, ref_end_pixels, pull, hold, action_vec, render_offset=render_offset)
-    # undone, pull_pixel, hold_pixel = undone_check_hold_thresh(undo_end_frame, bbox_predictor, crop_cf, path_to_ref_crop_img, ref_crop_pixels, hold, render_offset=render_offset)
+    if pull is not None:
+        undone = undone_check_endpoint_pass(undo_end_frame, ends_cf, path_to_ref_full_img, ref_end_pixels, pull, hold, action_vec, render_offset=render_offset)
+        # undone, pull_pixel, hold_pixel = undone_check_hold_thresh(undo_end_frame, bbox_predictor, crop_cf, path_to_ref_crop_img, ref_crop_pixels, hold, render_offset=render_offset)
     while not undone:
     # for i in range(1):
         undo_end_frame, pull, hold, action_vec = take_undo_action_descriptors(undo_end_frame, bbox_predictor, crop_cf, path_to_ref_crop_img, ref_crop_pixels, render=True, render_offset=render_offset)
-        undone = undone_check_endpoint_pass(undo_end_frame, ends_cf, path_to_ref_full_img, ref_end_pixels, pull, hold, action_vec, render_offset=render_offset)
-        # undo_end_frame, _, hold, _ = take_undo_action_descriptors(undo_end_frame, bbox_predictor, crop_cf, path_to_ref_crop_img, ref_crop_pixels, render=True, render_offset=render_offset, pixels=[pull_pixel, hold_pixel])
-        # undone, pull_pixel, hold_pixel = undone_check_hold_thresh(undo_end_frame, bbox_predictor, crop_cf, path_to_ref_crop_img, ref_crop_pixels, hold, render_offset=render_offset)
+        if pull is not None:
+            undone = undone_check_endpoint_pass(undo_end_frame, ends_cf, path_to_ref_full_img, ref_end_pixels, pull, hold, action_vec, render_offset=render_offset)
+            # undo_end_frame, _, hold, _ = take_undo_action_descriptors(undo_end_frame, bbox_predictor, crop_cf, path_to_ref_crop_img, ref_crop_pixels, render=True, render_offset=render_offset, pixels=[pull_pixel, hold_pixel])
+            # undone, pull_pixel, hold_pixel = undone_check_hold_thresh(undo_end_frame, bbox_predictor, crop_cf, path_to_ref_crop_img, ref_crop_pixels, hold, render_offset=render_offset)
+        else:
+            break
+
     reid_end = reidemeister_descriptors(undo_end_frame, ends_cf, path_to_ref_full_img, ref_end_pixels, render=True, render_offset=render_offset)
 
 
@@ -511,19 +525,14 @@ if __name__ == '__main__':
                             "bbox": "armature_1200"},
                     "braid": {"ends": 'braid_ends',
                             "local": 'braid_local_2knots',
-                            "bbox": "armature_1200"}} # FIX THIS
+                            "bbox": "braid_bbox_network"}}
 
-    network_dir_dict = network_dirs["chord"] if if armature == 1 else network_dirs["braid"]
+    network_dir_dict = network_dirs["chord"] if armature == 1 else network_dirs["braid"]
     ends_network_dir = network_dir_dict["ends"]
     local_network_dir = network_dir_dict["local"]
     bbox_network_dir = network_dir_dict["bbox"]
 
-    # network_dir = 'crop_s2_blur7-10_unzoomed'
-    # network_dir = 'armature_local_2knots'
     crop_cf, path_to_ref_img, ref_pixels = load_cf(base_dir, local_network_dir, crop=True)
-
-    # network_dir = 'ends'
-    # network_dir = 'armature_ends'
     ends_cf, path_to_ref_img, ref_pixels = load_cf(base_dir, ends_network_dir)
 
     cfg = PredictionConfig()
