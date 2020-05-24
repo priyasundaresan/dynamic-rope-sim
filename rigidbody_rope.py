@@ -139,7 +139,8 @@ def make_braid_rig(params, bezier):
 
 def make_cable_rig(params, bezier):
     bpy.ops.object.modifier_add(type='CURVE')
-    bpy.ops.curve.primitive_bezier_circle_add(radius=0.02)
+    #bpy.ops.curve.primitive_bezier_circle_add(radius=0.02)
+    bpy.ops.curve.primitive_bezier_circle_add(radius=0.018)
     bezier.data.bevel_object = bpy.data.objects["BezierCircle"]
     bpy.context.view_layer.objects.active = bezier
     return bezier
@@ -183,8 +184,8 @@ def rig_rope(params):
         bpy.data.objects[obj_name].hide_set(True)
         bpy.data.objects[obj_name].hide_render = True
     bezier.select_set(False)
-    rope = make_braid_rig(params, bezier)
-    #rope = make_cable_rig(params, bezier)
+    #rope = make_braid_rig(params, bezier)
+    rope = make_cable_rig(params, bezier)
 
 def make_rope_v3(params):
     # This method relies on an STL file that contains a mesh for a

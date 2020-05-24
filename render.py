@@ -61,7 +61,8 @@ def annotate(frame, mapping, num_annotations, knot_only=True, end_only=False, of
     pixels = []
     if knot_only:
         pull, hold, _ = find_knot(50)
-        indices = list(range(pull-offset, pull+offset+1)) + list(range(hold-offset, hold+offset+1))
+        #indices = list(range(pull-offset, pull+offset+1)) + list(range(hold-offset, hold+offset+1))
+        indices = list(range(pull-offset, pull+offset+1))
         knot_indices = indices
         bias_knot = 1 # no bias
     elif end_only:
@@ -71,8 +72,8 @@ def annotate(frame, mapping, num_annotations, knot_only=True, end_only=False, of
     for i in indices:
         cyl = get_piece("Cylinder", i if i != 0 else -1)
         cyl_verts = list(cyl.data.vertices)
-        step_size = len(indices)*len(cyl_verts)//num_annotations
-        #vertex_coords = [cyl.matrix_world @ v.co for v in cyl_verts][np.random.randint(step_size)::step_size]
+        #step_size = len(indices)*len(cyl_verts)//num_annotations
+        step_size = 1
         vertex_coords = [cyl.matrix_world @ v.co for v in cyl_verts][::step_size]
         for i in range(len(vertex_coords)):
             v = vertex_coords[i]
@@ -83,7 +84,7 @@ def annotate(frame, mapping, num_annotations, knot_only=True, end_only=False, of
 
 def get_piece(piece_name, piece_id):
     # Returns the piece with name piece_name, index piece_id
-    if piece_id == -1 or piece_id is None:
+    if piece_id == -1 or piece_id == 0 or piece_id is None:
         return bpy.data.objects['%s' % (piece_name)]
     return bpy.data.objects['%s.%03d' % (piece_name, piece_id)]
 
@@ -136,8 +137,8 @@ def find_knot(num_segments, chain=False, depth_thresh=0.4, idx_thresh=3, pull_of
             dx = planar_coords[pull_idx][0] - x
             dy = planar_coords[pull_idx][1] - y
             hold_idx = match_cyl["idx"]
-            SCALE_X = 7
-            SCALE_Y = 7
+            SCALE_X = 1
+            SCALE_Y = 1
             Z_OFF = 6
             action_vec = [SCALE_X*dx, SCALE_Y*dy, Z_OFF] # Pull in the direction of the rope (NOTE: 7 is an arbitrary scale for now, 6 is z offset)
             return pull_idx, hold_idx, action_vec # Found! Return the pull, hold, and action
@@ -160,7 +161,8 @@ def center_camera(randomize=True, flip=False):
     dx = np.random.uniform(-offset, offset) if randomize else 0
     dy = np.random.uniform(-offset, offset) if randomize else 0
     #dz = np.random.uniform(-0.2, 0) if randomize else 0
-    dz = np.random.uniform(0.5, 1.5) if randomize else 0 # Tweaked this to be higher, see more of the knot
+    #dz = np.random.uniform(0.5, 1.5) if randomize else 0 # Tweaked this to be higher, see more of the knot
+    dz = np.random.uniform(0.75, 1.8) if randomize else 0 # Tweaked this to be higher, see more of the knot
     # check that the Cylinder.049 on left and Cylinder on right
     cyl_0_loc = get_piece("Cylinder", -1).matrix_world.translation
     cyl_49_loc = get_piece("Cylinder", 49).matrix_world.translation
@@ -204,7 +206,7 @@ def texture_randomize(obj, textures_folder):
 def render_frame(frame, render_offset=0, step=2, num_annotations=300, filename="%06d_rgb.png", folder="images", annot=True, mapping=None):
     # Renders a single frame in a sequence (if frame%step == 0)
     frame -= render_offset
-    #center_camera()
+    center_camera()
     if frame%step == 0:
         scene = bpy.context.scene
 
@@ -297,16 +299,13 @@ def random_loosen(params, start_frame, render=False, render_offset=0, annot=True
     pull_cyl = get_piece(piece, pick)
     hold_cyl = get_piece(piece, hold)
 
-    #dx = np.random.uniform(0,1)*random.choice((-1,1))
-    #dy = np.random.uniform(0,1)*random.choice((-1,1))
-    #dz = np.random.uniform(0.75,1.5)
+    dx = np.random.uniform(0.5,1)*random.choice((-1,1))
+    dy = np.random.uniform(0.5,1)*random.choice((-1,1))
+    dz = np.random.uniform(0.75,1)
 
-    dx = np.random.uniform(0,2)*random.choice((-1,1))
-    dy = np.random.uniform(0,2)*random.choice((-1,1))
-    # #dz = np.random.uniform(0.5,1)
-    # # dz = np.random.uniform(0.75, 2.25)
-    # dz = np.random.uniform(0.75,1.5)
-    dz = np.random.uniform(1,1.5)
+    #dx = np.random.uniform(0,2)*random.choice((-1,1))
+    #dy = np.random.uniform(0,2)*random.choice((-1,1))
+    #dz = np.random.uniform(1,1.5)
 
     mid_frame = start_frame + 50
     end_frame = start_frame + 100
@@ -421,7 +420,8 @@ def generate_dataset(params, iters=1, chain=False, render=False):
     #        reid_start = random_end_pick_place(params, reid_end_frame, render=render, render_offset=knot_end_frame, mapping=mapping)
 
     render_offset = 0
-    num_loosens = 3 # For each knot, we can do num_loosens loosening actions
+    #num_loosens = 3 # For each knot, we can do num_loosens loosening actions
+    num_loosens = 2 # For each knot, we can do num_loosens loosening actions
     # num_loosens = 1
     for i in range(iters):
         num_knots = 1
@@ -430,7 +430,6 @@ def generate_dataset(params, iters=1, chain=False, render=False):
             knot_end_frame = knots.tie_pretzel_knot(params, render=False)
         elif i%2==1:
             knot_end_frame = knots.tie_figure_eight(params, render=False)
-
         # if i%3==0:
         #     knot_end_frame = knots.tie_pretzel_knot(params, render=False)
         # elif i%3==1:
@@ -465,5 +464,5 @@ if __name__ == '__main__':
     set_render_settings(params["engine"],(params["render_width"],params["render_height"]))
     make_table(params)
     # generate_dataset(params, iters=40, render=True)
-    generate_dataset(params, iters=20, render=True)
+    generate_dataset(params, iters=1, render=True)
     # generate_dataset(params, iters=1, render=True)
