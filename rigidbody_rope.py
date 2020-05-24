@@ -183,8 +183,8 @@ def rig_rope(params):
         bpy.data.objects[obj_name].hide_set(True)
         bpy.data.objects[obj_name].hide_render = True
     bezier.select_set(False)
-    rope = make_braid_rig(params, bezier)
-    #rope = make_cable_rig(params, bezier)
+    # rope = make_braid_rig(params, bezier)
+    rope = make_cable_rig(params, bezier)
 
 def make_rope_v3(params):
     # This method relies on an STL file that contains a mesh for a
@@ -298,6 +298,7 @@ def add_camera_light():
     # bpy.context.scene.light = bpy.context.object
     #bpy.ops.object.light_add(type='SUN', radius=1, location=(0,0,0), rotation=(36*np.pi/180, -65*np.pi/180, 18*np.pi/180))
     bpy.ops.object.camera_add(location=(2,0,28), rotation=(0,0,0))
+    # bpy.ops.object.camera_add(location=(2,0,30), rotation=(0,0,0))
     #bpy.ops.object.camera_add(location=(11,-33,7.5), rotation=(radians(80), 0, radians(16.5)))
     bpy.context.scene.camera = bpy.context.object
 
