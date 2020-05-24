@@ -30,10 +30,6 @@ from image_utils import *
 from rigidbody_rope import *
 from knots import *
 
-<<<<<<< Updated upstream
-=======
-
->>>>>>> Stashed changes
 from predict import BBoxFinder, PredictionConfig
 
 def render_frame(frame, render_offset=0, step=2, num_annotations=400, filename="%06d_rgb.png", folder="images"):
@@ -269,11 +265,7 @@ def take_undo_action_oracle(start_frame, render=False, render_offset=0):
         if render:
             render_frame(step, render_offset=render_offset, step=1)
     pull_pixel, hold_pixel = cyl_to_pixels([pull_idx, hold_idx])
-<<<<<<< Updated upstream
-    return start_frame+200+settle_time, pull_pixel[0], hold_pixel[0], action_vec
-=======
     return start_frame+200, pull_pixel[0], hold_pixel[0], action_vec
->>>>>>> Stashed changes
 
 def take_undo_action_descriptors(start_frame, bbox_detector, cf, path_to_ref_img, ref_crop_pixels, render=False, render_offset=0, pixels=None):
     piece = "Cylinder"
@@ -397,6 +389,7 @@ def run_untangling_rollout(params, crop_cf, ends_cf, path_to_ref_imgs, ref_pixel
         reid_end = reidemeister_descriptors(knot_end_frame, ends_cf, path_to_ref_full_img, ref_end_pixels, render=True, render_offset=render_offset)
     elif policy==0:
         reid_end = reidemeister_oracle(knot_end_frame, render=True, render_offset=render_offset)
+    undo_end_frame = reid_end
     undone = False
     i = 0
     while not undone and i < 10:
@@ -455,8 +448,8 @@ if __name__ == '__main__':
     armature = 1 # 1 for chord, 2 for braid
 
     network_dirs = {"chord": {"ends": 'armature_ends',
-                            "local": 'rope_cyl_knots',
-                            #"local": 'armature_local_2knots',
+                            # "local": 'rope_cyl_knots',
+                            "local": 'armature_local_2knots',
                             "bbox": "armature_1200"},
                     "braid": {"ends": 'braid_ends',
                             "local": 'braid_local_2knots',
