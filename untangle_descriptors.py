@@ -90,12 +90,10 @@ def descriptor_matches(cf, path_to_ref_img, pixels, curr_frame, crop=False):
     best_matches, _ = cf.find_k_best_matches(pixels, 50, mode="median")
     vis = cf.show_side_by_side(plot=False)
     cv2.imwrite("./preds/%06d_desc.png" % curr_frame, vis)
-    # return pixels_to_cylinders(best_matches)
     return best_matches
 
 def reidemeister_descriptors(start_frame, cf, path_to_ref_img, ref_end_pixels, render=False, render_offset=0):
     piece = "Cylinder"
-    # end2_idx, end1_idx = descriptor_matches(cf, path_to_ref_img, ref_end_pixels, start_frame-render_offset)
     end2_pixel, end1_pixel = descriptor_matches(cf, path_to_ref_img, ref_end_pixels, start_frame-render_offset)
     end2_idx = pixels_to_cylinders([end2_pixel])
     end1_idx = pixels_to_cylinders([end1_pixel])
@@ -109,7 +107,6 @@ def reidemeister_descriptors(start_frame, cf, path_to_ref_img, ref_end_pixels, r
         if render:
             render_frame(step, render_offset=render_offset, step=1)
 
-    # end2_idx, end1_idx = descriptor_matches(cf, path_to_ref_img, ref_end_pixels, middle_frame-1-render_offset)
     end2_pixel, end1_pixel = descriptor_matches(cf, path_to_ref_img, ref_end_pixels, start_frame-render_offset)
     end2_idx = pixels_to_cylinders([end2_pixel])
     end1_idx = pixels_to_cylinders([end1_pixel])
@@ -119,7 +116,6 @@ def reidemeister_descriptors(start_frame, cf, path_to_ref_img, ref_end_pixels, r
     take_action(end1, end_frame, (10-end1.matrix_world.translation[0],0,0))
 
     # Drop the ends
-    #toggle_animation(end1, end_frame, False)
     toggle_animation(end1, end_frame, False)
 
     settle_time = 50
@@ -179,10 +175,7 @@ def undone_check_endpoint_pass(start_frame, ends_cf, path_to_ref_full_img, ref_e
     end2_pixel, end1_pixel = descriptor_matches(ends_cf, path_to_ref_full_img, ref_end_pixels, start_frame-render_offset)
     end2_idx = pixels_to_cylinders([end2_pixel])
     end1_idx = pixels_to_cylinders([end1_pixel])
-    # end1_loc = get_piece(piece, end1_idx).matrix_world.translation
-    # end2_loc = get_piece(piece, end2_idx).matrix_world.translation
 
-    # end_idx = end2_idx if abs(pull_idx-end2_idx) < abs(pull_idx-end1_idx) else end1_idx
     end_idx = end1_idx # we are always undoing the right side
     print("pull_idx", pull_idx)
     print("end_idx", end_idx)
@@ -213,7 +206,6 @@ def crop_and_resize(box, img, aspect=(80,60)):
 
     crop = img[y_min:y_max, x_min:x_max]
     resized = cv2.resize(crop, aspect)
-    #rescale_factor = aspect[0]/new_width
     rescale_factor = new_width/aspect[0]
     offset = (x_min, y_min)
     return resized, rescale_factor, offset
@@ -265,7 +257,7 @@ def take_undo_action_oracle(start_frame, render=False, render_offset=0):
         if render:
             render_frame(step, render_offset=render_offset, step=1)
     pull_pixel, hold_pixel = cyl_to_pixels([pull_idx, hold_idx])
-    return start_frame+200, pull_pixel[0], hold_pixel[0], action_vec
+    return start_frame+200+settle_time, pull_pixel[0], hold_pixel[0], action_vec
 
 def take_undo_action_descriptors(start_frame, bbox_detector, cf, path_to_ref_img, ref_crop_pixels, render=False, render_offset=0, pixels=None):
     piece = "Cylinder"
