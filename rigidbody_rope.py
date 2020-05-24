@@ -31,14 +31,15 @@ def clear_scene():
     bpy.ops.object.mode_set(mode='OBJECT')
     bpy.ops.object.select_all(action='SELECT')
     bpy.ops.object.delete()
-    
+
 def make_rope(params):
     segment_radius = params["segment_radius"]
     num_segments = params["num_segments"]
     bpy.ops.mesh.primitive_cylinder_add(location=(segment_radius*num_segments,0,0))
     bpy.ops.transform.resize(value=(segment_radius, segment_radius, segment_radius))
     bpy.ops.object.editmode_toggle()
-    bpy.ops.mesh.subdivide(number_cuts=1, quadcorner='INNERVERT')
+    bpy.ops.mesh.subdivide(number_cuts=5, quadcorner='INNERVERT')
+    # bpy.ops.mesh.subdivide(number_cuts=1, quadcorner='INNERVERT')
     bpy.ops.object.editmode_toggle()
     cylinder = bpy.context.object
     cylinder.name = "Cylinder"
@@ -61,7 +62,7 @@ def make_rope(params):
 def make_capsule_rope(params):
     radius = params["segment_radius"]
     #rope_length = radius * params["num_segments"] * 2 * 0.9 # HACKY -- shortening the rope artificially by 10% for now
-    rope_length = radius * params["num_segments"] 
+    rope_length = radius * params["num_segments"]
     num_segments = int(rope_length / radius)
     separation = radius*1.1 # HACKY - artificially increase the separation to avoid link-to-link collision
     link_mass = params["segment_mass"] # TODO: this may need to be scaled
@@ -104,7 +105,7 @@ def createNewBone(obj, new_bone_name, head, tail):
     bpy.ops.object.editmode_toggle()
     bone = obj.pose.bones[-1]
     constraint = bone.constraints.new('COPY_TRANSFORMS')
-    target_obj_name = "Cylinder" if new_bone_name == "Bone.000" else new_bone_name.replace("Bone", "Cylinder") 
+    target_obj_name = "Cylinder" if new_bone_name == "Bone.000" else new_bone_name.replace("Bone", "Cylinder")
     constraint.target = bpy.data.objects[target_obj_name]
 
 def make_braid_rig(params, bezier):
@@ -118,6 +119,7 @@ def make_braid_rig(params, bezier):
     bpy.ops.transform.translate(value=(radius, 0, 0))
     bpy.ops.object.mode_set(mode='OBJECT')
     num_chords = 4
+    # num_chords = 2
     for i in range(1, num_chords):
         bpy.ops.object.duplicate_move(OBJECT_OT_duplicate=None, TRANSFORM_OT_translate=None)
         ob = bpy.context.active_object
@@ -184,7 +186,6 @@ def rig_rope(params):
     rope = make_braid_rig(params, bezier)
     #rope = make_cable_rig(params, bezier)
 
-
 def make_rope_v3(params):
     # This method relies on an STL file that contains a mesh for a
     # capsule.  The capsule cannot be non-unformly scaled without
@@ -226,7 +227,7 @@ def make_rope_v3(params):
     # switch the collision_shape to CAPSULE--this is both faster and
     # more accurate (for an actual capsule) than the default.
     link0.rigid_body.collision_shape = 'CAPSULE'
-    
+
     links = [link0]
     for i in range(1,num_segments):
         # copy link0 to create each additional link
@@ -288,12 +289,13 @@ def make_rope_v3(params):
     # little speed.
     bpy.context.scene.rigidbody_world.steps_per_second = 1000
     bpy.context.scene.rigidbody_world.solver_iterations = 100
-        
+
     return links
 
-    
+
 def add_camera_light():
     bpy.ops.object.light_add(type='SUN', radius=1, location=(0,0,0))
+    # bpy.context.scene.light = bpy.context.object
     #bpy.ops.object.light_add(type='SUN', radius=1, location=(0,0,0), rotation=(36*np.pi/180, -65*np.pi/180, 18*np.pi/180))
     bpy.ops.object.camera_add(location=(2,0,28), rotation=(0,0,0))
     #bpy.ops.object.camera_add(location=(11,-33,7.5), rotation=(radians(80), 0, radians(16.5)))
@@ -347,7 +349,7 @@ def tie_knot_with_fixture(end, fixture):
 
     # reset blender to show the first frame
     bpy.context.scene.frame_current = 1
-    
+
 if __name__ == '__main__':
     with open("rigidbody_params.json", "r") as f:
         params = json.load(f)

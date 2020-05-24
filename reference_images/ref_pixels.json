@@ -10,5 +10,21 @@
     "crop_pull_x": 150,
     "crop_pull_y": 110,
     "crop_hold_x": 210,
-    "crop_hold_y": 100
+    "crop_hold_y": 100,
+    "armature_reid_left_x": 46,
+    "armature_reid_left_y": 238,
+    "armature_reid_right_x": 540,
+    "armature_reid_right_y": 217,
+    "armature_crop_pull_x": 40,
+    "armature_crop_pull_y": 25,
+    "armature_crop_hold_x": 51,
+    "armature_crop_hold_y": 28,
+    "braid_reid_left_x": 56,
+    "braid_reid_left_y": 205,
+    "braid_reid_right_x": 435,
+    "braid_reid_right_y": 225,
+    "braid_crop_pull_x": 37,
+    "braid_crop_pull_y": 28,
+    "braid_crop_hold_x": 49,
+    "braid_crop_hold_y": 28
 }

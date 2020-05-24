@@ -248,6 +248,34 @@ def tie_double_pretzel(params, chain=False, render=False):
         #    render_frame(step)
     return 560
 
+def tie_knot_7(params, chain=False, render=True):
+    piece = "Cylinder"
+    last = params["num_segments"]-1
+    end1 = get_piece(piece, -1)
+    end2 = get_piece(piece, last)
+    for i in range(last+1):
+        obj = get_piece(piece, i if i != 0 else -1)
+        take_action(obj, 1, (0,0,0), animate=(i==0 or i==last))
+
+    take_action(end2, 80, (11,0,3))
+    take_action(end1, 80, (-7,2,-1))
+
+    take_action(end2, 130, (0,-3,-2))
+    take_action(end2, 150, (4,0,-2))
+    take_action(end1, 180, (0,0,0))
+    take_action(end2, 180, (0,6,-1))
+
+    #take_action(end1, 200, (-3,0,2))
+    #take_action(end2, 200, (0,0,0))
+    #take_action(end2, 230, (2,-4,0))
+    #take_action(end1, 230, (0,0,0))
+    #take_action(end1, 250, (4,0,-3))
+    #take_action(end2, 280, (0,0,0))
+    #take_action(end2, 280, (0,3,0))
+
+    #toggle_animation(end1, 280, False)
+    #toggle_animation(end2, 280, False)
+
 if __name__ == '__main__':
     with open("rigidbody_params.json", "r") as f:
         params = json.load(f)
@@ -259,5 +287,6 @@ if __name__ == '__main__':
     make_table(params)
     #tie_figure_eight(params, render=True)
     #tie_pretzel_knot(params, render=True)
-    tie_stevedore(params, render=True)
-    #tie_double_pretzel(params, render=True)
+    #tie_stevedore(params, render=True)
+    tie_double_pretzel(params, render=True)
+    #tie_knot_7(params)

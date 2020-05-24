@@ -12,8 +12,9 @@ def blur(filename, dir, end_scale=1):
     img = cv2.imread('./%s/images/%s'%(dir, filename)).copy()
     original_x = 640
     original_y = 480
-    scale = np.random.uniform(7, 10)
-    resized = cv2.resize(img, (int(original_x/scale), int(original_y/scale)))
+    # scale = np.random.uniform(7, 10)
+    # resized = cv2.resize(img, (int(original_x/scale), int(original_y/scale)))
+    resized = img
     blur_img = cv2.resize(resized, (original_x, original_y))
     blur_img = cv2.resize(resized, (int(original_x/end_scale), int(original_y/end_scale)))
     cv2.imwrite('./image_blur/images/{}'.format(filename), blur_img)

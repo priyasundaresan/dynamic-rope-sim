@@ -143,7 +143,7 @@ def tie_knot(params, chain=False, render=False):
     # Wrap endpoint one circularly around endpoint 2
     take_action(end2, 80, (10,0,0))
     # take_action(end1, 80, (-15,5,0))
-    take_action(end1, 80, (-14.5,5,0))
+    take_action(end1, 80, (-14,5,0))
     take_action(end1, 120, (-1,-7,0))
     take_action(end1, 150, (3,0,-4))
     take_action(end1, 170, (0,2.5,0))
@@ -190,7 +190,7 @@ def pixels_to_cylinders(pixels):
     neigh = NearestNeighbors(1, 0)
     neigh.fit(cyl_pixels)
     #match_idxs = neigh.kneighbors(pixels, 1, return_distance=False) # 1st neighbor is always identical, we want 2nd
-    two_match_idxs = neigh.kneighbors(pixels, 2, return_distance=False) 
+    two_match_idxs = neigh.kneighbors(pixels, 2, return_distance=False)
     idx1, idx2 = two_match_idxs.squeeze()
     cyl_1, cyl_2 = get_piece("Cylinder", idx1), get_piece("Cylinder", idx2)
     match = idx1
@@ -252,6 +252,8 @@ def bbox_untangle(start_frame, bbox_detector, render_offset=0):
     path_to_curr_img = "images/%06d_rgb.png" % (start_frame-render_offset)
     curr_img = imageio.imread(path_to_curr_img)
     boxes = bbox_predictor.predict(curr_img)
+    # undo furthest right box first
+    boxes = sorted(boxes, key=lambda box: box[0][2])
     return boxes[0] # ASSUME first box is knot to be untied
 
 def undone_check_hold_thresh(start_frame, bbox_detector, cf, path_to_ref_img, ref_crop_pixels, hold_pos, render_offset=0, thresh=40):
@@ -274,10 +276,13 @@ def undone_check_endpoint_pass(start_frame, ends_cf, path_to_ref_full_img, ref_e
     end2_pixel, end1_pixel = descriptor_matches(ends_cf, path_to_ref_full_img, ref_end_pixels, start_frame-render_offset)
     end2_idx = pixels_to_cylinders([end2_pixel])
     end1_idx = pixels_to_cylinders([end1_pixel])
+    # end1_loc = get_piece(piece, end1_idx).matrix_world.translation
+    # end2_loc = get_piece(piece, end2_idx).matrix_world.translation
 
-    end_idx = end2_idx if abs(pull_idx-end2_idx) < abs(pull_idx-end1_idx) else end1_idx
-    print("end_idx", end_idx)
+    # end_idx = end2_idx if abs(pull_idx-end2_idx) < abs(pull_idx-end1_idx) else end1_idx
+    end_idx = end1_idx # we are always undoing the right side
     print("pull_idx", pull_idx)
+    print("end_idx", end_idx)
     end_cyl = get_piece(piece, end_idx)
     end_loc = end_cyl.matrix_world.translation
     hold_loc = hold_cyl.matrix_world.translation
@@ -290,7 +295,7 @@ def undone_check_endpoint_pass(start_frame, ends_cf, path_to_ref_full_img, ref_e
         return True
     return False
 
-def crop_and_resize(box, img, aspect=(320,240)):
+def crop_and_resize(box, img, aspect=(80,60)):
     x1, y1, x2, y2 = box
     x_min, x_max = min(x1,x2), max(x1,x2)
     y_min, y_max = min(y1,y2), max(y1,y2)
@@ -420,23 +425,36 @@ def random_loosen(params, start_frame, render=False, render_offset=0, annot=True
             render_frame(step, render_offset=render_offset)
     return end_frame
 
-def run_untangling_rollout(params, full_cf, crop_cf, ends_cf, path_to_ref_imgs, ref_pixels, bbox_predictor, chain=False, render=True):
+def run_untangling_rollout(params, crop_cf, ends_cf, path_to_ref_imgs, ref_pixels, bbox_predictor, chain=False, render=True, armature=0):
     set_animation_settings(7000)
     piece = "Cylinder"
     last = params["num_segments"]-1
 
-    ref_knot_pixels = ref_pixels[:2]
-    ref_end_pixels = ref_pixels[2:4]
-    ref_crop_pixels = ref_pixels[4:]
+    # ref_knot_pixels = ref_pixels[:2]
+    index = 2
+    if armature == 1:
+        index = 6
+    elif armature == 2:
+        index = 10
 
-    path_to_ref_full_img = os.path.join(path_to_ref_img, 'reid_ref.png')
-    path_to_ref_crop_img = os.path.join(path_to_ref_img, 'crop_ref.png')
+    ref_end_pixels = ref_pixels[index:index+2]
+    ref_crop_pixels = ref_pixels[index+2:index+4]
+
+    if armature == 1:
+        path_to_ref_full_img = os.path.join(path_to_ref_img, 'armature_reid_ref.png')
+        path_to_ref_crop_img = os.path.join(path_to_ref_img, 'armature_crop_ref.png')
+    elif armature == 2:
+        path_to_ref_full_img = os.path.join(path_to_ref_img, 'braid_reid_ref.png')
+        path_to_ref_crop_img = os.path.join(path_to_ref_img, 'braid_crop_ref.png')
+    else:
+        path_to_ref_full_img = os.path.join(path_to_ref_img, 'reid_ref.png')
+        path_to_ref_crop_img = os.path.join(path_to_ref_img, 'crop_ref.png')
 
     #render_offset = 350 # length of a knot action
     knot_end_frame = tie_knot(params, render=False)
     render_offset = knot_end_frame
     render_frame(knot_end_frame, render_offset=render_offset, step=1)
-    reid_end = reidemeister_descriptors(knot_end_frame, full_cf, path_to_ref_full_img, ref_end_pixels, render=True, render_offset=render_offset)
+    reid_end = reidemeister_descriptors(knot_end_frame, ends_cf, path_to_ref_full_img, ref_end_pixels, render=True, render_offset=render_offset)
     # reid_end = knot_end_frame
 
     # take undo actions
@@ -449,7 +467,7 @@ def run_untangling_rollout(params, full_cf, crop_cf, ends_cf, path_to_ref_imgs, 
         undone = undone_check_endpoint_pass(undo_end_frame, ends_cf, path_to_ref_full_img, ref_end_pixels, pull, hold, action_vec, render_offset=render_offset)
         # undo_end_frame, _, hold, _ = take_undo_action_descriptors(undo_end_frame, bbox_predictor, crop_cf, path_to_ref_crop_img, ref_crop_pixels, render=True, render_offset=render_offset, pixels=[pull_pixel, hold_pixel])
         # undone, pull_pixel, hold_pixel = undone_check_hold_thresh(undo_end_frame, bbox_predictor, crop_cf, path_to_ref_crop_img, ref_crop_pixels, hold, render_offset=render_offset)
-    reid_end = reidemeister_descriptors(undo_end_frame, full_cf, path_to_ref_full_img, ref_end_pixels, render=True, render_offset=render_offset)
+    reid_end = reidemeister_descriptors(undo_end_frame, ends_cf, path_to_ref_full_img, ref_end_pixels, render=True, render_offset=render_offset)
 
 
 def load_cf(base_dir, network_dir, crop=False):
@@ -458,8 +476,8 @@ def load_cf(base_dir, network_dir, crop=False):
     with open('dense_correspondence/cfg/dataset_info.json', 'r') as f:
         dataset_stats = json.load(f)
     dataset_mean, dataset_std_dev = dataset_stats["mean"], dataset_stats["std_dev"]
-    image_width = 320 if crop else 640
-    image_height = 240 if crop else 480
+    image_width = 80 if crop else 640
+    image_height = 60 if crop else 480
     cf = CorrespondenceFinder(dcn, dataset_mean, dataset_std_dev, image_width=image_width, image_height=image_height)
     path_to_ref_img = "reference_images"
     with open('reference_images/ref_pixels.json', 'r') as f:
@@ -470,25 +488,48 @@ def load_cf(base_dir, network_dir, crop=False):
     right_end = [ref_annots["reid_right_x"], ref_annots["reid_right_y"]]
     crop_pull = [ref_annots["crop_pull_x"], ref_annots["crop_pull_y"]]
     crop_hold = [ref_annots["crop_hold_x"], ref_annots["crop_hold_y"]]
-    ref_pixels = [pull, hold, left_end, right_end, crop_pull, crop_hold]
+    armature_left_end = [ref_annots["armature_reid_left_x"], ref_annots["armature_reid_left_y"]]
+    armature_right_end = [ref_annots["armature_reid_right_x"], ref_annots["armature_reid_right_y"]]
+    armature_crop_pull = [ref_annots["armature_crop_pull_x"], ref_annots["armature_crop_pull_y"]]
+    armature_crop_hold = [ref_annots["armature_crop_hold_x"], ref_annots["armature_crop_hold_y"]]
+    braid_left_end = [ref_annots["braid_reid_left_x"], ref_annots["braid_reid_left_y"]]
+    braid_right_end = [ref_annots["braid_reid_right_x"], ref_annots["braid_reid_right_y"]]
+    braid_crop_pull = [ref_annots["braid_crop_pull_x"], ref_annots["braid_crop_pull_y"]]
+    braid_crop_hold = [ref_annots["braid_crop_hold_x"], ref_annots["braid_crop_hold_y"]]
+    ref_pixels = [pull, hold, left_end, right_end, crop_pull, crop_hold,
+        armature_left_end, armature_right_end, armature_crop_pull, armature_crop_hold,
+        braid_left_end, braid_right_end, braid_crop_pull, braid_crop_hold]
     return cf, path_to_ref_img, ref_pixels
 
 if __name__ == '__main__':
     base_dir = 'dense_correspondence/networks'
-    network_dir = 'full_length_corr'
-    full_cf, path_to_ref_img, ref_pixels = load_cf(base_dir, network_dir)
 
-    network_dir = 'crop_s2_blur7-10_unzoomed'
-    # network_dir = 'crop_loose_knot'
-    crop_cf, path_to_ref_img, ref_pixels = load_cf(base_dir, network_dir, crop=True)
+    armature = 1 # 1 for chord, 2 for braid
 
-    network_dir = 'ends'
-    # network_dir = 'crop_loose_knot'
-    ends_cf, path_to_ref_img, ref_pixels = load_cf(base_dir, network_dir)
+    network_dirs = {"chord": {"ends": 'armature_ends',
+                            "local": 'armature_local_2knots',
+                            "bbox": "armature_1200"},
+                    "braid": {"ends": 'braid_ends',
+                            "local": 'braid_local_2knots',
+                            "bbox": "armature_1200"}} # FIX THIS
+
+    network_dir_dict = network_dirs["chord"] if if armature == 1 else network_dirs["braid"]
+    ends_network_dir = network_dir_dict["ends"]
+    local_network_dir = network_dir_dict["local"]
+    bbox_network_dir = network_dir_dict["bbox"]
+
+    # network_dir = 'crop_s2_blur7-10_unzoomed'
+    # network_dir = 'armature_local_2knots'
+    crop_cf, path_to_ref_img, ref_pixels = load_cf(base_dir, local_network_dir, crop=True)
+
+    # network_dir = 'ends'
+    # network_dir = 'armature_ends'
+    ends_cf, path_to_ref_img, ref_pixels = load_cf(base_dir, ends_network_dir)
 
     cfg = PredictionConfig()
     model = MaskRCNN(mode='inference', model_dir='./', config=cfg)
-    model_path = 'mrcnn_bbox/networks/knot_network_1000/mask_rcnn_knot_cfg_0007.h5'
+    # model_path = 'mrcnn_bbox/networks/knot_network_1000/mask_rcnn_knot_cfg_0007.h5'
+    model_path = 'mrcnn_bbox/networks/{}/mask_rcnn_knot_cfg_0010.h5'.format(bbox_network_dir)
     model.load_weights(model_path, by_name=True)
     bbox_predictor = BBoxFinder(model, cfg)
 
@@ -496,7 +537,9 @@ if __name__ == '__main__':
         params = json.load(f)
     clear_scene()
     make_rope(params)
+    if armature:
+        rig_rope(params)
     add_camera_light()
     set_render_settings(params["engine"],(params["render_width"],params["render_height"]))
     make_table(params)
-    run_untangling_rollout(params, full_cf, crop_cf, ends_cf, path_to_ref_img, ref_pixels, bbox_predictor, render=True)
+    run_untangling_rollout(params, crop_cf, ends_cf, path_to_ref_img, ref_pixels, bbox_predictor, render=True, armature=armature)
