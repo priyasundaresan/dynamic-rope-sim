@@ -173,7 +173,7 @@ def center_camera(randomize=True):
 def render_frame(frame, render_offset=0, step=2, num_annotations=300, filename="%06d_rgb.png", folder="images", annot=True, mapping=None):
     # Renders a single frame in a sequence (if frame%step == 0)
     frame -= render_offset
-    center_camera()
+    #center_camera()
     if frame%step == 0:
         scene = bpy.context.scene
 
@@ -395,6 +395,7 @@ def generate_dataset(params, iters=1, chain=False, render=False):
         render_offset += reid_end_frame
         
         loosen_start = reid_end_frame
+        #loosen_end_frame = random_end_pick_place(params, loosen_start, render=render, render_offset=render_offset, mapping=mapping)
         for i in range(num_loosens):
             loosen_end_frame = random_loosen(params, loosen_start, render=render, render_offset=render_offset, mapping=mapping)
             loosen_start = loosen_end_frame
