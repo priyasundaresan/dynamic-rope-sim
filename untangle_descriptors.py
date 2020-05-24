@@ -377,6 +377,7 @@ def run_untangling_rollout(params, crop_cf, ends_cf, path_to_ref_imgs, ref_pixel
     # Policy = 2: (TODO) bounding box random action
     if policy==1:
         reid_end = reidemeister_descriptors(knot_end_frame, ends_cf, path_to_ref_full_img, ref_end_pixels, render=True, render_offset=render_offset)
+        undo_end_frame, pull, hold, action_vec = take_undo_action_descriptors(reid_end, bbox_predictor, crop_cf, path_to_ref_crop_img, ref_crop_pixels, render=True, render_offset=render_offset)
     elif policy==0:
         reid_end = reidemeister_oracle(knot_end_frame, render=True, render_offset=render_offset)
         undo_end_frame, pull, hold, action_vec = take_undo_action_oracle(reid_end, render=True, render_offset=render_offset)
