@@ -163,7 +163,7 @@ def rig_rope(params):
     bpy.ops.curve.handle_type_set(type='AUTOMATIC')
     # NOTE: it segfaults for num_control_points > 20 for the braided rope!!
     #num_control_points = 20 # Tune this
-    num_control_points = 20 # Tune this
+    num_control_points = 40 # Tune this
     bpy.ops.curve.subdivide(number_cuts=num_control_points-2)
     bpy.ops.object.mode_set(mode='OBJECT')
     bezier_points = bezier.data.splines[0].bezier_points
