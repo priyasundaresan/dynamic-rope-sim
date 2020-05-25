@@ -36,6 +36,7 @@ def render_frame(frame, render_offset=0, step=2, num_annotations=400, filename="
     if frame%step == 0:
         scene = bpy.context.scene
         index = frame//step
+        render_mask("image_masks/%06d_visible_mask.png", "images_depth/%06d_rgb.png", index)
         scene.render.filepath = os.path.join(folder, filename) % index
         bpy.ops.render.render(write_still=True)
 
@@ -257,7 +258,7 @@ def take_undo_action_oracle(start_frame, render=False, render_offset=0):
         if render:
             render_frame(step, render_offset=render_offset, step=1)
     pull_pixel, hold_pixel = cyl_to_pixels([pull_idx, hold_idx])
-    return start_frame+200+settle_time, pull_pixel[0], hold_pixel[0], action_vec
+    return start_frame+200, pull_pixel[0], hold_pixel[0], action_vec
 
 def take_undo_action_descriptors(start_frame, bbox_detector, cf, path_to_ref_img, ref_crop_pixels, render=False, render_offset=0, pixels=None):
     piece = "Cylinder"

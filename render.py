@@ -64,7 +64,6 @@ def annotate(frame, mapping, num_annotations, knot_only=True, end_only=False, of
         #indices = list(range(pull-offset, pull+offset+1)) + list(range(hold-offset, hold+offset+1))
         indices = list(range(pull-offset, pull+offset+1))
         knot_indices = indices
-        bias_knot = 1 # no bias
     elif end_only:
         indices = list(range(4)) + list(range(46,50))
     else:
@@ -162,7 +161,7 @@ def center_camera(randomize=True, flip=False):
     dy = np.random.uniform(-offset, offset) if randomize else 0
     #dz = np.random.uniform(-0.2, 0) if randomize else 0
     #dz = np.random.uniform(0.5, 1.5) if randomize else 0 # Tweaked this to be higher, see more of the knot
-    dz = np.random.uniform(0.75, 1.8) if randomize else 0 # Tweaked this to be higher, see more of the knot
+    dz = np.random.uniform(0.75, 2.5) if randomize else 0 # Tweaked this to be higher, see more of the knot
     # check that the Cylinder.049 on left and Cylinder on right
     cyl_0_loc = get_piece("Cylinder", -1).matrix_world.translation
     cyl_49_loc = get_piece("Cylinder", 49).matrix_world.translation
@@ -238,8 +237,8 @@ def render_mask(mask_filename, depth_filename, index):
     links.new(inv_node.outputs[0], norm_node.inputs[0])
     links.new(norm_node.outputs[0], composite.inputs["Image"])
 
-    #scene.render.filepath = depth_filename % index
-    #bpy.ops.render.render(write_still=True)
+    scene.render.filepath = depth_filename % index
+    bpy.ops.render.render(write_still=True)
 
     links.new(norm_node.outputs[0], math_node.inputs[0])
     links.new(math_node.outputs[0], composite.inputs["Image"])
@@ -299,9 +298,12 @@ def random_loosen(params, start_frame, render=False, render_offset=0, annot=True
     pull_cyl = get_piece(piece, pick)
     hold_cyl = get_piece(piece, hold)
 
-    dx = np.random.uniform(0.5,1)*random.choice((-1,1))
-    dy = np.random.uniform(0.5,1)*random.choice((-1,1))
-    dz = np.random.uniform(0.75,1)
+    #dx = np.random.uniform(0.5,1)*random.choice((-1,1))
+    #dy = np.random.uniform(0.5,1)*random.choice((-1,1))
+    #dz = np.random.uniform(0.75,1)
+    dx = np.random.uniform(0.3,0.8)*random.choice((-1,1))
+    dy = np.random.uniform(0.3,0.8)*random.choice((-1,1))
+    dz = np.random.uniform(0.5,0.75)
 
     #dx = np.random.uniform(0,2)*random.choice((-1,1))
     #dy = np.random.uniform(0,2)*random.choice((-1,1))
@@ -317,6 +319,7 @@ def random_loosen(params, start_frame, render=False, render_offset=0, annot=True
             render_frame(step, render_offset=render_offset, annot=annot, mapping=mapping)
 
     take_action(pull_cyl, mid_frame, (dx,dy,dz))
+    take_action(hold_cyl, mid_frame, (-dx,-dy,dz))
     toggle_animation(pull_cyl, mid_frame, False)
     toggle_animation(hold_cyl, mid_frame, False)
     for step in range(start_frame + 10, end_frame):
@@ -421,7 +424,7 @@ def generate_dataset(params, iters=1, chain=False, render=False):
 
     render_offset = 0
     #num_loosens = 3 # For each knot, we can do num_loosens loosening actions
-    num_loosens = 2 # For each knot, we can do num_loosens loosening actions
+    num_loosens = 4 # For each knot, we can do num_loosens loosening actions
     # num_loosens = 1
     for i in range(iters):
         num_knots = 1
@@ -464,5 +467,5 @@ if __name__ == '__main__':
     set_render_settings(params["engine"],(params["render_width"],params["render_height"]))
     make_table(params)
     # generate_dataset(params, iters=40, render=True)
-    generate_dataset(params, iters=1, render=True)
-    # generate_dataset(params, iters=1, render=True)
+    generate_dataset(params, iters=17, render=True)
+    #generate_dataset(params, iters=1, render=True)
