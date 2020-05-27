@@ -7,6 +7,7 @@ import sys
 sys.path.append(os.getcwd())
 
 from rigidbody_rope import *
+import render as rend
 #from sklearn.neighbors import NearestNeighbors
 
 def set_animation_settings(anim_end):
@@ -112,7 +113,7 @@ def tie_figure_eight(params, chain=False, render=False):
     # Take some time to settle
     toggle_animation(end1, 450, False)
     toggle_animation(end2, 450, False)
-    
+
     for step in range(1, 500):
         bpy.context.scene.frame_set(step)
         #if render:
@@ -276,6 +277,53 @@ def tie_knot_7(params, chain=False, render=True):
     #toggle_animation(end1, 280, False)
     #toggle_animation(end2, 280, False)
 
+def tie_cornell1_knot(params, chain=False, render=True):
+    piece = "Cylinder"
+    last = params["num_segments"]-1
+    end1 = get_piece(piece, -1)
+    end2 = get_piece(piece, last)
+    for i in range(last+1):
+        obj = get_piece(piece, i if i != 0 else -1)
+        take_action(obj, 1, (0,0,0), animate=(i==0 or i==last))
+
+    # make center loop
+    take_action(end2, 80, (10,1,5))
+    # take_action(end2, 120, (3,1,-3))
+    take_action(end2, 120, (3,2,-3))
+    take_action(end2, 160, (0,-3,-2))
+    take_action(end2, 200, (0,-2,-4))
+    toggle_animation(end2, 200, False)
+    toggle_animation(end2, 200, True)
+    take_action(end2, 240, (0,-1,2))
+    take_action(end2, 280, (-4,3,-2))
+
+    # move other end across
+    take_action(end1, 80, (-10,1,5))
+    take_action(end1, 120, (-5,0,0))
+    take_action(end1, 160, (0,-2,-4))
+    toggle_animation(end1, 160, False)
+    toggle_animation(end1, 160, True)
+    take_action(end2, 320, (0,-1,0))
+    # take_action(end2, 320, (1,-1,0))
+    take_action(end1, 360, (6,0,-5))
+    # take_action(end1, 360, (5,0,-5))
+    toggle_animation(end1, 360, False)
+    toggle_animation(end2, 360, False)
+
+    settle_time = 10
+    ## Reidemeister
+    for step in range(1, 360+settle_time):
+        bpy.context.scene.frame_set(step)
+        if render:
+           render_frame(step, render_offset=render_offset)
+    return 360
+
+def tie_cornell2_knot(params, chain=False, render=False):
+    end_frame = tie_pretzel_knot(params, chain=chain, render=render)
+    for _ in range(2):
+        end_frame = rend.random_loosen(params, end_frame, render=render, mapping={}, annot=False)
+    return end_frame
+
 if __name__ == '__main__':
     with open("rigidbody_params.json", "r") as f:
         params = json.load(f)
@@ -287,6 +335,6 @@ if __name__ == '__main__':
     make_table(params)
     #tie_figure_eight(params, render=True)
     #tie_pretzel_knot(params, render=True)
-    #tie_stevedore(params, render=True)
-    tie_double_pretzel(params, render=True)
-    #tie_knot_7(params)
+    # tie_stevedore(params, render=True)
+    #tie_double_pretzel(params, render=True)
+    tie_cornell1_knot(params, render=False)

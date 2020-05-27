@@ -61,8 +61,8 @@ def annotate(frame, mapping, num_annotations, knot_only=True, end_only=False, of
     pixels = []
     if knot_only:
         pull, hold, _ = find_knot(50)
-        #indices = list(range(pull-offset, pull+offset+1)) + list(range(hold-offset, hold+offset+1))
-        indices = list(range(pull-offset, pull+offset+1))
+        indices = list(range(pull-offset, pull+offset+1)) + list(range(hold-offset, hold+offset+1))
+        #indices = list(range(pull-offset, pull+offset+1))
         knot_indices = indices
     elif end_only:
         indices = list(range(4)) + list(range(46,50))
@@ -301,8 +301,8 @@ def random_loosen(params, start_frame, render=False, render_offset=0, annot=True
     #dx = np.random.uniform(0.5,1)*random.choice((-1,1))
     #dy = np.random.uniform(0.5,1)*random.choice((-1,1))
     #dz = np.random.uniform(0.75,1)
-    dx = np.random.uniform(0.3,0.8)*random.choice((-1,1))
-    dy = np.random.uniform(0.3,0.8)*random.choice((-1,1))
+    dx = np.random.uniform(0.3,0.5)*random.choice((-1,1))
+    dy = np.random.uniform(0.3,0.5)*random.choice((-1,1))
     dz = np.random.uniform(0.5,0.75)
 
     #dx = np.random.uniform(0,2)*random.choice((-1,1))
@@ -315,8 +315,10 @@ def random_loosen(params, start_frame, render=False, render_offset=0, annot=True
     take_action(hold_cyl, mid_frame, (0,0,0))
     for step in range(start_frame, start_frame + 10):
         bpy.context.scene.frame_set(step)
-        if render:
+        if render and (abs(step-start_frame) < 5 or abs(step-(start_frame+10)) < 5):
             render_frame(step, render_offset=render_offset, annot=annot, mapping=mapping)
+        elif render:
+            render_offset += 1
 
     take_action(pull_cyl, mid_frame, (dx,dy,dz))
     take_action(hold_cyl, mid_frame, (-dx,-dy,dz))
@@ -324,9 +326,11 @@ def random_loosen(params, start_frame, render=False, render_offset=0, annot=True
     toggle_animation(hold_cyl, mid_frame, False)
     for step in range(start_frame + 10, end_frame):
         bpy.context.scene.frame_set(step)
-        if render:
+        if render and (abs(step-(start_frame+10)) < 2 or abs(step-end_frame) < 2):
             render_frame(step, render_offset=render_offset, annot=annot, mapping=mapping)
-    return end_frame
+        elif render:
+            render_offset += 1
+    return end_frame, render_offset
 
 def reidemeister(params, start_frame,render=False, render_offset=0, annot=True, mapping=None):
 
@@ -390,8 +394,11 @@ def random_end_pick_place(params, start_frame, render=False, render_offset=0, an
     for step in range(start_frame, middle_frame):
         bpy.context.scene.frame_set(step)
         # if render and step % render_freq == 0:
-        if render:
+        if render and (abs(step-start_frame) < 5 or abs(step-middle_frame) < 5):
             render_frame(step, render_offset=render_offset, annot=annot, mapping=mapping)
+        elif render:
+            render_offset += 1
+
     take_action(end2, end_frame, (dx2,dy2,dz2))
     toggle_animation(end1, middle_frame, False)
     toggle_animation(end2, end_frame-10, False)
@@ -399,12 +406,12 @@ def random_end_pick_place(params, start_frame, render=False, render_offset=0, an
     for step in range(middle_frame, end_frame+20):
         bpy.context.scene.frame_set(step)
 
-        if render and end_frame-step < 20:
+        if render and end_frame-step < 20 and (abs(step-end_frame) < 2 or abs(step-middle_frame) < 2):
             render_frame(step, render_offset=render_offset, annot=annot, mapping=mapping)
-        else:
+        elif render:
             render_offset += 1
     # return end_frame, pick, render_offset
-    return end_frame
+    return end_frame, render_offset
 
 def generate_dataset(params, iters=1, chain=False, render=False):
 
@@ -423,8 +430,7 @@ def generate_dataset(params, iters=1, chain=False, render=False):
     #        reid_start = random_end_pick_place(params, reid_end_frame, render=render, render_offset=knot_end_frame, mapping=mapping)
 
     render_offset = 0
-    #num_loosens = 3 # For each knot, we can do num_loosens loosening actions
-    num_loosens = 4 # For each knot, we can do num_loosens loosening actions
+    num_loosens = 5 # For each knot, we can do num_loosens loosening actions
     # num_loosens = 1
     for i in range(iters):
         num_knots = 1
@@ -446,8 +452,9 @@ def generate_dataset(params, iters=1, chain=False, render=False):
         loosen_start = reid_end_frame
         #loosen_end_frame = random_end_pick_place(params, loosen_start, render=render, render_offset=render_offset, mapping=mapping)
         for i in range(num_loosens):
-            loosen_end_frame = random_loosen(params, loosen_start, render=render, render_offset=render_offset, mapping=mapping)
+            loosen_end_frame, offset = random_loosen(params, loosen_start, render=render, render_offset=render_offset, mapping=mapping)
             loosen_start = loosen_end_frame
+            render_offset = offset
         render_offset -= loosen_end_frame
         # Delete all keyframes to make a new knot and reset the frame counter
         bpy.context.scene.frame_set(0)
@@ -462,10 +469,10 @@ if __name__ == '__main__':
         params = json.load(f)
     clear_scene()
     make_capsule_rope(params)
-    rig_rope(params)
+    #rig_rope(params)
     add_camera_light()
     set_render_settings(params["engine"],(params["render_width"],params["render_height"]))
     make_table(params)
     # generate_dataset(params, iters=40, render=True)
-    generate_dataset(params, iters=17, render=True)
-    #generate_dataset(params, iters=1, render=True)
+    #generate_dataset(params, iters=17, render=True)
+    generate_dataset(params, iters=120, render=True)
