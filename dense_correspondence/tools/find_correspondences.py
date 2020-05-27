@@ -97,7 +97,10 @@ class CorrespondenceFinder:
         if line:
             cv2.line(src, (u1, v1), (u2, v2), (255, 255, 255), 4)
 
-    def show_side_by_side(self):
+    def show_side_by_side(self, pixels=None):
+        if not pixels is None: #pixels = [[original pts], [list of mapped to pixels]]
+            for i in range(len(pixels[0])):
+                self.annotate_correspondence(pixels[0][i][0], pixels[0][i][1], pixels[1][i][0], pixels[1][i][1])
         vis = np.concatenate((self.img1, self.img2), axis=0)
         cv2.imshow("correspondence", vis)
         k = cv2.waitKey(0)
