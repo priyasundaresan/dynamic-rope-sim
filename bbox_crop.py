@@ -49,6 +49,7 @@ def crop(filename, dir, bbox_predictor, knots_info, offset):
     save_mask_filename = '%06d_visible_mask.png'%(num - offset)
     img = cv2.imread('./%s/images/%s'%(dir, filename)).copy()
     mask = cv2.imread('./%s/image_masks/%s'%(dir, mask_filename)).copy()
+    depth = cv2.imread('./%s/images_depth/%s'%(dir, filename)).copy()
     # get box
     boxes = bbox_predictor.predict(img, plot=False, annotate=False)
     boxes = sorted(boxes, key=lambda box: box[0][2], reverse=True)
@@ -56,6 +57,7 @@ def crop(filename, dir, bbox_predictor, knots_info, offset):
     # crop img and mask
     cropped_img, rescale_factor_img, (x_off_img, y_off_img) = crop_and_resize(box, img)
     cropped_mask, _, _ = crop_and_resize(box, mask)
+    cropped_depth, _, _ = crop_and_resize(box, depth)
 
     # rescale annotations
     num_annots = len(knots_info[str(num)])
@@ -67,6 +69,7 @@ def crop(filename, dir, bbox_predictor, knots_info, offset):
     knots_info[str(num-offset)] = [[i] for i in cropped_pixels]
     cv2.imwrite('./image_crop/images/{}'.format(save_img_filename), cropped_img)
     cv2.imwrite('./image_crop/image_masks/{}'.format(save_mask_filename), cropped_mask)
+    cv2.imwrite('./image_crop/images_depth/{}'.format(save_img_filename), cropped_depth)
     return knots_info, offset
 
 if __name__ == '__main__':
@@ -81,6 +84,7 @@ if __name__ == '__main__':
     os.mkdir('./image_crop')
     os.mkdir('./image_crop/images')
     os.mkdir('./image_crop/image_masks')
+    os.mkdir('./image_crop/images_depth')
 
     cfg = PredictionConfig()
     model = MaskRCNN(mode='inference', model_dir='./', config=cfg)
