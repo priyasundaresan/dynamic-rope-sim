@@ -90,8 +90,19 @@ def descriptor_matches(cf, path_to_ref_img, pixels, curr_frame, crop=False):
     path_to_curr_img = "images/%06d_crop.png" % curr_frame if crop else "images/%06d_rgb.png" % curr_frame
     cf.load_image_pair(path_to_ref_img, path_to_curr_img)
     cf.compute_descriptors()
-    best_matches, _ = cf.find_k_best_matches(pixels, 50, mode="median")
-    vis = cf.show_side_by_side(plot=False)
+    if crop:
+        pixel_masks = [[-1,-1], [-1,0], [-1,1],
+                        [0, -1], [0, 0], [0, 1],
+                        [1, -1], [1, 0], [1, 1]]
+        best_matches = []
+        for p in pixels:
+            masked_pixels = [[p[0]+mask[0], p[1]+mask[1]] for mask in pixel_masks]
+            best_match, _ = cf.find_k_best_matches(masked_pixels, 50, mode="median", annotate=False)
+            best_matches.append([int(i) for i in np.mean(best_match, axis=0)])
+        vis = cf.show_side_by_side(pixels=[pixels, best_matches])
+    else:
+        best_matches, _ = cf.find_k_best_matches(pixels, 50, mode="median")
+        vis = cf.show_side_by_side()
     cv2.imwrite("preds/%06d_desc.png" % curr_frame, vis)
     return best_matches
 
@@ -154,9 +165,9 @@ def reidemeister_oracle(start_frame, render=False, render_offset=0):
 def bbox_untangle(start_frame, bbox_detector, render_offset=0):
     path_to_curr_img = "images/%06d_rgb.png" % (start_frame-render_offset)
     curr_img = imageio.imread(path_to_curr_img)
-    boxes = bbox_predictor.predict(curr_img, plot=False)
+    boxes = bbox_predictor.predict(curr_img, plot=True)
     # undo furthest right box first
-    boxes = sorted(boxes, key=lambda box: box[0][2])
+    boxes = sorted(boxes, key=lambda box: box[0][2], reverse=True)
     if len(boxes) == 0:
         return None, 0
     return boxes[0] # ASSUME first box is knot to be untied
@@ -190,10 +201,12 @@ def undone_check_endpoint_pass(start_frame, ends_cf, path_to_ref_full_img, ref_e
     hold_loc = hold_cyl.matrix_world.translation
     pull_loc = pull_cyl.matrix_world.translation
 
-    print("action_vec", prev_action_vec[:-1])
-    print("end_loc - hold_loc", np.array(end_loc - hold_loc)[:-1])
-    print("dot", np.dot(prev_action_vec[:-1], np.array(end_loc - hold_loc)[:-1]))
-    if np.dot(prev_action_vec[:-1], np.array(end_loc - hold_loc)[:-1]) > 0:
+    prev_action_vec = prev_action_vec[:-1]/np.linalg.norm(prev_action_vec[:-1])
+    end_hold_vec = np.array(end_loc - hold_loc)[:-1]/np.linalg.norm(np.array(end_loc - hold_loc)[:-1])
+    print("action_vec", prev_action_vec)
+    print("end_loc - hold_loc", end_hold_vec)
+    print("dot", np.dot(prev_action_vec, end_hold_vec))
+    if np.dot(prev_action_vec, end_hold_vec) > 0.7:
         return True
     return False
 
@@ -233,7 +246,11 @@ def find_pull_hold(start_frame, bbox_detector, cf, path_to_ref_img, ref_crop_pix
     cv2.imwrite("images/%06d_crop.png" % (start_frame-render_offset), crop)
     cv2.imwrite("./preds/%06d_bbox.png" % (start_frame-render_offset), crop)
 
-    pull_crop_pixel, hold_crop_pixel = descriptor_matches(cf, path_to_ref_img, ref_crop_pixels, start_frame-render_offset, crop=True)
+    if not type(cf) == list:
+        pull_crop_pixel, hold_crop_pixel = descriptor_matches(cf, path_to_ref_img, ref_crop_pixels, start_frame-render_offset, crop=True)
+    else:
+        pull_crop_pixel = descriptor_matches(cf[0], path_to_ref_img, [ref_crop_pixels[0]], start_frame-render_offset, crop=True)[0]
+        hold_crop_pixel = descriptor_matches(cf[1], path_to_ref_img, [ref_crop_pixels[1]], start_frame-render_offset, crop=True)[0]
 
     # transform this pick and hold into overall space (scale and offset)
     pull_pixel, hold_pixel = pixel_crop_to_full(np.array([pull_crop_pixel, hold_crop_pixel]), rescale_factor, x_off, y_off)
@@ -342,7 +359,7 @@ def random_perturb(start_frame, render=False, render_offset=0):
             render_frame(step, render_offset=render_offset)
     return end_frame
 
-def run_untangling_rollout(params, crop_cf, ends_cf, path_to_ref_imgs, ref_pixels, bbox_predictor, chain=False, render=True, armature=0, policy=0):
+def run_untangling_rollout(params, crop_cf, ends_cf, path_to_ref_imgs, ref_pixels, bbox_predictor, chain=False, render=True, armature=0, policy=1):
     set_animation_settings(7000)
     piece = "Cylinder"
     last = params["num_segments"]-1
@@ -381,22 +398,26 @@ def run_untangling_rollout(params, crop_cf, ends_cf, path_to_ref_imgs, ref_pixel
     elif policy==0:
         reid_end = reidemeister_oracle(knot_end_frame, render=True, render_offset=render_offset)
     undo_end_frame = reid_end
-    undone = False
-    i = 0
-    while not undone and i < 10:
+    bbox, _ = bbox_untangle(undo_end_frame, bbox_predictor, render_offset=render_offset)
+    while bbox is not None:
+        undone = False
+        i = 0
+        while not undone and i < 10:
+            if policy==1:
+                undo_end_frame, pull, hold, action_vec = take_undo_action_descriptors(undo_end_frame, bbox_predictor, crop_cf, path_to_ref_crop_img, ref_crop_pixels, render=True, render_offset=render_offset)
+            elif policy==0:
+                undo_end_frame, pull, hold, action_vec = take_undo_action_oracle(undo_end_frame, render=True, render_offset=render_offset)
+            if pull is not None:
+                undone = undone_check_endpoint_pass(undo_end_frame, ends_cf, path_to_ref_full_img, ref_end_pixels, pull, hold, action_vec, render_offset=render_offset)
+            else:
+                break
+            i += 1
         if policy==1:
-            undo_end_frame, pull, hold, action_vec = take_undo_action_descriptors(undo_end_frame, bbox_predictor, crop_cf, path_to_ref_crop_img, ref_crop_pixels, render=True, render_offset=render_offset)
+            reid_end = reidemeister_descriptors(undo_end_frame, ends_cf, path_to_ref_full_img, ref_end_pixels, render=True, render_offset=render_offset)
         elif policy==0:
-            undo_end_frame, pull, hold, action_vec = take_undo_action_oracle(undo_end_frame, render=True, render_offset=render_offset)
-        if pull is not None:
-            undone = undone_check_endpoint_pass(undo_end_frame, ends_cf, path_to_ref_full_img, ref_end_pixels, pull, hold, action_vec, render_offset=render_offset)
-        else:
-            break
-        i += 1
-    if policy==1:
-        reid_end = reidemeister_descriptors(undo_end_frame, ends_cf, path_to_ref_full_img, ref_end_pixels, render=True, render_offset=render_offset)
-    elif policy==0:
-        reid_end = reidemeister_oracle(undo_end_frame, render=True, render_offset=render_offset)
+            reid_end = reidemeister_oracle(undo_end_frame, render=True, render_offset=render_offset)
+        undo_end_frame = reid_end
+        bbox, _ = bbox_untangle(undo_end_frame, bbox_predictor, render_offset=render_offset)
 
 def load_cf(base_dir, network_dir, crop=False):
     dcn = DenseCorrespondenceNetwork.from_model_folder(os.path.join(base_dir, network_dir), model_param_file=os.path.join(base_dir, network_dir, '003501.pth'))
@@ -408,7 +429,8 @@ def load_cf(base_dir, network_dir, crop=False):
     image_height = 60 if crop else 480
     cf = CorrespondenceFinder(dcn, dataset_mean, dataset_std_dev, image_width=image_width, image_height=image_height)
     path_to_ref_img = "reference_images"
-    with open('reference_images/ref_pixels.json', 'r') as f:
+    # path_to_ref_img = "reference_images_loose_knots"
+    with open(path_to_ref_img+'/ref_pixels.json', 'r') as f:
         ref_annots = json.load(f)
     pull = [ref_annots["pull_x"], ref_annots["pull_y"]]
     hold = [ref_annots["hold_x"], ref_annots["hold_y"]]
@@ -436,24 +458,39 @@ if __name__ == '__main__':
         os.system('rm -r ./preds')
     base_dir = 'dense_correspondence/networks'
 
-    armature = 1 # 1 for chord, 2 for braid
+    armature = 0 # 1 for chord, 2 for braid
+    split_pull_hold = 0
 
     policy = 0
 
     network_dirs = {"chord": {"ends": 'armature_ends',
-                             "local": 'rope_cyl_knots',
-                            #"local": 'armature_local_2knots',
+                            "local": 'armature_local_2knots',
+                            "local_pull": "armature_local_2knots_2x",
+                            "local_hold": "armature_local_2knots_2x_hold",
                             "bbox": "armature_1200"},
                     "braid": {"ends": 'braid_ends',
                             "local": 'braid_local_2knots',
-                            "bbox": "braid_bbox_network"}}
+                            "bbox": "braid_bbox_network"},
+                    "capsule": {"ends": 'ends',
+                            "local": "crop_capsule_offset1",
+                            "local_pull": None,
+                            "local_hold": None,
+                            "bbox": "knot_capsule_mult"}}
 
     network_dir_dict = network_dirs["chord"] if armature == 1 else network_dirs["braid"]
+    network_dir_dict = network_dirs["capsule"] if armature == 0 else network_dir_dict
     ends_network_dir = network_dir_dict["ends"]
     local_network_dir = network_dir_dict["local"]
+    local_pull_network_dir = network_dir_dict["local_pull"]
+    local_hold_network_dir = network_dir_dict["local_hold"]
     bbox_network_dir = network_dir_dict["bbox"]
 
     crop_cf, path_to_ref_img, ref_pixels = load_cf(base_dir, local_network_dir, crop=True)
+    try:
+        local_pull_cf, path_to_ref_img, ref_pixels = load_cf(base_dir, local_pull_network_dir, crop=True)
+        local_hold_cf, path_to_ref_img, ref_pixels = load_cf(base_dir, local_hold_network_dir, crop=True)
+    except:
+        pass
     ends_cf, path_to_ref_img, ref_pixels = load_cf(base_dir, ends_network_dir)
 
     cfg = PredictionConfig()
@@ -466,9 +503,12 @@ if __name__ == '__main__':
         params = json.load(f)
     clear_scene()
     make_rope(params)
+    # make_capsule_rope(params)
     if armature:
         rig_rope(params)
     add_camera_light()
     set_render_settings(params["engine"],(params["render_width"],params["render_height"]))
     make_table(params)
+    if split_pull_hold:
+        crop_cf = [local_pull_cf, local_hold_cf]
     run_untangling_rollout(params, crop_cf, ends_cf, path_to_ref_img, ref_pixels, bbox_predictor, render=True, armature=armature, policy=policy)

@@ -26,8 +26,8 @@ class HeatmapVisualization(object):
         self._reticle_color = COLOR_GREEN
         self._network_reticle_color = COLOR_RED
         self._image_dir = image_dir
-        self._image_width = 640
-        self._image_height = 480
+        self._image_width = 80
+        self._image_height = 60
 
     def _get_new_images(self):
         """
@@ -38,9 +38,9 @@ class HeatmapVisualization(object):
         img1_index = random.choice(range(0, len(os.listdir(self._image_dir))))
         img2_index = random.choice(range(0, len(os.listdir(self._image_dir))))
         print(img1_index, img2_index)
-        #filename = "%06d_rgb.png"
+        filename = "%06d_rgb.png"
         #filename = "%06d.png"
-        filename = "%06d_cropped.png"
+        #filename = "%06d_cropped.png"
         f1 = os.path.join(self._image_dir, filename % img1_index)
         #f1 = os.path.join('../../reference_images/knot_reference.png')
         f2 = os.path.join(self._image_dir, filename % img2_index)
@@ -166,14 +166,15 @@ if __name__ == "__main__":
     base_dir = '../networks'
     #network_dir = 'rope_cyl_400_dim16'
     #network_dir = 'rope_400_cyl_rot_16'
-    network_dir = 'small_crop_blur'
+    network_dir = 'cyl_arma_pull_loose_depth'
     dcn = DenseCorrespondenceNetwork.from_model_folder(os.path.join(base_dir, network_dir), model_param_file=os.path.join(base_dir, network_dir, '003501.pth'))
     dcn.eval()
     with open('../cfg/dataset_info.json', 'r') as f:
         dataset_stats = json.load(f)
     dataset_mean, dataset_std_dev = dataset_stats["mean"], dataset_stats["std_dev"]
     #image_dir = '../../small_crop_blur/processed/images'
-    image_dir = '../../crops'
+    #image_dir = '../../rope_ends_only/processed/images'
+    image_dir = '../../cyl_arma_pull_loose_depth/processed/images'
     heatmap_vis = HeatmapVisualization(dcn, dataset_mean, dataset_std_dev, image_dir)
     print "starting heatmap vis"
     heatmap_vis.run()

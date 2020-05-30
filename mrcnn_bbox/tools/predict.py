@@ -34,7 +34,7 @@ class BBoxFinder:
         vis = image.copy()
         for box, score in zip(yhat['rois'], yhat['scores']):
             y1, x1, y2, x2 = box
-            boxes.append(((x1,y1,x2,y2), score))
+            # boxes.append(((x1,y1,x2,y2), score))
             #vis = cv2.rectangle(image, (x1,y1), (x2,y2), (255,0,0), 2)
             #break # HACK!!
             if score > thresh:

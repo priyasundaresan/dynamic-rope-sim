@@ -61,8 +61,9 @@ def annotate(frame, mapping, num_annotations, knot_only=True, end_only=False, of
     pixels = []
     if knot_only:
         pull, hold, _ = find_knot(50)
-        indices = list(range(pull-offset, pull+offset+1)) + list(range(hold-offset, hold+offset+1))
-        #indices = list(range(pull-offset, pull+offset+1))
+        # indices = list(range(pull-offset, pull+offset+1)) + list(range(hold-offset, hold+offset+1))
+        indices = list(range(pull-offset, pull+offset+1))
+        # indices = list(range(hold-offset, hold+offset+1))
         knot_indices = indices
     elif end_only:
         indices = list(range(4)) + list(range(46,50))
@@ -155,8 +156,8 @@ def center_camera(randomize=True, flip=False):
     camera_x = (hold_loc[0] + pull_loc[0])/2
     camera_y = (hold_loc[1] + pull_loc[1])/2
     camera_z = 1
-    #offset = 0.1
-    offset = 0.05
+    offset = 0.2
+    # offset = 0.05
     dx = np.random.uniform(-offset, offset) if randomize else 0
     dy = np.random.uniform(-offset, offset) if randomize else 0
     #dz = np.random.uniform(-0.2, 0) if randomize else 0
@@ -438,6 +439,7 @@ def generate_dataset(params, iters=1, chain=False, render=False):
         if i%2==0:
             knot_end_frame = knots.tie_pretzel_knot(params, render=False)
         elif i%2==1:
+            # knot_end_frame = knots.tie_pretzel_knot(params, render=False)
             knot_end_frame = knots.tie_figure_eight(params, render=False)
         # if i%3==0:
         #     knot_end_frame = knots.tie_pretzel_knot(params, render=False)
@@ -469,10 +471,10 @@ if __name__ == '__main__':
         params = json.load(f)
     clear_scene()
     make_capsule_rope(params)
-    #rig_rope(params)
+    # rig_rope(params)
     add_camera_light()
     set_render_settings(params["engine"],(params["render_width"],params["render_height"]))
     make_table(params)
     # generate_dataset(params, iters=40, render=True)
-    #generate_dataset(params, iters=17, render=True)
-    generate_dataset(params, iters=120, render=True)
+    generate_dataset(params, iters=167, render=True)
+    # generate_dataset(params, iters=1, render=True)
