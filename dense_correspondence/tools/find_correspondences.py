@@ -34,6 +34,7 @@ class CorrespondenceFinder:
     def rgb_image_to_tensor(self, img):
         norm_transform = transforms.Normalize(self.dataset_mean, self.dataset_std_dev)
         return transforms.Compose([transforms.ToTensor(), norm_transform])(img)
+        #return transforms.ToTensor()(img)
 
     def load_image_pair(self, img1_filename, img2_filename):
         self.img1_pil = self.get_rgb_image(img1_filename)
@@ -97,12 +98,13 @@ class CorrespondenceFinder:
         if line:
             cv2.line(src, (u1, v1), (u2, v2), (255, 255, 255), 4)
 
-    def show_side_by_side(self):
+    def show_side_by_side(self, plot=True):
         vis = np.concatenate((self.img1, self.img2), axis=0)
-        cv2.imshow("correspondence", vis)
-        k = cv2.waitKey(0)
-        if k == 27:         # wait for ESC key to exit
-            cv2.destroyAllWindows()
+        if plot:
+            cv2.imshow("correspondence", vis)
+            k = cv2.waitKey(0)
+            if k == 27:         # wait for ESC key to exit
+                cv2.destroyAllWindows()
         return vis
 
 if __name__ == '__main__':
@@ -114,8 +116,8 @@ if __name__ == '__main__':
         dataset_stats = json.load(f)
     dataset_mean, dataset_std_dev = dataset_stats["mean"], dataset_stats["std_dev"]
     cf = CorrespondenceFinder(dcn, dataset_mean, dataset_std_dev)
-    f1 = "../../reference_images/knot_reference.png"
-    with open('../../reference_images/knot_reference.json', 'r') as f:
+    f1 = "../../reference_images/crop_ref.png"
+    with open('../../reference_images/ref_pixels.json', 'r') as f:
         ref_annots = json.load(f)
         pull = [ref_annots["pull_x"], ref_annots["pull_y"]]
         hold = [ref_annots["hold_x"], ref_annots["hold_y"]]
