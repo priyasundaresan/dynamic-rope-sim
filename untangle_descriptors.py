@@ -367,7 +367,8 @@ def run_untangling_rollout(params, crop_cf, ends_cf, path_to_ref_imgs, ref_pixel
         path_to_ref_full_img = os.path.join(path_to_ref_img, 'reid_ref.png')
         path_to_ref_crop_img = os.path.join(path_to_ref_img, 'crop_ref.png')
 
-    knot_end_frame = tie_pretzel_knot(params, render=False)
+    #knot_end_frame = tie_pretzel_knot(params, render=False)
+    knot_end_frame = tie_figure_eight(params, render=False)
     knot_end_frame = random_perturb(knot_end_frame)
     render_offset = knot_end_frame
     render_frame(knot_end_frame, render_offset=render_offset, step=1)
