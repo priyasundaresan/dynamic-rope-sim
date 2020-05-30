@@ -8,9 +8,9 @@ import os
 import sys
 sys.path.append(os.getcwd())
 
-from knots import tie_pretzel_knot, tie_stevedore, tie_figure_eight, tie_double_pretzel
 from rigidbody_rope import *
 from sklearn.neighbors import NearestNeighbors
+from knots import tie_pretzel_knot, tie_stevedore, tie_figure_eight, tie_double_pretzel
 
 def set_animation_settings(anim_end):
     # Sets up the animation to run till frame anim_end (otherwise default terminates @ 250)

@@ -7,7 +7,7 @@ import sys
 sys.path.append(os.getcwd())
 
 from rigidbody_rope import *
-import render as rend
+#import render as rend
 #from sklearn.neighbors import NearestNeighbors
 
 def set_animation_settings(anim_end):

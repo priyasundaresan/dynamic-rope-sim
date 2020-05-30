@@ -22,7 +22,8 @@ def show_knots(idx, knots_info, save=True):
 
 def show_boxes(idx, save=True):
     # load and parse the file
-    image_filename = "{0:05d}.jpg".format(idx)
+    #image_filename = "{0:05d}.jpg".format(idx)
+    image_filename = "{0:06d}_rgb.png".format(idx)
     img = cv2.imread('images/{}'.format(image_filename))
     vis = img.copy()
     filename = 'annots/%05d.xml'%idx

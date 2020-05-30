@@ -10,6 +10,7 @@ from rigidbody_rope import *
 from sklearn.neighbors import NearestNeighbors
 # from knots import tie_pretzel_knot, tie_stevedore, tie_figure_eight, tie_double_pretzel, tie_cornell2_knot
 import knots
+from render_bbox import *
 
 def set_animation_settings(anim_end):
     # Sets up the animation to run till frame anim_end (otherwise default terminates @ 250)
@@ -60,11 +61,18 @@ def annotate(frame, mapping, num_annotations, knot_only=True, end_only=False, of
             )
     pixels = []
     if knot_only:
+        annot_list = []
         pull, hold, _ = find_knot(50)
-        # indices = list(range(pull-offset, pull+offset+1)) + list(range(hold-offset, hold+offset+1))
-        indices = list(range(pull-offset, pull+offset+1))
+        indices = list(range(pull-offset, pull+offset+1)) + list(range(hold-offset, hold+offset+1))
+        #indices = list(range(pull-offset, pull+offset+1))
         # indices = list(range(hold-offset, hold+offset+1))
-        knot_indices = indices
+        pull_idx_min, pull_idx_max = max(0,pull-offset), min(49,pull+offset+1)
+        hold_idx_min, hold_idx_max = max(0,hold-offset), min(49,hold+offset+1)
+        bbox_indices = list(range(pull_idx_min, pull_idx_max)) + list(range(hold_idx_min, hold_idx_max))
+        min_x = scene.render.resolution_x
+        max_x = 0
+        min_y = scene.render.resolution_y
+        max_y = 0
     elif end_only:
         indices = list(range(4)) + list(range(46,50))
     else:
@@ -81,6 +89,25 @@ def annotate(frame, mapping, num_annotations, knot_only=True, end_only=False, of
             pixel = [round(camera_coord.x * render_size[0]), round(render_size[1] - camera_coord.y * render_size[1])]
             pixels.append([pixel])
     mapping[frame] = pixels
+
+    for i in bbox_indices:
+        cyl = get_piece("Cylinder", i if i != 0 else -1)
+        camera_coord = bpy_extras.object_utils.world_to_camera_view(scene, bpy.context.scene.camera, cyl.matrix_world.translation)
+        x, y = [round(camera_coord.x * render_size[0]), round(render_size[1] - camera_coord.y * render_size[1])]
+        if x > max_x:
+            max_x = x
+        if x < min_x:
+            min_x = x
+        if y > max_y:
+            max_y = y
+        if y < min_y:
+            min_y = y
+    min_x -= np.random.randint(15, 18)
+    min_y -= np.random.randint(15, 18)
+    max_x += np.random.randint(15, 18)
+    max_y += np.random.randint(15, 18)
+    annot_list.append([min_x,min_y,max_x,max_y])
+    create_labimg_xml(frame, annot_list)
 
 def get_piece(piece_name, piece_id):
     # Returns the piece with name piece_name, index piece_id
@@ -206,7 +233,7 @@ def texture_randomize(obj, textures_folder):
 def render_frame(frame, render_offset=0, step=2, num_annotations=300, filename="%06d_rgb.png", folder="images", annot=True, mapping=None):
     # Renders a single frame in a sequence (if frame%step == 0)
     frame -= render_offset
-    center_camera()
+    #center_camera()
     if frame%step == 0:
         scene = bpy.context.scene
 
@@ -476,5 +503,7 @@ if __name__ == '__main__':
     set_render_settings(params["engine"],(params["render_width"],params["render_height"]))
     make_table(params)
     # generate_dataset(params, iters=40, render=True)
-    generate_dataset(params, iters=167, render=True)
+    #generate_dataset(params, iters=167, render=True)
+    generate_dataset(params, iters=300, render=True)
+    #generate_dataset(params, iters=1, render=True)
     # generate_dataset(params, iters=1, render=True)
