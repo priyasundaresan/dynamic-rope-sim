@@ -38,15 +38,13 @@ def pixel_full_to_crop(pixels, crop_rescale_factor, x_offset, y_offset, aspect=(
     for p in pixels:
         new_p = [int((p[0] - x_offset)/crop_rescale_factor), int((p[1] - y_offset)/crop_rescale_factor)]
         if not (new_p[0] < 0 or new_p[1] < 0 or new_p[0] > 80 or new_p[1] > 60):
-            ret.append([int((p[0] - x_offset)/crop_rescale_factor), int((p[1] - y_offset)/crop_rescale_factor)])
+            ret.append(new_p)
     return ret
 
-def crop(filename, dir, bbox_predictor, knots_info, offset):
+def crop(filename, dir, bbox_predictor, knots_info):
     num = int(filename[:6])
     mask_filename = '%06d_visible_mask.png'%num
     img_filename = filename
-    save_img_filename = '%06d_rgb.png'%(num - offset)
-    save_mask_filename = '%06d_visible_mask.png'%(num - offset)
     img = cv2.imread('./%s/images/%s'%(dir, filename)).copy()
     mask = cv2.imread('./%s/image_masks/%s'%(dir, mask_filename)).copy()
     depth = cv2.imread('./%s/images_depth/%s'%(dir, filename)).copy()
@@ -65,12 +63,12 @@ def crop(filename, dir, bbox_predictor, knots_info, offset):
     cropped_pixels = pixel_full_to_crop(pixels, rescale_factor_img, x_off_img, y_off_img)
     if not len(cropped_pixels) == num_annots: # if annots go off the crop
         knots_info.pop(str(num), None)
-        return knots_info, offset+1
-    knots_info[str(num-offset)] = [[i] for i in cropped_pixels]
-    cv2.imwrite('./image_crop/images/{}'.format(save_img_filename), cropped_img)
-    cv2.imwrite('./image_crop/image_masks/{}'.format(save_mask_filename), cropped_mask)
-    cv2.imwrite('./image_crop/images_depth/{}'.format(save_img_filename), cropped_depth)
-    return knots_info, offset
+        return knots_info
+    knots_info[str(num)] = [[i] for i in cropped_pixels]
+    cv2.imwrite('./image_crop/images/{}'.format(img_filename), cropped_img)
+    cv2.imwrite('./image_crop/image_masks/{}'.format(mask_filename), cropped_mask)
+    cv2.imwrite('./image_crop/images_depth/{}'.format(img_filename), cropped_depth)
+    return knots_info
 
 if __name__ == '__main__':
     # goes from ./{dir}/images and ./{dir}/image_masks to ./image_crop/images and ./image_crop/image_masks
@@ -96,11 +94,10 @@ if __name__ == '__main__':
         knots_info = json.load(stream)
         print("loaded knots info")
 
-    offset = 0
     for filename in sorted(os.listdir('./{}/images'.format(args.dir))):
     	try:
     		print("Cropping %s" % filename)
-    		knots_info, offset = crop(filename, args.dir, bbox_predictor, knots_info, offset)
+    		knots_info = crop(filename, args.dir, bbox_predictor, knots_info)
     	except:
             pass
 
@@ -109,3 +106,4 @@ if __name__ == '__main__':
         json.dump(knots_info, outfile, sort_keys=True, indent=2)
 
     os.system('python mask.py --dir ./image_crop/image_masks')
+    os.system('python reorder.py --dir image_crop')
