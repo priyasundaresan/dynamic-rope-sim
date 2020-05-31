@@ -22,7 +22,6 @@ def crop_and_resize(box, img, aspect=(80,60)):
     box_width = x_max - x_min
     box_height = y_max - y_min
 
-    # resize this crop to be 320x240
     new_width = int((box_height*aspect[0])/aspect[1])
     offset = new_width - box_width
     x_min -= int(offset/2)
@@ -30,6 +29,7 @@ def crop_and_resize(box, img, aspect=(80,60)):
 
     crop = img[y_min:y_max, x_min:x_max]
     resized = cv2.resize(crop, aspect)
+    
     rescale_factor = new_width/aspect[0]
     offset = (x_min, y_min)
     return resized, rescale_factor, offset
@@ -38,8 +38,9 @@ def pixel_full_to_crop(pixels, crop_rescale_factor, x_offset, y_offset, aspect=(
     ret = []
     for p in pixels:
         new_p = [int((p[0] - x_offset)/crop_rescale_factor), int((p[1] - y_offset)/crop_rescale_factor)]
-        if not (new_p[0] < 0 or new_p[1] < 0 or new_p[0] > 80 or new_p[1] > 60):
-            ret.append(new_p)
+        ret.append(new_p)
+        #if not (new_p[0] < 0 or new_p[1] < 0 or new_p[0] > 80 or new_p[1] > 60):
+        #    ret.append(new_p)
     return ret
 
 def crop(filename, dir, bbox_predictor, knots_info):
@@ -73,6 +74,7 @@ def crop(filename, dir, bbox_predictor, knots_info):
     pixels = [i[0] for i in knots_info[str(num)]]
     cropped_pixels = pixel_full_to_crop(pixels, rescale_factor_img, x_off_img, y_off_img)
     if not len(cropped_pixels) == num_annots: # if annots go off the crop
+        print(len(cropped_pixels), num_annots)
         knots_info.pop(str(num), None)
         return knots_info
     knots_info[str(num)] = [[i] for i in cropped_pixels]
@@ -100,7 +102,6 @@ if __name__ == '__main__':
     #model_path = 'mrcnn_bbox/networks/{}/mask_rcnn_knot_cfg_0010.h5'.format(args.bbox_detector)
     #model.load_weights(model_path, by_name=True)
     #bbox_predictor = BBoxFinder(model, cfg)
-
     bbox_predictor = None
 
     with open("./{}/images/knots_info.json".format(args.dir), "r") as stream:
@@ -108,15 +109,15 @@ if __name__ == '__main__':
         print("loaded knots info")
 
     for filename in sorted(os.listdir('./{}/images'.format(args.dir))):
-    	try:
-    		print("Cropping %s" % filename)
-    		knots_info = crop(filename, args.dir, bbox_predictor, knots_info)
-    	except:
+        try:
+            print("Cropping %s" % filename)
+            knots_info = crop(filename, args.dir, bbox_predictor, knots_info)
+        except:
             pass
 
     # fix knots_info.json for crop
     with open("./image_crop/images/knots_info.json", 'w') as outfile:
         json.dump(knots_info, outfile, sort_keys=True, indent=2)
-
+    
     os.system('python mask.py --dir ./image_crop/image_masks')
     os.system('python reorder.py --dir image_crop')
