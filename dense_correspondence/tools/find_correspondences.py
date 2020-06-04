@@ -51,7 +51,7 @@ class CorrespondenceFinder:
         self.img1_descriptor = self.dcn.forward_single_image_tensor(self.rgb_1_tensor).data.cpu().numpy()
         self.img2_descriptor = self.dcn.forward_single_image_tensor(self.rgb_2_tensor).data.cpu().numpy()
 
-    def find_k_best_matches(self, pixels, k, mode="median", annotate=True):
+    def find_k_best_matches(self, pixels, k, mode="median", annotate=True, hold=None):
         # Finds k best matches in descriptor space (either by median or mean filtering)
         max_range = float(len(pixels))
         pixel_matches = []
@@ -70,6 +70,9 @@ class CorrespondenceFinder:
                 best_match = np.round(np.mean(best_matches, axis=0))
             match = [int(best_match[0]), int(best_match[1])]
             pixel_matches.append(match)
+
+        if not hold is None:
+            pixel_matches = [[h[0]-15, h[1]] for h in hold]
 
         for i, (u, v) in enumerate(pixels):
             match = pixel_matches[i]
@@ -98,7 +101,7 @@ class CorrespondenceFinder:
         if line:
             cv2.line(src, (u1, v1), (u2, v2), (255, 255, 255), 4)
 
-    def show_side_by_side(self, pixels=None):
+    def show_side_by_side(self, pixels=None, plot=True):
         if not pixels is None: #pixels = [[original pts], [list of mapped to pixels]]
             for i in range(len(pixels[0])):
                 self.annotate_correspondence(pixels[0][i][0], pixels[0][i][1], pixels[1][i][0], pixels[1][i][1])
