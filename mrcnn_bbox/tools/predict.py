@@ -25,7 +25,7 @@ class BBoxFinder:
         self.cfg = cfg
         self.prediction_thresh = prediction_thresh
 
-    def predict(self, image, thresh=0.96, plot=True):
+    def predict(self, image, thresh=0.94, plot=True, annotate=True):
         scaled_image = mold_image(image, self.cfg)
         sample = expand_dims(scaled_image, 0)
         pred = self.model.detect(sample, verbose=0)
@@ -35,12 +35,13 @@ class BBoxFinder:
         for box, score in zip(yhat['rois'], yhat['scores']):
             y1, x1, y2, x2 = box
             # boxes.append(((x1,y1,x2,y2), score))
-            #vis = cv2.rectangle(image, (x1,y1), (x2,y2), (255,0,0), 2)
+            # vis = cv2.rectangle(image, (x1,y1), (x2,y2), (255,0,0), 2)
             #break # HACK!!
             if score > thresh:
                 y1, x1, y2, x2 = box
                 boxes.append(((x1,y1,x2,y2), score))
-                vis = cv2.rectangle(image, (x1,y1), (x2,y2), (255,0,0), 2)
+                if annotate:
+                    vis = cv2.rectangle(image, (x1,y1), (x2,y2), (255,0,0), 2)
         if plot:
             cv2.imshow("predicted", vis)
             cv2.waitKey(0)

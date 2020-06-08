@@ -72,6 +72,36 @@ def pixels_to_cylinders(pixels):
         if cyl_2.matrix_world.translation[2] > cyl_1.matrix_world.translation[2]:
             match = idx2
     return match
+    # four_match_idxs = neigh.kneighbors(pixels, 4, return_distance=False)
+    # idx1, idx2, idx3, idx4 = four_match_idxs.squeeze()
+    # cyl_1, cyl_2, cyl_3 = get_piece("Cylinder", idx1), get_piece("Cylinder", idx2), get_piece("Cylinder", idx3)
+    # cyls = [cyl_1, cyl_2, cyl_3]
+    # closest_vertex_dist = []
+    # for cyl in cyls:
+    #     cyl_pixels = []
+    #     for vertex in cyl.data.vertices:
+    #         camera_coord = bpy_extras.object_utils.world_to_camera_view(scene, bpy.context.scene.camera, cyl.matrix_world@vertex.co)
+    #         pixel = [round(camera_coord.x * render_size[0]), round(render_size[1] - camera_coord.y * render_size[1])]
+    #         cyl_pixels.append(pixel)
+    #     neigh = NearestNeighbors(1, 0)
+    #     neigh.fit(cyl_pixels)
+    #     vertex_idx = neigh.kneighbors(pixels, 1, return_distance=False).squeeze() # closest vertex for this cyl
+    #     print("VERTEX_IDX", vertex_idx)
+    #     print("CYL_PIXELS", cyl_pixels[vertex_idx])
+    #     print("DIFF:", np.array(cyl_pixels[vertex_idx]) - np.array(pixels))
+    #     closest_vertex_dist.append(np.linalg.norm((np.array(cyl_pixels[vertex_idx]) - np.array(pixels))[0]))
+    #
+    # sorted_cyl_idxs = sorted(range(len(closest_vertex_dist)), key=lambda k: closest_vertex_dist[k])
+    # match = sorted_cyl_idxs[0]
+    # second_match = sorted_cyl_idxs[1]
+    # pixel_dist = np.linalg.norm(np.array(cyl_pixels[match]) - np.array(cyl_pixels[second_match]))
+    # thresh = 10
+    # print("pixeldist", pixel_dist)
+    # if pixel_dist < thresh:
+    #     if cyl_2.matrix_world.translation[2] > cyl_1.matrix_world.translation[2]:
+    #         match = idx2
+    # return match
+
 
 def cyl_to_pixels(cyl_indices):
     pixels = []
@@ -524,9 +554,12 @@ if __name__ == '__main__':
                             "bbox": "braid_bbox_network"},
                     "capsule": {"ends": 'ends',
                             "local": "crop_capsule_offset1",
+                            # "local_pull": "chord_local_uncenter_rgb_pull",
                             "local_pull": "bbox_capsule_l_pull_rgb",
+                            # "local_hold": "chord_local_uncenter_rgb_hold",
                             "local_hold": "bbox_capsule_2_hold_d",
-                            "bbox": "knot_capsule_mult"}}
+                            # "bbox": "bbox_larger_mult"}}
+                            "bbox": "bbox_capsule_mult_looser"}}
 
     network_dir_dict = network_dirs["chord"] if armature == 1 else network_dirs["braid"]
     network_dir_dict = network_dirs["capsule"] if armature == 0 else network_dir_dict
