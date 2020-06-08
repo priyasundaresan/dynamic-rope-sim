@@ -34,7 +34,6 @@ class CorrespondenceFinder:
     def rgb_image_to_tensor(self, img):
         norm_transform = transforms.Normalize(self.dataset_mean, self.dataset_std_dev)
         return transforms.Compose([transforms.ToTensor(), norm_transform])(img)
-        #return transforms.ToTensor()(img)
 
     def load_image_pair(self, img1_filename, img2_filename):
         self.img1_pil = self.get_rgb_image(img1_filename)
@@ -98,7 +97,7 @@ class CorrespondenceFinder:
         if line:
             cv2.line(src, (u1, v1), (u2, v2), (255, 255, 255), 4)
 
-    def show_side_by_side(self, pixels=None):
+    def show_side_by_side(self, pixels=None, plot=True):
         if not pixels is None: #pixels = [[original pts], [list of mapped to pixels]]
             for i in range(len(pixels[0])):
                 self.annotate_correspondence(pixels[0][i][0], pixels[0][i][1], pixels[1][i][0], pixels[1][i][1])
