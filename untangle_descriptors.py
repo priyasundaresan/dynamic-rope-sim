@@ -60,48 +60,16 @@ def pixels_to_cylinders(pixels):
     neigh = NearestNeighbors(1, 0)
     neigh.fit(cyl_pixels)
     #match_idxs = neigh.kneighbors(pixels, 1, return_distance=False) # 1st neighbor is always identical, we want 2nd
-    print('PIXELS:', pixels)
     two_match_idxs = neigh.kneighbors(pixels, 2, return_distance=False)
     idx1, idx2 = two_match_idxs.squeeze()
     cyl_1, cyl_2 = get_piece("Cylinder", idx1), get_piece("Cylinder", idx2)
     match = idx1
     pixel_dist = np.linalg.norm(np.array(cyl_pixels[idx1]) - np.array(cyl_pixels[idx2]))
     thresh = 10
-    print("pixeldist", pixel_dist)
     if pixel_dist < thresh:
         if cyl_2.matrix_world.translation[2] > cyl_1.matrix_world.translation[2]:
             match = idx2
     return match
-    # four_match_idxs = neigh.kneighbors(pixels, 4, return_distance=False)
-    # idx1, idx2, idx3, idx4 = four_match_idxs.squeeze()
-    # cyl_1, cyl_2, cyl_3 = get_piece("Cylinder", idx1), get_piece("Cylinder", idx2), get_piece("Cylinder", idx3)
-    # cyls = [cyl_1, cyl_2, cyl_3]
-    # closest_vertex_dist = []
-    # for cyl in cyls:
-    #     cyl_pixels = []
-    #     for vertex in cyl.data.vertices:
-    #         camera_coord = bpy_extras.object_utils.world_to_camera_view(scene, bpy.context.scene.camera, cyl.matrix_world@vertex.co)
-    #         pixel = [round(camera_coord.x * render_size[0]), round(render_size[1] - camera_coord.y * render_size[1])]
-    #         cyl_pixels.append(pixel)
-    #     neigh = NearestNeighbors(1, 0)
-    #     neigh.fit(cyl_pixels)
-    #     vertex_idx = neigh.kneighbors(pixels, 1, return_distance=False).squeeze() # closest vertex for this cyl
-    #     print("VERTEX_IDX", vertex_idx)
-    #     print("CYL_PIXELS", cyl_pixels[vertex_idx])
-    #     print("DIFF:", np.array(cyl_pixels[vertex_idx]) - np.array(pixels))
-    #     closest_vertex_dist.append(np.linalg.norm((np.array(cyl_pixels[vertex_idx]) - np.array(pixels))[0]))
-    #
-    # sorted_cyl_idxs = sorted(range(len(closest_vertex_dist)), key=lambda k: closest_vertex_dist[k])
-    # match = sorted_cyl_idxs[0]
-    # second_match = sorted_cyl_idxs[1]
-    # pixel_dist = np.linalg.norm(np.array(cyl_pixels[match]) - np.array(cyl_pixels[second_match]))
-    # thresh = 10
-    # print("pixeldist", pixel_dist)
-    # if pixel_dist < thresh:
-    #     if cyl_2.matrix_world.translation[2] > cyl_1.matrix_world.translation[2]:
-    #         match = idx2
-    # return match
-
 
 def cyl_to_pixels(cyl_indices):
     pixels = []
@@ -117,10 +85,16 @@ def cyl_to_pixels(cyl_indices):
         pixels.append([pixel])
     return pixels
 
-def descriptor_matches(cf, path_to_ref_img, pixels, curr_frame, crop=False, depth=False, hold=None):
+def descriptor_matches(cf, path_to_ref_img, pixels, curr_frame, crop=False, depth=False, hold=None, pull=False):
     dir = "images_depth/" if depth else "images/"
     path_to_curr_img = dir+"%06d_crop.png" % curr_frame if crop else dir+"%06d_rgb.png" % curr_frame
-    path_to_ref_img = path_to_ref_img[1] if crop and depth else path_to_ref_img[0]
+    path_to_curr_img = dir+"%06d_hold_crop.png" % curr_frame if pull else path_to_curr_img
+    print(path_to_curr_img)
+    print(path_to_ref_img)
+    if pull:
+        path_to_ref_img = path_to_ref_img[2]
+    else:
+        path_to_ref_img = path_to_ref_img[1] if crop and depth else path_to_ref_img[0]
     cf.load_image_pair(path_to_ref_img, path_to_curr_img)
     cf.compute_descriptors()
     if crop:
@@ -292,13 +266,19 @@ def find_pull_hold(start_frame, bbox_detector, cf, path_to_ref_img, ref_crop_pix
         pull_crop_pixel, hold_crop_pixel = descriptor_matches(cf, path_to_ref_img, ref_crop_pixels, start_frame-render_offset, crop=True)
     else:
         hold_crop_pixel = descriptor_matches(cf[1], path_to_ref_img, [ref_crop_pixels[1]], start_frame-render_offset, crop=True, depth=True)[0]
-        # extra_hold_pixel_1, extra_hold_pixel_2 = descriptor_matches(cf[1], path_to_ref_img, extra_holds, start_frame-render_offset, crop=True, depth=True)
-        # holds = [hold_crop_pixel, extra_hold_pixel_1, extra_hold_pixel_2]
-        holds = [hold_crop_pixel, extra_holds[0], extra_holds[1]]
-        pull_crop_pixel = descriptor_matches(cf[0], path_to_ref_img, [ref_crop_pixels[0]], start_frame-render_offset, crop=True, hold=holds)[0]
+        hold_pixel = pixel_crop_to_full(np.array([hold_crop_pixel]), rescale_factor, x_off, y_off)[0]
+        hold_pixel = (int(hold_pixel[0]), int(hold_pixel[1]))
+        hold_x, hold_y = hold_pixel
+        hold_box_width, hold_box_height = 50, 50
+        hold_box = [hold_x-hold_box_width//2, hold_y-hold_box_height//2, hold_x+hold_box_width//2, hold_y+hold_box_height//2] 
+        hold_crop_depth, hold_rescale_factor, (hold_x_off, hold_y_off) = crop_and_resize(hold_box, img_depth, aspect=(50,50))
+        cv2.imwrite("images_depth/%06d_hold_crop.png" % (start_frame-render_offset), hold_crop_depth)
+        pull_crop_pixel = descriptor_matches(cf[0], path_to_ref_img, [ref_crop_pixels[0]], start_frame-render_offset, crop=False, depth=True, pull=True)[0]
 
     # transform this pick and hold into overall space (scale and offset)
-    pull_pixel, hold_pixel = pixel_crop_to_full(np.array([pull_crop_pixel, hold_crop_pixel]), rescale_factor, x_off, y_off)
+    #pull_pixel, hold_pixel = pixel_crop_to_full(np.array([pull_crop_pixel, hold_crop_pixel]), rescale_factor, x_off, y_off)
+    hold_pixel = pixel_crop_to_full(np.array([hold_crop_pixel]), rescale_factor, x_off, y_off)[0]
+    pull_pixel = pixel_crop_to_full(np.array([pull_crop_pixel]), hold_rescale_factor, hold_x_off, hold_y_off)[0]
     pull_pixel = (int(pull_pixel[0]), int(pull_pixel[1]))
     hold_pixel = (int(hold_pixel[0]), int(hold_pixel[1]))
 
@@ -436,8 +416,9 @@ def run_untangling_rollout(params, crop_cf, ends_cf, path_to_ref_imgs, ref_pixel
     else:
         path_to_ref_full_img = [os.path.join(path_to_ref_img, 'reid_ref.png')]
         path_to_ref_crop_img_d = os.path.join(path_to_ref_img, 'crop_d_ref.png')
+        path_to_ref_crop_img_d_pull = os.path.join(path_to_ref_img, 'crop_d_ref_pull.png')
         path_to_ref_crop_img_rgb = os.path.join(path_to_ref_img, 'crop_ref.png')
-        path_to_ref_crop_img = [path_to_ref_crop_img_rgb, path_to_ref_crop_img_d]
+        path_to_ref_crop_img = [path_to_ref_crop_img_rgb, path_to_ref_crop_img_d, path_to_ref_crop_img_d_pull]
 
     if fig8:
         knot_end_frame = tie_figure_eight(params, render=False)
@@ -457,11 +438,9 @@ def run_untangling_rollout(params, crop_cf, ends_cf, path_to_ref_imgs, ref_pixel
     undo_end_frame = reid_end
     bbox, _ = bbox_untangle(undo_end_frame, bbox_predictor, render_offset=render_offset)
     while bbox is not None:
-    # for _ in range(2):
         undone = False
         i = 0
         while not undone and i < 15:
-        # while i < 2:
             if policy==1:
                 undo_end_frame, pull, hold, action_vec = take_undo_action_descriptors(undo_end_frame, bbox_predictor, crop_cf, path_to_ref_crop_img, ref_crop_pixels, render=True, render_offset=render_offset)
             elif policy==0:
@@ -505,14 +484,12 @@ def parse_annots(path_to_ref_img):
     # return ref_pixels
     return ref_pixels, extra_holds
 
-def load_cf(base_dir, network_dir, crop=False):
+def load_cf(base_dir, network_dir, image_width, image_height):
     dcn = DenseCorrespondenceNetwork.from_model_folder(os.path.join(base_dir, network_dir), model_param_file=os.path.join(base_dir, network_dir, '003501.pth'))
     dcn.eval()
     with open('dense_correspondence/cfg/dataset_info.json', 'r') as f:
         dataset_stats = json.load(f)
     dataset_mean, dataset_std_dev = dataset_stats["mean"], dataset_stats["std_dev"]
-    image_width = 80 if crop else 640
-    image_height = 60 if crop else 480
     cf = CorrespondenceFinder(dcn, dataset_mean, dataset_std_dev, image_width=image_width, image_height=image_height)
     path_to_ref_img = "reference_images_3holds"
     # path_to_ref_img = "reference_images_bbox_crop"
@@ -554,12 +531,9 @@ if __name__ == '__main__':
                             "bbox": "braid_bbox_network"},
                     "capsule": {"ends": 'ends',
                             "local": "crop_capsule_offset1",
-                            # "local_pull": "chord_local_uncenter_rgb_pull",
-                            "local_pull": "bbox_capsule_l_pull_rgb",
-                            # "local_hold": "chord_local_uncenter_rgb_hold",
+                            "local_pull": "cyl_crop_depth",
                             "local_hold": "bbox_capsule_2_hold_d",
-                            # "bbox": "bbox_larger_mult"}}
-                            "bbox": "bbox_capsule_mult_looser"}}
+                            "bbox": "knot_capsule_mult"}}
 
     network_dir_dict = network_dirs["chord"] if armature == 1 else network_dirs["braid"]
     network_dir_dict = network_dirs["capsule"] if armature == 0 else network_dir_dict
@@ -569,13 +543,13 @@ if __name__ == '__main__':
     local_hold_network_dir = network_dir_dict["local_hold"]
     bbox_network_dir = network_dir_dict["bbox"]
 
-    crop_cf, path_to_ref_img, ref_pixels = load_cf(base_dir, local_network_dir, crop=True)
+    crop_cf, path_to_ref_img, ref_pixels = load_cf(base_dir, local_network_dir, 80, 60)
     try:
-        local_pull_cf, path_to_ref_img, ref_pixels = load_cf(base_dir, local_pull_network_dir, crop=True)
-        local_hold_cf, path_to_ref_img, ref_pixels = load_cf(base_dir, local_hold_network_dir, crop=True)
+        local_pull_cf, path_to_ref_img, ref_pixels = load_cf(base_dir, local_pull_network_dir, 50, 50)
+        local_hold_cf, path_to_ref_img, ref_pixels = load_cf(base_dir, local_hold_network_dir, 80, 60)
     except:
         pass
-    ends_cf, path_to_ref_img, ref_pixels = load_cf(base_dir, ends_network_dir)
+    ends_cf, path_to_ref_img, ref_pixels = load_cf(base_dir, ends_network_dir, 640, 480)
 
     cfg = PredictionConfig()
     model = MaskRCNN(mode='inference', model_dir='./', config=cfg)

@@ -68,6 +68,7 @@ if __name__ == '__main__':
     with open("{}/knots_info.json".format('images', 'r')) as stream:
         knots_info = json.load(stream)
     for i in range(len(os.listdir('images'))-1):
+        print("Processing image %04d"%i)
         knots_info = process(i, knots_info)
     with open("./image_crop/images/knots_info.json", 'w') as outfile:
         json.dump(knots_info, outfile, sort_keys=True, indent=2)

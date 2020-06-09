@@ -68,6 +68,37 @@ def create_labimg_xml(annotation_idx, annotation_list):
         f.write(xmlstr)
     #tree.write(xml_file_name, pretty_print=True)
 
+def find_knot_cylinders(num_segments, chain=False, num_knots=1):
+    piece = "Torus" if chain else "Cylinder"
+    cache = {}
+    curr_z = get_piece(piece, -1).matrix_world.translation[2]
+    dz_thresh = 0.2
+    dzs = []
+    for i in range(num_segments):
+        cyl = get_piece(piece, i if i else -1)
+        x,y,z = cyl.matrix_world.translation
+        dz = abs(z - curr_z)
+        dzs.append(dz)
+        curr_z = z
+    dzs = np.round(dzs, 1)
+    if num_knots == 1:
+        nonzero = np.where(dzs>0.2)
+        start_idx, end_idx = np.amin(nonzero), np.amax(nonzero)
+        result = [[start_idx, end_idx]]
+    else:
+        nonzero = np.where(dzs>0.2)[0]
+        split_idx, x, dx = 0, nonzero[0], 0
+        for i in range(len(nonzero)):
+            dx_curr = nonzero[i] - x
+            if dx_curr > dx:
+                dx = dx_curr
+                split_idx = i
+                x = nonzero[i]
+        s1, e1 = np.amin(nonzero[:split_idx]), np.amax(nonzero[:split_idx])
+        s2, e2 = np.amin(nonzero[split_idx:]), np.amax(nonzero[split_idx:])
+        result = [[s1,e1],[s2,e2]]
+    return result
+
 def annotate(frame, offset=4, num_knots=1):
     # knot_only = True:  means only record the under, over crossings
     # knot_only = False:  means record annotations for full rope
@@ -79,11 +110,15 @@ def annotate(frame, offset=4, num_knots=1):
             )
     annot_list = []
     knots = find_knot(50, num_knots=num_knots)
-    for knot in knots:
-        pull, hold, _ = knot
-        pull_idx_min, pull_idx_max = max(0,pull-offset), min(49,pull+offset+1)
-        hold_idx_min, hold_idx_max = max(0,hold-offset), min(49,hold+offset+1)
-        indices = list(range(pull_idx_min, pull_idx_max)) + list(range(hold_idx_min, hold_idx_max))
+    for i, knot in enumerate(knots):
+        if num_knots == 1:
+            start_idx, end_idx = find_knot_cylinders(50, num_knots=num_knots)[i]
+            indices = list(range(max(0,start_idx-offset), min(50, end_idx+offset)))
+        else:
+            pull, hold, _ = knot
+            pull_idx_min, pull_idx_max = max(0,pull-offset), min(49,pull+offset+1)
+            hold_idx_min, hold_idx_max = max(0,hold-offset), min(49,hold+offset+1)
+            indices = list(range(pull_idx_min, pull_idx_max)) + list(range(hold_idx_min, hold_idx_max))
         min_x = scene.render.resolution_x
         max_x = 0
         min_y = scene.render.resolution_y
@@ -100,10 +135,10 @@ def annotate(frame, offset=4, num_knots=1):
                 max_y = y
             if y < min_y:
                 min_y = y
-        min_x -= np.random.randint(12, 15)
-        min_y -= np.random.randint(12, 15)
-        max_x += np.random.randint(12, 15)
-        max_y += np.random.randint(12, 15)
+        min_x -= np.random.randint(10, 12)
+        min_y -= np.random.randint(10, 12)
+        max_x += np.random.randint(10, 12)
+        max_y += np.random.randint(10, 12)
         annot_list.append([min_x,min_y,max_x,max_y])
     create_labimg_xml(frame, annot_list)
 
@@ -133,10 +168,8 @@ def take_action(obj, frame, action_vec, animate=True):
     obj.keyframe_insert(data_path="location", frame=frame)
 
 def find_knot(num_segments, chain=False, num_knots=1, depth_thresh=0.43, idx_thresh=3, pull_offset=3):
-
     piece = "Torus" if chain else "Cylinder"
     cache = {}
-
     # Make a single pass, store the xy positions of the cylinders
     for i in range(num_segments):
         cyl = get_piece(piece, i if i else -1)
@@ -178,15 +211,15 @@ def find_knot(num_segments, chain=False, num_knots=1, depth_thresh=0.43, idx_thr
 
 def randomize_camera():
     #rot = np.random.uniform(-pi/12, pi/12)
-    rot = np.random.uniform(-pi/8, pi/8) + random.choice((0, np.pi))
-    xoffset = 0.1
-    yoffset = 0.1
-    zoffset = 0.1
+    rot = np.random.uniform(-pi/6, pi/6) + random.choice((0, np.pi))
+    xoffset = 0.2
+    yoffset = 0.2
+    zoffset = 0.2
     dx = np.random.uniform(-xoffset, xoffset)
     dy = np.random.uniform(-yoffset, yoffset)
     dz = np.random.uniform(-zoffset, zoffset)
     bpy.context.scene.camera.rotation_euler = (0, 0, rot)
-    bpy.context.scene.camera.location += Vector((dx, dy, dz))
+    bpy.context.scene.camera.location = Vector((2,0,28)) + Vector((dx, dy, dz))
     
 def render_frame(frame, render_offset=0, step=5, filename="%05d.jpg", folder="images", annot=True, num_knots=1, mapping=None):
     # Renders a single frame in a sequence (if frame%step == 0)
@@ -267,6 +300,35 @@ def reidemeister(params, start_frame, render=False, render_offset=0, annot=True,
             render_frame(step, render_offset=render_offset, annot=annot, mapping=mapping, num_knots=num_knots)
     return end_frame
 
+def take_undo_action_oracle(params, start_frame, render=False, render_offset=0, annot=True, num_knots=1, mapping=None):
+    piece = "Cylinder"
+    pull_idx, hold_idx, action_vec = find_knot(50)[0]
+    action_vec = np.array(action_vec) + np.random.uniform(-0.5, 0.5, 3)
+    action_vec /= np.linalg.norm(action_vec)
+    action_vec *= 2
+    pull_cyl = get_piece(piece, pull_idx if pull_idx else -1)
+    hold_cyl = get_piece(piece, hold_idx if hold_idx else -1)
+    end_frame = start_frame + 100
+    take_action(hold_cyl, end_frame, (0,0,0))
+
+    for step in range(start_frame, start_frame + 10):
+        bpy.context.scene.frame_set(step)
+        if render:
+            render_frame(step, render_offset=render_offset, annot=annot, mapping=mapping, num_knots=num_knots)
+
+    take_action(pull_cyl, end_frame, action_vec)
+    ## Release both pull, hold
+    toggle_animation(pull_cyl, end_frame, False)
+    toggle_animation(hold_cyl, end_frame, False)
+    settle_time = 30
+    # Let the rope settle after the action, so we can know where the ends are afterwards
+    for step in range(start_frame + 10, end_frame+settle_time):
+        bpy.context.scene.frame_set(step)
+        if render:
+            render_frame(step, render_offset=render_offset, annot=annot, mapping=mapping, num_knots=num_knots)
+    return end_frame+settle_time
+
+
 def random_loosen(params, start_frame, render=False, render_offset=0, annot=True, num_knots=1, mapping=None):
 
     piece = "Cylinder"
@@ -320,7 +382,8 @@ def generate_dataset(params, chain=False, render=False):
     #    reid_start = random_loosen(params, reid_end_frame, render=render, render_offset=knot_end_frame, mapping=mapping)
 
     render_offset = 0
-    for i in range(30):
+    num_loosens = 3
+    for i in range(1):
         #knot_type = random.choice(range(3))
         num_knots = 1
         if i%6==0:
@@ -334,7 +397,11 @@ def generate_dataset(params, chain=False, render=False):
             num_knots = 2
         render_offset += knot_end_frame
         reid_end_frame = reidemeister(params, knot_end_frame, render=render, render_offset=render_offset, num_knots=num_knots, mapping=mapping)
-        loosen_end_frame = random_loosen(params, reid_end_frame, render=render, render_offset=render_offset, num_knots=num_knots, mapping=mapping)
+        #loosen_end_frame = random_loosen(params, reid_end_frame, render=render, render_offset=render_offset, num_knots=num_knots, mapping=mapping)
+        start = reid_end_frame
+        for i in range(num_loosens):
+            loosen_end_frame = take_undo_action_oracle(params, start, render=render, render_offset=render_offset, num_knots=num_knots, mapping=mapping)
+            start = loosen_end_frame
         render_offset -= loosen_end_frame
         bpy.context.scene.frame_set(0)
         for a in bpy.data.actions:
@@ -346,8 +413,11 @@ if __name__ == '__main__':
     clear_scene()
     #make_rope(params)
     make_capsule_rope(params)
-    rig_rope(params)
+    #rig_rope(params)
     add_camera_light()
     set_render_settings(params["engine"],(params["render_width"],params["render_height"]))
     make_table(params)
+    start = time.time()
     generate_dataset(params, render=True)
+    end = time.time()
+    print("time", end-start)

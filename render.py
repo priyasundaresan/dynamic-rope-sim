@@ -9,6 +9,8 @@ sys.path.append(os.getcwd())
 from rigidbody_rope import *
 from sklearn.neighbors import NearestNeighbors
 import knots
+import xml.etree.cElementTree as ET
+from xml.dom import minidom
 from render_bbox import *
 
 def set_animation_settings(anim_end):
@@ -19,20 +21,18 @@ def set_animation_settings(anim_end):
 
 def set_render_settings(engine, render_size):
     # Set rendering engine, dimensions, colorspace, images settings
-    if not os.path.exists("./images"):
-        os.makedirs('./images')
-    else:
+    if os.path.exists("./images"):
         os.system('rm -r ./images')
-    if not os.path.exists("./images_depth"):
-        os.makedirs('./images_depth')
-    else:
+    os.makedirs('./images')
+    if os.path.exists("./images_depth"):
         os.system('rm -r ./images_depth')
-        os.makedirs('./images_depth')
-    if not os.path.exists("./image_masks"):
-        os.makedirs('./image_masks')
-    else:
+    os.makedirs('./images_depth')
+    if os.path.exists("./image_masks"):
         os.system('rm -r ./image_masks')
-        os.makedirs('./image_masks')
+    os.makedirs('./image_masks')
+    if os.path.exists("./annots"):
+        os.system('rm -r ./annots')
+    os.makedirs('./annots')
     scene = bpy.context.scene
     scene.render.engine = engine
     render_width, render_height = render_size
@@ -50,7 +50,20 @@ def set_render_settings(engine, render_size):
         scene.view_settings.view_transform = 'Raw'
         scene.eevee.taa_render_samples = 1
 
-def annotate(frame, mapping, num_annotations, knot_only=True, end_only=False, offset=1):
+def create_pixelannot_xml(annotation_idx, pixel):
+    scene = bpy.context.scene
+    annotation = ET.Element('annotation')
+    obj = ET.SubElement(annotation, 'hold_pixel')
+    x,y = pixel
+    ET.SubElement(obj, 'x').text = str(x)
+    ET.SubElement(obj, 'y').text = str(y)
+    tree = ET.ElementTree(annotation)
+    xml_file_name = "./annots/%05d.xml" % annotation_idx
+    xmlstr = minidom.parseString(ET.tostring(annotation)).toprettyxml(indent="   ")
+    with open(xml_file_name, "w") as f:
+        f.write(xmlstr)
+
+def annotate(frame, mapping, num_annotations, knot_only=True, end_only=False, export_hold_pixel=True, offset=1):
     '''Gets num_annotations annotations of cloth image at provided frame #, adds to mapping'''
     scene = bpy.context.scene
     render_scale = scene.render.resolution_percentage / 100
@@ -62,17 +75,13 @@ def annotate(frame, mapping, num_annotations, knot_only=True, end_only=False, of
     if knot_only:
         annot_list = []
         pull, hold, _ = find_knot(50)
-        indices = list(range(pull-offset, pull+offset+1)) + list(range(hold-offset, hold+offset+1))
+        indices = list(range(pull-offset,pull-offset+2)) 
+        #indices = list(range(pull-offset, pull+offset+1)) + list(range(hold-offset, hold+offset+1))
         #indices = list(range(pull-offset, pull+offset+1))
         #indices = list(range(hold-offset, hold+offset+1))
         box_offset = 4
         pull_idx_min, pull_idx_max = max(0,pull-box_offset), min(49,pull+box_offset+1)
         hold_idx_min, hold_idx_max = max(0,hold-box_offset), min(49,hold+box_offset+1)
-        bbox_indices = list(range(pull_idx_min, pull_idx_max)) + list(range(hold_idx_min, hold_idx_max))
-        min_x = scene.render.resolution_x
-        max_x = 0
-        min_y = scene.render.resolution_y
-        max_y = 0
     elif end_only:
         indices = list(range(4)) + list(range(46,50))
     else:
@@ -88,26 +97,12 @@ def annotate(frame, mapping, num_annotations, knot_only=True, end_only=False, of
             camera_coord = bpy_extras.object_utils.world_to_camera_view(scene, bpy.context.scene.camera, v)
             pixel = [round(camera_coord.x * render_size[0]), round(render_size[1] - camera_coord.y * render_size[1])]
             pixels.append([pixel])
+    if knot_only and export_hold_pixel:
+        hold_cyl = get_piece("Cylinder", hold)
+        camera_coord = bpy_extras.object_utils.world_to_camera_view(scene, bpy.context.scene.camera, hold_cyl.location)
+        pixel = [round(camera_coord.x * render_size[0]), round(render_size[1] - camera_coord.y * render_size[1])]
+        create_pixelannot_xml(frame, pixel)
     mapping[frame] = pixels
-
-    for i in bbox_indices:
-        cyl = get_piece("Cylinder", i if i != 0 else -1)
-        camera_coord = bpy_extras.object_utils.world_to_camera_view(scene, bpy.context.scene.camera, cyl.matrix_world.translation)
-        x, y = [round(camera_coord.x * render_size[0]), round(render_size[1] - camera_coord.y * render_size[1])]
-        if x > max_x:
-            max_x = x
-        if x < min_x:
-            min_x = x
-        if y > max_y:
-            max_y = y
-        if y < min_y:
-            min_y = y
-    min_x -= np.random.randint(12, 20)
-    min_y -= np.random.randint(12, 20)
-    max_x += np.random.randint(12, 20)
-    max_y += np.random.randint(12, 20)
-    annot_list.append([min_x,min_y,max_x,max_y])
-    create_labimg_xml(frame, annot_list)
 
 def get_piece(piece_name, piece_id):
     # Returns the piece with name piece_name, index piece_id
@@ -231,7 +226,7 @@ def texture_randomize(obj, textures_folder):
     img_filepath = os.path.join(textures_folder, rand_img_path)
     pattern(obj, img_filepath)
 
-def render_frame(frame, render_offset=0, step=2, num_annotations=300, filename="%06d_rgb.png", folder="images", annot=True, mapping=None):
+def render_frame(frame, render_offset=0, step=2, num_annotations=100, filename="%06d_rgb.png", folder="images", annot=True, mapping=None):
     # Renders a single frame in a sequence (if frame%step == 0)
     frame -= render_offset
     randomize_camera()
@@ -452,19 +447,8 @@ def generate_dataset(params, iters=1, chain=False, render=False):
     last = params["num_segments"]-1
     mapping = {}
 
-    #knot_end_frame = tie_knot(params, render=False)
-    #reid_start = knot_end_frame
-    #for i in range(iters):
-    #    reid_end_frame = reidemeister(params, reid_start, render=render, render_offset=knot_end_frame, mapping=mapping)
-    #    if random.random() < 0.15:
-    #        reid_start = random_loosen(params, reid_end_frame, render=render, render_offset=knot_end_frame, mapping=mapping)
-    #    else:
-    #        reid_start = random_end_pick_place(params, reid_end_frame, render=render, render_offset=knot_end_frame, mapping=mapping)
-
     render_offset = 0
-    #num_loosens = 4 # For each knot, we can do num_loosens loosening actions
     num_loosens = 5 # For each knot, we can do num_loosens loosening actions
-    # num_loosens = 1
     for i in range(iters):
         num_knots = 1
         knot_end_frame = knots.tie_pretzel_knot(params, render=False)
@@ -474,13 +458,11 @@ def generate_dataset(params, iters=1, chain=False, render=False):
         #    knot_end_frame = knots.tie_pretzel_knot(params, render=False)
         #elif i%2==1:
         #    knot_end_frame = knots.tie_figure_eight(params, render=False)
-        reid_end_frame = reidemeister(params, knot_end_frame, render=False, mapping=mapping) # For generating knots, we don't need to render the reid frames
+        reid_end_frame = reidemeister(params, knot_end_frame, render=False, mapping=mapping) 
         render_offset += reid_end_frame
 
         loosen_start = reid_end_frame
-        #loosen_end_frame = random_end_pick_place(params, loosen_start, render=render, render_offset=render_offset, mapping=mapping)
         for i in range(num_loosens):
-            #loosen_end_frame, offset = random_loosen(params, loosen_start, render=render, render_offset=render_offset, mapping=mapping)
             loosen_end_frame, offset = take_undo_action_oracle(params, loosen_start, render=render, render_offset=render_offset, mapping=mapping)
             loosen_start = loosen_end_frame
             render_offset = offset
