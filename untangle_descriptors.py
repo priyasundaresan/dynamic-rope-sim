@@ -147,11 +147,12 @@ def reidemeister_descriptors(start_frame, cf, path_to_ref_img, ref_end_pixels, r
     end1_idx = pixels_to_cylinders([end1_pixel])
     end1 = get_piece(piece, end1_idx)
 
-    middle_up_frame = start_frame+ 10
-    middle_frame = start_frame+70
+    middle_up_frame = start_frame+50
+    middle_frame = middle_up_frame+70
     end_frame = middle_frame + 70
     take_action(end1, middle_up_frame, (0,2,0))
-    take_action(end1, middle_frame, (17-end1.matrix_world.translation[0],0,0))
+    # take_action(end1, middle_frame, (17-end1.matrix_world.translation[0],0,0))
+    take_action(end1, middle_frame, (17-end1.matrix_world.translation[0],0-end1.matrix_world.translation[1],0))
     for step in range(start_frame, middle_frame):
         bpy.context.scene.frame_set(step)
         if render:
@@ -163,7 +164,8 @@ def reidemeister_descriptors(start_frame, cf, path_to_ref_img, ref_end_pixels, r
     end2 = get_piece(piece, end2_idx)
 
     toggle_animation(end1, middle_frame, False)
-    take_action(end2, end_frame, (-8-end2.matrix_world.translation[0],0,0))
+    # take_action(end2, end_frame, (-8-end2.matrix_world.translation[0],0,0))
+    take_action(end2, end_frame, (-8-end2.matrix_world.translation[0],0-end2.matrix_world.translation[0],0))
 
     # Drop the ends
     toggle_animation(end2, end_frame, False)
@@ -462,14 +464,21 @@ def run_untangling_rollout(params, crop_cf, ends_cf, path_to_ref_imgs, ref_pixel
         i = 0
         while not undone and i < 15:
         # while i < 2:
-            if policy==1:
-                undo_end_frame, pull, hold, action_vec = take_undo_action_descriptors(undo_end_frame, bbox_predictor, crop_cf, path_to_ref_crop_img, ref_crop_pixels, render=True, render_offset=render_offset)
-            elif policy==0:
-                undo_end_frame, pull, hold, action_vec = take_undo_action_oracle(undo_end_frame, render=True, render_offset=render_offset)
-            if pull is not None:
-                undone = undone_check_endpoint_pass(undo_end_frame, ends_cf, path_to_ref_full_img, ref_end_pixels, pull, hold, action_vec, render_offset=render_offset)
-            else:
-                break
+            try: # if the rope goes out of frame, take a reid move
+                if policy==1:
+                    undo_end_frame, pull, hold, action_vec = take_undo_action_descriptors(undo_end_frame, bbox_predictor, crop_cf, path_to_ref_crop_img, ref_crop_pixels, render=True, render_offset=render_offset)
+                elif policy==0:
+                    undo_end_frame, pull, hold, action_vec = take_undo_action_oracle(undo_end_frame, render=True, render_offset=render_offset)
+                if pull is not None:
+                    undone = undone_check_endpoint_pass(undo_end_frame, ends_cf, path_to_ref_full_img, ref_end_pixels, pull, hold, action_vec, render_offset=render_offset)
+                else:
+                    break
+            except:
+                if policy==1:
+                    reid_end = reidemeister_descriptors(undo_end_frame, ends_cf, path_to_ref_full_img, ref_end_pixels, render=True, render_offset=render_offset)
+                elif policy==0:
+                    reid_end = reidemeister_oracle(undo_end_frame, render=True, render_offset=render_offset)
+                undo_end_frame = reid_end
             i += 1
         if policy==1:
             reid_end = reidemeister_descriptors(undo_end_frame, ends_cf, path_to_ref_full_img, ref_end_pixels, render=True, render_offset=render_offset)
@@ -477,6 +486,8 @@ def run_untangling_rollout(params, crop_cf, ends_cf, path_to_ref_imgs, ref_pixel
             reid_end = reidemeister_oracle(undo_end_frame, render=True, render_offset=render_offset)
         undo_end_frame = reid_end
         bbox, _ = bbox_untangle(undo_end_frame, bbox_predictor, render_offset=render_offset)
+        if undo_end_frame > 5000: # hard limit of ~25 actions
+            return
     # undo_end_frame, pull, hold, action_vec = take_undo_action_descriptors(undo_end_frame, bbox_predictor, crop_cf, path_to_ref_crop_img, ref_crop_pixels, render=True, render_offset=render_offset)
 
 def parse_annots(path_to_ref_img):
