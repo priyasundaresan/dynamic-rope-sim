@@ -89,8 +89,6 @@ def descriptor_matches(cf, path_to_ref_img, pixels, curr_frame, crop=False, dept
     dir = "images_depth/" if depth else "images/"
     path_to_curr_img = dir+"%06d_crop.png" % curr_frame if crop else dir+"%06d_rgb.png" % curr_frame
     path_to_curr_img = dir+"%06d_hold_crop.png" % curr_frame if pull else path_to_curr_img
-    print(path_to_curr_img)
-    print(path_to_ref_img)
     if pull:
         path_to_ref_img = path_to_ref_img[2]
     else:
@@ -271,7 +269,7 @@ def find_pull_hold(start_frame, bbox_detector, cf, path_to_ref_img, ref_crop_pix
         hold_x, hold_y = hold_pixel
         hold_box_width, hold_box_height = 50, 50
         hold_box = [hold_x-hold_box_width//2, hold_y-hold_box_height//2, hold_x+hold_box_width//2, hold_y+hold_box_height//2] 
-        hold_crop_depth, hold_rescale_factor, (hold_x_off, hold_y_off) = crop_and_resize(hold_box, img_depth, aspect=(50,50))
+        hold_crop_depth, hold_rescale_factor, (hold_x_off, hold_y_off) = crop_and_resize(hold_box, img_depth, aspect=(hold_box_width,hold_box_height))
         cv2.imwrite("images_depth/%06d_hold_crop.png" % (start_frame-render_offset), hold_crop_depth)
         pull_crop_pixel = descriptor_matches(cf[0], path_to_ref_img, [ref_crop_pixels[0]], start_frame-render_offset, crop=False, depth=True, pull=True)[0]
 
@@ -511,7 +509,8 @@ if __name__ == '__main__':
     # args = parser.parse_args()
 
     argv = sys.argv
-    fig8 = "--fig8" in argv
+    #fig8 = "--fig8" in argv
+    fig8 = True
 
     armature = 0 # 1 for chord, 2 for braid
     split_pull_hold = 1
