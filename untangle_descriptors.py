@@ -249,6 +249,35 @@ def undone_check_endpoint_pass(start_frame, ends_cf, path_to_ref_full_img, ref_e
         return True
     return False
 
+def undone_check_oracle(start_frame, prev_pull, prev_hold, prev_action_vec, render_offset=0):
+    piece = "Cylinder"
+
+    hold_idx = pixels_to_cylinders([prev_hold])
+    pull_idx = pixels_to_cylinders([prev_pull])
+    pull_cyl = get_piece(piece, pull_idx)
+    hold_cyl = get_piece(piece, hold_idx)
+
+    # get endpoints from cf
+    end2_idx = 49
+    end1_idx = -1
+
+    end_idx = end1_idx # we are always undoing the right side
+    print("pull_idx", pull_idx)
+    print("end_idx", end_idx)
+    end_cyl = get_piece(piece, end_idx)
+    end_loc = end_cyl.matrix_world.translation
+    hold_loc = hold_cyl.matrix_world.translation
+    pull_loc = pull_cyl.matrix_world.translation
+
+    prev_action_vec = prev_action_vec[:-1]/np.linalg.norm(prev_action_vec[:-1])
+    end_hold_vec = np.array(end_loc - hold_loc)[:-1]/np.linalg.norm(np.array(end_loc - hold_loc)[:-1])
+    print("action_vec", prev_action_vec)
+    print("end_loc - hold_loc", end_hold_vec)
+    print("dot", np.dot(prev_action_vec, end_hold_vec))
+    if np.dot(prev_action_vec, end_hold_vec) > 0.7:
+        return True
+    return False
+
 def crop_and_resize(box, img, aspect=(80,60)):
     x1, y1, x2, y2 = box
     x_min, x_max = min(x1,x2), max(x1,x2)
@@ -296,7 +325,8 @@ def find_pull_hold(start_frame, bbox_detector, cf, path_to_ref_img, ref_crop_pix
         hold_crop_pixel = descriptor_matches(cf[1], path_to_ref_img, [ref_crop_pixels[1]], start_frame-render_offset, crop=True, depth=True)[0]
         # extra_hold_pixel_1, extra_hold_pixel_2 = descriptor_matches(cf[1], path_to_ref_img, extra_holds, start_frame-render_offset, crop=True, depth=True)
         # holds = [hold_crop_pixel, extra_hold_pixel_1, extra_hold_pixel_2]
-        holds = [hold_crop_pixel, extra_holds[0], extra_holds[1]]
+        # holds = [hold_crop_pixel, extra_holds[0], extra_holds[1]]
+        holds = [hold_crop_pixel]
         pull_crop_pixel = descriptor_matches(cf[0], path_to_ref_img, [ref_crop_pixels[0]], start_frame-render_offset, crop=True, hold=holds)[0]
 
     # transform this pick and hold into overall space (scale and offset)
@@ -311,7 +341,7 @@ def take_undo_action_oracle(start_frame, render=False, render_offset=0):
     path_to_curr_img = "images/%06d_rgb.png" % (start_frame-render_offset)
     pull_idx, hold_idx, action_vec = find_knot(50)
     action_vec /= np.linalg.norm(action_vec)
-    action_vec *= 2
+    action_vec *= 3
     pull_cyl = get_piece(piece, pull_idx)
     hold_cyl = get_piece(piece, hold_idx)
     take_action(hold_cyl, start_frame + 100, (0,0,0))
@@ -345,7 +375,7 @@ def take_undo_action_descriptors(start_frame, bbox_detector, cf, path_to_ref_img
     dy = pull_pixel[1] - hold_pixel[1]
     action_vec = [dx, dy, 6] # 6 is arbitrary for dz
     action_vec /= np.linalg.norm(action_vec)
-    action_vec *= 2
+    action_vec *= 3
 
     print("hold", hold_pixel)
     print("pull", pull_pixel)
@@ -363,7 +393,7 @@ def take_undo_action_descriptors(start_frame, bbox_detector, cf, path_to_ref_img
     hold_cyl = get_piece(piece, hold_idx)
 
     ## Undoing
-    if abs(hold_idx - pull_idx) > 4:
+    if abs(hold_idx - pull_idx) > 6:
         take_action(hold_cyl, start_frame + 100, (0,0,0))
     for step in range(start_frame, start_frame+10):
         bpy.context.scene.frame_set(step)
@@ -470,7 +500,10 @@ def run_untangling_rollout(params, crop_cf, ends_cf, path_to_ref_imgs, ref_pixel
                 elif policy==0:
                     undo_end_frame, pull, hold, action_vec = take_undo_action_oracle(undo_end_frame, render=True, render_offset=render_offset)
                 if pull is not None:
-                    undone = undone_check_endpoint_pass(undo_end_frame, ends_cf, path_to_ref_full_img, ref_end_pixels, pull, hold, action_vec, render_offset=render_offset)
+                    if policy==1:
+                        undone = undone_check_endpoint_pass(undo_end_frame, ends_cf, path_to_ref_full_img, ref_end_pixels, pull, hold, action_vec, render_offset=render_offset)
+                    elif policy==0:
+                        undone = undone_check_oracle(undo_end_frame, pull, hold, action_vec, render_offset=render_offset)
                 else:
                     break
             except:
@@ -512,7 +545,8 @@ def parse_annots(path_to_ref_img):
         braid_left_end, braid_right_end, braid_crop_pull, braid_crop_hold]
 
     # extra hold references:
-    extra_holds = [[ref_annots["two_hold_x"][i], ref_annots["two_hold_y"][i]] for i in range(2)] # ADDED
+    # extra_holds = [[ref_annots["two_hold_x"][i], ref_annots["two_hold_y"][i]] for i in range(2)] # ADDED
+    extra_holds = None
     # return ref_pixels
     return ref_pixels, extra_holds
 
@@ -525,8 +559,8 @@ def load_cf(base_dir, network_dir, crop=False):
     image_width = 80 if crop else 640
     image_height = 60 if crop else 480
     cf = CorrespondenceFinder(dcn, dataset_mean, dataset_std_dev, image_width=image_width, image_height=image_height)
-    path_to_ref_img = "reference_images_3holds"
-    # path_to_ref_img = "reference_images_bbox_crop"
+    # path_to_ref_img = "reference_images_3holds"
+    path_to_ref_img = "reference_images_bbox_crop"
     # ref_pixels = parse_annots(path_to_ref_img)
     # return cf, path_to_ref_img, ref_pixels
     ref_pixels, extra_holds = parse_annots(path_to_ref_img) # ADDED
@@ -562,6 +596,8 @@ if __name__ == '__main__':
                             "bbox": "armature_1200"},
                     "braid": {"ends": 'braid_ends',
                             "local": 'braid_local_2knots',
+                            "local_pull": "bbox_capsule_l_pull_rgb", # FIX THIS
+                            "local_hold": "bbox_braid_2_hold_d",
                             "bbox": "braid_bbox_network"},
                     "capsule": {"ends": 'ends',
                             "local": "crop_capsule_offset1",
