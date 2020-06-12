@@ -30,92 +30,9 @@ from render import *
 from image_utils import *
 from rigidbody_rope import *
 from knots import *
+from untangle_utils import *
 
 from predict import BBoxFinder, PredictionConfig
-
-def render_frame(frame, render_offset=0, step=2, num_annotations=400, filename="%06d_rgb.png", folder="images"):
-    # Renders a single frame in a sequence (if frame%step == 0)
-    frame -= render_offset
-    if frame%step == 0:
-        scene = bpy.context.scene
-        index = frame//step
-        render_mask("image_masks/%06d_visible_mask.png", "images_depth/%06d_rgb.png", index)
-        scene.render.filepath = os.path.join(folder, filename) % index
-        bpy.ops.render.render(write_still=True)
-
-def pixels_to_cylinders(pixels):
-    '''Gets num_annotations annotations of cloth image at provided frame #, adds to mapping'''
-    scene = bpy.context.scene
-    render_size = (
-            int(scene.render.resolution_x),
-            int(scene.render.resolution_y),
-            )
-    cyl_pixels = []
-    indices = list(range(50))
-    for i in indices:
-        cyl = get_piece("Cylinder", i if i != 0 else -1)
-        camera_coord = bpy_extras.object_utils.world_to_camera_view(scene, bpy.context.scene.camera, cyl.matrix_world.translation)
-        pixel = [round(camera_coord.x * render_size[0]), round(render_size[1] - camera_coord.y * render_size[1])]
-        cyl_pixels.append(pixel)
-    neigh = NearestNeighbors(1, 0)
-    neigh.fit(cyl_pixels)
-    #match_idxs = neigh.kneighbors(pixels, 1, return_distance=False) # 1st neighbor is always identical, we want 2nd
-    print('PIXELS:', pixels)
-    two_match_idxs = neigh.kneighbors(pixels, 2, return_distance=False)
-    idx1, idx2 = two_match_idxs.squeeze()
-    cyl_1, cyl_2 = get_piece("Cylinder", idx1), get_piece("Cylinder", idx2)
-    match = idx1
-    pixel_dist = np.linalg.norm(np.array(cyl_pixels[idx1]) - np.array(cyl_pixels[idx2]))
-    thresh = 10
-    print("pixeldist", pixel_dist)
-    if pixel_dist < thresh:
-        if cyl_2.matrix_world.translation[2] > cyl_1.matrix_world.translation[2]:
-            match = idx2
-    return match
-    # four_match_idxs = neigh.kneighbors(pixels, 4, return_distance=False)
-    # idx1, idx2, idx3, idx4 = four_match_idxs.squeeze()
-    # cyl_1, cyl_2, cyl_3 = get_piece("Cylinder", idx1), get_piece("Cylinder", idx2), get_piece("Cylinder", idx3)
-    # cyls = [cyl_1, cyl_2, cyl_3]
-    # closest_vertex_dist = []
-    # for cyl in cyls:
-    #     cyl_pixels = []
-    #     for vertex in cyl.data.vertices:
-    #         camera_coord = bpy_extras.object_utils.world_to_camera_view(scene, bpy.context.scene.camera, cyl.matrix_world@vertex.co)
-    #         pixel = [round(camera_coord.x * render_size[0]), round(render_size[1] - camera_coord.y * render_size[1])]
-    #         cyl_pixels.append(pixel)
-    #     neigh = NearestNeighbors(1, 0)
-    #     neigh.fit(cyl_pixels)
-    #     vertex_idx = neigh.kneighbors(pixels, 1, return_distance=False).squeeze() # closest vertex for this cyl
-    #     print("VERTEX_IDX", vertex_idx)
-    #     print("CYL_PIXELS", cyl_pixels[vertex_idx])
-    #     print("DIFF:", np.array(cyl_pixels[vertex_idx]) - np.array(pixels))
-    #     closest_vertex_dist.append(np.linalg.norm((np.array(cyl_pixels[vertex_idx]) - np.array(pixels))[0]))
-    #
-    # sorted_cyl_idxs = sorted(range(len(closest_vertex_dist)), key=lambda k: closest_vertex_dist[k])
-    # match = sorted_cyl_idxs[0]
-    # second_match = sorted_cyl_idxs[1]
-    # pixel_dist = np.linalg.norm(np.array(cyl_pixels[match]) - np.array(cyl_pixels[second_match]))
-    # thresh = 10
-    # print("pixeldist", pixel_dist)
-    # if pixel_dist < thresh:
-    #     if cyl_2.matrix_world.translation[2] > cyl_1.matrix_world.translation[2]:
-    #         match = idx2
-    # return match
-
-
-def cyl_to_pixels(cyl_indices):
-    pixels = []
-    scene = bpy.context.scene
-    render_size = (
-            int(scene.render.resolution_x),
-            int(scene.render.resolution_y),
-            )
-    for i in cyl_indices:
-        cyl = get_piece("Cylinder", i if i != 0 else -1)
-        camera_coord = bpy_extras.object_utils.world_to_camera_view(scene, bpy.context.scene.camera, cyl.matrix_world @ cyl.location)
-        pixel = [round(camera_coord.x * render_size[0]), round(render_size[1] - camera_coord.y * render_size[1])]
-        pixels.append([pixel])
-    return pixels
 
 def descriptor_matches(cf, path_to_ref_img, pixels, curr_frame, crop=False, depth=False, hold=None):
     dir = "images_depth/" if depth else "images/"
@@ -130,7 +47,6 @@ def descriptor_matches(cf, path_to_ref_img, pixels, curr_frame, crop=False, dept
     else:
         best_matches, _ = cf.find_k_best_matches(pixels, 50, mode="median")
         vis = cf.show_side_by_side(plot=False)
-    # FIX THIS
     if not "%06d_desc.png" % curr_frame in os.listdir("preds/"):
         cv2.imwrite("preds/%06d_desc.png" % curr_frame, vis)
     else:
@@ -141,59 +57,47 @@ def descriptor_matches(cf, path_to_ref_img, pixels, curr_frame, crop=False, dept
     return best_matches
 
 def reidemeister_descriptors(start_frame, cf, path_to_ref_img, ref_end_pixels, render=False, render_offset=0):
-    piece = "Cylinder"
     end2_pixel, end1_pixel = descriptor_matches(cf, path_to_ref_img, ref_end_pixels, start_frame-render_offset)
     end2_idx = pixels_to_cylinders([end2_pixel])
     end1_idx = pixels_to_cylinders([end1_pixel])
-    end1 = get_piece(piece, end1_idx)
-
-    middle_up_frame = start_frame+50
-    middle_frame = middle_up_frame+70
-    end_frame = middle_frame + 70
-    take_action(end1, middle_up_frame, (0,2,0))
-    # take_action(end1, middle_frame, (17-end1.matrix_world.translation[0],0,0))
-    take_action(end1, middle_frame, (17-end1.matrix_world.translation[0],0-end1.matrix_world.translation[1],0))
-    for step in range(start_frame, middle_frame):
-        bpy.context.scene.frame_set(step)
-        if render:
-            render_frame(step, render_offset=render_offset, step=1)
+    middle_frame = reidemeister_right(start_frame, end1_idx, end2_idx, render=render, render_offset=render_offset)
 
     end2_pixel, end1_pixel = descriptor_matches(cf, path_to_ref_img, ref_end_pixels, middle_frame-1-render_offset)
     end2_idx = pixels_to_cylinders([end2_pixel])
     end1_idx = pixels_to_cylinders([end1_pixel])
-    end2 = get_piece(piece, end2_idx)
+    return reidemeister_left(middle_frame, end1_idx, end2_idx, render=render, render_offset=render_offset)
 
-    toggle_animation(end1, middle_frame, False)
+def reidemeister_oracle(start_frame, render=False, render_offset=0):
+    middle_frame = reidemeister_right(start_frame, -1, 49, render=render, render_offset=render_offset)
+    return reidemeister_left(middle_frame, -1, 49, render=render, render_offset=render_offset)
+
+def reidemeister_right(start_frame, end1_idx, end2_idx, render=False, render_offset=0):
+    piece = "Cylinder"
+    end1 = get_piece(piece, end1_idx)
+    end2 = get_piece(piece, end2_idx)
+    middle_up_frame = start_frame+50
+    end_frame = middle_up_frame+70
+    take_action(end1, middle_up_frame, (0,2,0))
+    # take_action(end1, end_frame, (17-end1.matrix_world.translation[0],0,0))
+    take_action(end1, end_frame, (17-end1.matrix_world.translation[0],0-end1.matrix_world.translation[1],0))
+    for step in range(start_frame, end_frame):
+        bpy.context.scene.frame_set(step)
+        if render:
+            render_frame(step, render_offset=render_offset, step=1)
+    toggle_animation(end1, end_frame, False)
+    return end_frame
+
+def reidemeister_left(start_frame, end1_idx, end2_idx, render=False, render_offset=0):
+    piece = "Cylinder"
+    end_frame = start_frame + 70
+    end2 = get_piece(piece, end2_idx)
     # take_action(end2, end_frame, (-8-end2.matrix_world.translation[0],0,0))
     take_action(end2, end_frame, (-8-end2.matrix_world.translation[0],0-end2.matrix_world.translation[0],0))
-
     # Drop the ends
     toggle_animation(end2, end_frame, False)
 
     settle_time = 10
-    for step in range(middle_frame, end_frame+settle_time):
-        bpy.context.scene.frame_set(step)
-        if render:
-            render_frame(step, render_offset=render_offset, step=1)
-    return end_frame
-
-def reidemeister_oracle(start_frame, render=False, render_offset=0):
-    piece = "Cylinder"
-    end1 = get_piece(piece, -1)
-    end2 = get_piece(piece, 49)
-
-    middle_frame = start_frame+25
-    end_frame = start_frame+50
-    take_action(end1, middle_frame, (11-end1.matrix_world.translation[0],0,0))
-    for step in range(start_frame, middle_frame):
-        bpy.context.scene.frame_set(step)
-        if render:
-            render_frame(step, render_offset=render_offset, step=1)
-    take_action(end2, end_frame, (-8-end2.matrix_world.translation[0],0,0))
-    # Drop the ends
-    toggle_animation(end1, middle_frame, False)
-    toggle_animation(end2, end_frame, False)
-    for step in range(middle_frame, end_frame+10):
+    for step in range(start_frame, end_frame+settle_time):
         bpy.context.scene.frame_set(step)
         if render:
             render_frame(step, render_offset=render_offset, step=1)
@@ -211,45 +115,20 @@ def bbox_untangle(start_frame, bbox_detector, render_offset=0):
         return None, 0
     return boxes[0] # ASSUME first box is knot to be untied
 
-def undone_check_hold_thresh(start_frame, bbox_detector, cf, path_to_ref_img, ref_crop_pixels, hold_pos, render_offset=0, thresh=40):
-    pull_pixel, hold_pixel = find_pull_hold(start_frame, bbox_detector, cf, path_to_ref_img, ref_crop_pixels, render_offset=render_offset)
-    diff = np.array(hold_pos) - np.array(hold_pixel)
-    print("DIFF", np.linalg.norm(diff))
-    if np.linalg.norm(diff) < thresh: # threshold for when a crossing is undone
-        return False, pull_pixel, hold_pixel
-    return True, None, None
-
-def undone_check_endpoint_pass(start_frame, ends_cf, path_to_ref_full_img, ref_end_pixels, prev_pull, prev_hold, prev_action_vec, render_offset=0):
-    piece = "Cylinder"
-
-    hold_idx = pixels_to_cylinders([prev_hold])
-    pull_idx = pixels_to_cylinders([prev_pull])
-    pull_cyl = get_piece(piece, pull_idx)
-    hold_cyl = get_piece(piece, hold_idx)
-
+def undone_check_descriptors(start_frame, ends_cf, path_to_ref_full_img, ref_end_pixels, prev_pull, prev_hold, prev_action_vec, render_offset=0):
     # get endpoints from cf
     end2_pixel, end1_pixel = descriptor_matches(ends_cf, path_to_ref_full_img, ref_end_pixels, start_frame-render_offset)
     end2_idx = pixels_to_cylinders([end2_pixel])
     end1_idx = pixels_to_cylinders([end1_pixel])
-
-    end_idx = end1_idx # we are always undoing the right side
-    print("pull_idx", pull_idx)
-    print("end_idx", end_idx)
-    end_cyl = get_piece(piece, end_idx)
-    end_loc = end_cyl.matrix_world.translation
-    hold_loc = hold_cyl.matrix_world.translation
-    pull_loc = pull_cyl.matrix_world.translation
-
-    prev_action_vec = prev_action_vec[:-1]/np.linalg.norm(prev_action_vec[:-1])
-    end_hold_vec = np.array(end_loc - hold_loc)[:-1]/np.linalg.norm(np.array(end_loc - hold_loc)[:-1])
-    print("action_vec", prev_action_vec)
-    print("end_loc - hold_loc", end_hold_vec)
-    print("dot", np.dot(prev_action_vec, end_hold_vec))
-    if np.dot(prev_action_vec, end_hold_vec) > 0.7:
-        return True
-    return False
+    return undone_check(start_frame, prev_pull, prev_hold, prev_action_vec, end1_idx, end2_idx, render_offset=render_offset)
 
 def undone_check_oracle(start_frame, prev_pull, prev_hold, prev_action_vec, render_offset=0):
+    # ground truth endpoints
+    end2_idx = 49
+    end1_idx = -1
+    return undone_check(start_frame, prev_pull, prev_hold, prev_action_vec, end1_idx, end2_idx, render_offset=render_offset)
+
+def undone_check(start_frame, prev_pull, prev_hold, prev_action_vec, end1_idx, end2_idx, render_offset=0):
     piece = "Cylinder"
 
     hold_idx = pixels_to_cylinders([prev_hold])
@@ -257,10 +136,6 @@ def undone_check_oracle(start_frame, prev_pull, prev_hold, prev_action_vec, rend
     pull_cyl = get_piece(piece, pull_idx)
     hold_cyl = get_piece(piece, hold_idx)
 
-    # get endpoints from cf
-    end2_idx = 49
-    end1_idx = -1
-
     end_idx = end1_idx # we are always undoing the right side
     print("pull_idx", pull_idx)
     print("end_idx", end_idx)
@@ -277,31 +152,6 @@ def undone_check_oracle(start_frame, prev_pull, prev_hold, prev_action_vec, rend
     if np.dot(prev_action_vec, end_hold_vec) > 0.7:
         return True
     return False
-
-def crop_and_resize(box, img, aspect=(80,60)):
-    x1, y1, x2, y2 = box
-    x_min, x_max = min(x1,x2), max(x1,x2)
-    y_min, y_max = min(y1,y2), max(y1,y2)
-    box_width = x_max - x_min
-    box_height = y_max - y_min
-
-    # resize this crop to be 320x240
-    new_width = int((box_height*aspect[0])/aspect[1])
-    offset = new_width - box_width
-    x_min -= int(offset/2)
-    x_max += offset - int(offset/2)
-
-    crop = img[y_min:y_max, x_min:x_max]
-    resized = cv2.resize(crop, aspect)
-    rescale_factor = new_width/aspect[0]
-    offset = (x_min, y_min)
-    return resized, rescale_factor, offset
-
-def pixel_crop_to_full(pixels, crop_rescale_factor, x_offset, y_offset):
-    global_pixels = pixels * crop_rescale_factor
-    global_pixels[:, 0] += x_offset
-    global_pixels[:, 1] += y_offset
-    return global_pixels
 
 def find_pull_hold(start_frame, bbox_detector, cf, path_to_ref_img, ref_crop_pixels, render_offset=0):
     box, confidence = bbox_untangle(start_frame, bbox_detector, render_offset=render_offset)
@@ -318,14 +168,11 @@ def find_pull_hold(start_frame, bbox_detector, cf, path_to_ref_img, ref_crop_pix
     cv2.imwrite("images_depth/%06d_crop.png" % (start_frame-render_offset), crop_depth)
     cv2.imwrite("./preds/%06d_bbox.png" % (start_frame-render_offset), crop)
 
-    ref_crop_pixels, extra_holds = ref_crop_pixels
     if not type(cf) == list:
         pull_crop_pixel, hold_crop_pixel = descriptor_matches(cf, path_to_ref_img, ref_crop_pixels, start_frame-render_offset, crop=True)
     else:
-        hold_crop_pixel = descriptor_matches(cf[1], path_to_ref_img, [ref_crop_pixels[1]], start_frame-render_offset, crop=True, depth=True)[0]
-        # extra_hold_pixel_1, extra_hold_pixel_2 = descriptor_matches(cf[1], path_to_ref_img, extra_holds, start_frame-render_offset, crop=True, depth=True)
-        # holds = [hold_crop_pixel, extra_hold_pixel_1, extra_hold_pixel_2]
-        # holds = [hold_crop_pixel, extra_holds[0], extra_holds[1]]
+        # hold_crop_pixel = descriptor_matches(cf[1], path_to_ref_img, [ref_crop_pixels[1]], start_frame-render_offset, crop=True, depth=True)[0]
+        hold_crop_pixel = descriptor_matches(cf[1], path_to_ref_img, [ref_crop_pixels[1]], start_frame-render_offset, crop=True)[0]
         holds = [hold_crop_pixel]
         pull_crop_pixel = descriptor_matches(cf[0], path_to_ref_img, [ref_crop_pixels[0]], start_frame-render_offset, crop=True, hold=holds)[0]
 
@@ -336,34 +183,7 @@ def find_pull_hold(start_frame, bbox_detector, cf, path_to_ref_img, ref_crop_pix
 
     return pull_pixel, hold_pixel
 
-def take_undo_action_oracle(start_frame, render=False, render_offset=0):
-    piece = "Cylinder"
-    path_to_curr_img = "images/%06d_rgb.png" % (start_frame-render_offset)
-    pull_idx, hold_idx, action_vec = find_knot(50)
-    action_vec /= np.linalg.norm(action_vec)
-    action_vec *= 3
-    pull_cyl = get_piece(piece, pull_idx)
-    hold_cyl = get_piece(piece, hold_idx)
-    take_action(hold_cyl, start_frame + 100, (0,0,0))
-    for step in range(start_frame, start_frame+10):
-        bpy.context.scene.frame_set(step)
-        if render:
-            render_frame(step, render_offset=render_offset, step=1)
-    take_action(pull_cyl, start_frame + 100, action_vec)
-    ## Release both pull, hold
-    toggle_animation(pull_cyl, start_frame + 100, False)
-    toggle_animation(hold_cyl, start_frame + 100, False)
-    settle_time = 10
-    # Let the rope settle after the action, so we can know where the ends are afterwards
-    for step in range(start_frame + 10, start_frame + 200 + settle_time):
-        bpy.context.scene.frame_set(step)
-        if render:
-            render_frame(step, render_offset=render_offset, step=1)
-    pull_pixel, hold_pixel = cyl_to_pixels([pull_idx, hold_idx])
-    return start_frame+200, pull_pixel[0], hold_pixel[0], action_vec
-
 def take_undo_action_descriptors(start_frame, bbox_detector, cf, path_to_ref_img, ref_crop_pixels, render=False, render_offset=0, pixels=None):
-    piece = "Cylinder"
     if pixels is None:
         pull_pixel, hold_pixel = find_pull_hold(start_frame, bbox_detector, cf, path_to_ref_img, ref_crop_pixels, render_offset=render_offset)
     else:
@@ -375,7 +195,6 @@ def take_undo_action_descriptors(start_frame, bbox_detector, cf, path_to_ref_img
     dy = pull_pixel[1] - hold_pixel[1]
     action_vec = [dx, dy, 6] # 6 is arbitrary for dz
     action_vec /= np.linalg.norm(action_vec)
-    action_vec *= 3
 
     print("hold", hold_pixel)
     print("pull", pull_pixel)
@@ -387,13 +206,27 @@ def take_undo_action_descriptors(start_frame, bbox_detector, cf, path_to_ref_img
     cv2.imwrite("./preds/%06d_action.png" % (start_frame-render_offset), img)
     #cv2.imshow("action", img)
     #cv2.waitKey(0)
+
     hold_idx = pixels_to_cylinders([hold_pixel])
     pull_idx = pixels_to_cylinders([pull_pixel])
+    end_frame, action_vec = take_undo_action(start_frame, pull_idx, hold_idx, action_vec, render=render, render_offset=render_offset)
+    return end_frame, pull_pixel, hold_pixel, action_vec
+
+def take_undo_action_oracle(start_frame, render=False, render_offset=0):
+    pull_idx, hold_idx, action_vec = find_knot(50)
+    action_vec /= np.linalg.norm(action_vec)
+    end_frame, action_vec = take_undo_action(start_frame, pull_idx, hold_idx, action_vec, render=render, render_offset=render_offset)
+    pull_pixel, hold_pixel = cyl_to_pixels([pull_idx, hold_idx])
+    return end_frame, pull_pixel[0], hold_pixel[0], action_vec
+
+def take_undo_action(start_frame, pull_idx, hold_idx, norm_action_vec, render=False, render_offset=0):
+    piece = "Cylinder"
+    action_vec = norm_action_vec*3
     pull_cyl = get_piece(piece, pull_idx)
     hold_cyl = get_piece(piece, hold_idx)
 
     ## Undoing
-    if abs(hold_idx - pull_idx) > 6:
+    if abs(hold_idx - pull_idx) > 4:
         take_action(hold_cyl, start_frame + 100, (0,0,0))
     for step in range(start_frame, start_frame+10):
         bpy.context.scene.frame_set(step)
@@ -412,37 +245,13 @@ def take_undo_action_descriptors(start_frame, bbox_detector, cf, path_to_ref_img
         if render:
             render_frame(step, render_offset=render_offset, step=1)
 
-    return start_frame+200, pull_pixel, hold_pixel, action_vec
-
-def random_perturb(start_frame, render=False, render_offset=0):
-    piece = "Cylinder"
-
-    pick, hold, _ = find_knot(params["num_segments"])
-    if random.random() < 0.5:
-        pick = random.choice(range(10, 40))
-    pull_cyl = get_piece(piece, pick)
-
-    dx = np.random.uniform(0,0.3)*random.choice((-1,1))
-    dy = np.random.uniform(0,0.3)*random.choice((-1,1))
-    dz = np.random.uniform(0.5,1)
-
-    mid_frame = start_frame + 30
-    end_frame = start_frame + 60
-
-    take_action(pull_cyl, mid_frame, (dx,dy,dz))
-    toggle_animation(pull_cyl, mid_frame, False)
-    for step in range(start_frame, end_frame):
-        bpy.context.scene.frame_set(step)
-        if render:
-            render_frame(step, render_offset=render_offset)
-    return end_frame
+    return start_frame+200, action_vec
 
 def run_untangling_rollout(params, crop_cf, ends_cf, path_to_ref_imgs, ref_pixels, bbox_predictor, chain=False, render=True, armature=0, policy=1, fig8=False):
     set_animation_settings(7000)
     piece = "Cylinder"
     last = params["num_segments"]-1
     undone=True
-    ref_pixels, extra_holds = ref_pixels # ADDED
 
     index = 2
     if armature == 1:
@@ -452,7 +261,6 @@ def run_untangling_rollout(params, crop_cf, ends_cf, path_to_ref_imgs, ref_pixel
 
     ref_end_pixels = ref_pixels[index:index+2]
     ref_crop_pixels = ref_pixels[index+2:index+4]
-    ref_crop_pixels = [ref_crop_pixels, extra_holds] # ADDED
 
     if armature == 1:
         path_to_ref_full_img = [os.path.join(path_to_ref_img, 'armature_reid_ref.png')]
@@ -475,7 +283,7 @@ def run_untangling_rollout(params, crop_cf, ends_cf, path_to_ref_imgs, ref_pixel
         knot_end_frame = tie_figure_eight(params, render=False)
     else:
         knot_end_frame = tie_pretzel_knot(params, render=False)
-    knot_end_frame = random_perturb(knot_end_frame)
+    knot_end_frame = random_perturb(knot_end_frame, params)
     render_offset = knot_end_frame
     render_frame(knot_end_frame, render_offset=render_offset, step=1)
 
@@ -501,7 +309,7 @@ def run_untangling_rollout(params, crop_cf, ends_cf, path_to_ref_imgs, ref_pixel
                     undo_end_frame, pull, hold, action_vec = take_undo_action_oracle(undo_end_frame, render=True, render_offset=render_offset)
                 if pull is not None:
                     if policy==1:
-                        undone = undone_check_endpoint_pass(undo_end_frame, ends_cf, path_to_ref_full_img, ref_end_pixels, pull, hold, action_vec, render_offset=render_offset)
+                        undone = undone_check_descriptors(undo_end_frame, ends_cf, path_to_ref_full_img, ref_end_pixels, pull, hold, action_vec, render_offset=render_offset)
                     elif policy==0:
                         undone = undone_check_oracle(undo_end_frame, pull, hold, action_vec, render_offset=render_offset)
                 else:
@@ -544,11 +352,7 @@ def parse_annots(path_to_ref_img):
         armature_left_end, armature_right_end, armature_crop_pull, armature_crop_hold,
         braid_left_end, braid_right_end, braid_crop_pull, braid_crop_hold]
 
-    # extra hold references:
-    # extra_holds = [[ref_annots["two_hold_x"][i], ref_annots["two_hold_y"][i]] for i in range(2)] # ADDED
-    extra_holds = None
-    # return ref_pixels
-    return ref_pixels, extra_holds
+    return ref_pixels
 
 def load_cf(base_dir, network_dir, crop=False):
     dcn = DenseCorrespondenceNetwork.from_model_folder(os.path.join(base_dir, network_dir), model_param_file=os.path.join(base_dir, network_dir, '003501.pth'))
@@ -559,12 +363,9 @@ def load_cf(base_dir, network_dir, crop=False):
     image_width = 80 if crop else 640
     image_height = 60 if crop else 480
     cf = CorrespondenceFinder(dcn, dataset_mean, dataset_std_dev, image_width=image_width, image_height=image_height)
-    # path_to_ref_img = "reference_images_3holds"
     path_to_ref_img = "reference_images_bbox_crop"
-    # ref_pixels = parse_annots(path_to_ref_img)
-    # return cf, path_to_ref_img, ref_pixels
-    ref_pixels, extra_holds = parse_annots(path_to_ref_img) # ADDED
-    return cf, path_to_ref_img, [ref_pixels, extra_holds]
+    ref_pixels = parse_annots(path_to_ref_img)
+    return cf, path_to_ref_img, ref_pixels
 
 if __name__ == '__main__':
     if not os.path.exists("./preds"):
@@ -573,10 +374,6 @@ if __name__ == '__main__':
         os.system('rm -r ./preds')
         os.makedirs('./preds')
     base_dir = 'dense_correspondence/networks'
-
-    # parser = argparse.ArgumentParser()
-    # parser.add_argument('-f', '--fig8', default=False, action="store_true")
-    # args = parser.parse_args()
 
     argv = sys.argv
     fig8 = "--fig8" in argv
@@ -603,10 +400,10 @@ if __name__ == '__main__':
                             "local": "crop_capsule_offset1",
                             # "local_pull": "chord_local_uncenter_rgb_pull",
                             "local_pull": "bbox_capsule_l_pull_rgb",
-                            # "local_hold": "chord_local_uncenter_rgb_hold",
-                            "local_hold": "bbox_capsule_2_hold_d",
-                            # "bbox": "bbox_larger_mult"}}
-                            "bbox": "bbox_capsule_mult_looser"}}
+                            "local_hold": "looser_bbox_cap_hold_rgb",
+                            # "local_hold": "bbox_capsule_2_hold_d",
+                            "bbox": "bbox_larger_mult"}}
+                            # "bbox": "bbox_capsule_mult_looser"}}
 
     network_dir_dict = network_dirs["chord"] if armature == 1 else network_dirs["braid"]
     network_dir_dict = network_dirs["capsule"] if armature == 0 else network_dir_dict

@@ -70,6 +70,7 @@ class CorrespondenceFinder:
             match = [int(best_match[0]), int(best_match[1])]
             pixel_matches.append(match)
 
+        # return pixel 15 to the left as pull
         if not hold is None:
             pixel_matches = [[h[0]-15, h[1]] for h in hold]
 
