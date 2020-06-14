@@ -6,8 +6,12 @@ sys.path.append('policies')
 from untangle_utils import *
 from knots import *
 from rigidbody_rope import *
+
+# Load policies
 from oracle import Oracle
 from hierarchical_descriptors import Hierarchical
+from baseline import Heuristic 
+from random_action import RandomAction
 
 def run_untangling_rollout(policy, params):
     set_animation_settings(7000)
@@ -29,10 +33,13 @@ def run_untangling_rollout(policy, params):
     policy.reidemeister(undo_end_frame, render=True, render_offset=render_offset)
 
 if __name__ == '__main__':
-    with open("rigidbody_params.json", "r") as f:
-        params = json.load(f)
 
-    #policy = Oracle(params)
+    if not os.path.exists("./preds"):
+        os.makedirs('./preds')
+    else:
+        os.system('rm -r ./preds')
+        os.makedirs('./preds')
+
 
     BASE_DIR = os.getcwd()
     DESCRIPTOR_DIR = os.path.join(BASE_DIR, 'dense_correspondence')
@@ -40,7 +47,12 @@ if __name__ == '__main__':
     path_to_refs = os.path.join(BASE_DIR, 'references', 'capsule')
     with open("rigidbody_params.json", "r") as f:
         params = json.load(f)
-    policy = Hierarchical(path_to_refs, DESCRIPTOR_DIR, BBOX_DIR, params)
+
+    #policy = Oracle(params)
+    #policy = Hierarchical(path_to_refs, DESCRIPTOR_DIR, BBOX_DIR, params)
+    #policy = Heuristic(path_to_refs, BBOX_DIR, params)
+    policy = RandomAction(path_to_refs, BBOX_DIR, params)
+
     clear_scene()
     make_capsule_rope(params)
     add_camera_light()

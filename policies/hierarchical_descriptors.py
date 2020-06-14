@@ -167,6 +167,7 @@ class Hierarchical(object):
         hold_idx = pixels_to_cylinders([hold_pixel])
         pull_idx = pixels_to_cylinders([pull_pixel])
         end_frame, action_vec = take_undo_action(start_frame, pull_idx, hold_idx, action_vec, render=render, render_offset=render_offset)
+        self.action_count += 1
         return end_frame, pull_pixel, hold_pixel, action_vec
     
     def reidemeister(self, start_frame, render=False, render_offset=0):
@@ -182,6 +183,7 @@ class Hierarchical(object):
                             self.ends_ref_pixels, middle_frame-1-render_offset)
         end2_idx = pixels_to_cylinders([end2_pixel])
         end1_idx = pixels_to_cylinders([end1_pixel])
+        self.action_count += 2
         return reidemeister_left(middle_frame, end1_idx, end2_idx, render=render, render_offset=render_offset)
 
 if __name__ == '__main__':
