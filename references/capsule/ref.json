@@ -1,0 +1,14 @@
+{
+    "reid_left_x": 50,
+    "reid_left_y": 197,
+    "reid_right_x": 470,
+    "reid_right_y": 242,
+    "crop_pull_x": 9,
+    "crop_pull_y": 26,
+    "crop_hold_x": 36,
+    "crop_hold_y": 20,
+    "ends_cf": "ends",
+    "hold_cf": "bbox_capsule_2_hold_d",
+    "pull_cf": "cyl_crop_depth",
+    "bbox": "knot_capsule_mult"
+}

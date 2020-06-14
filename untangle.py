@@ -7,6 +7,7 @@ from untangle_utils import *
 from knots import *
 from rigidbody_rope import *
 from oracle import Oracle
+from hierarchical_descriptors import Hierarchical
 
 def run_untangling_rollout(policy, params):
     set_animation_settings(7000)
@@ -21,14 +22,25 @@ def run_untangling_rollout(policy, params):
     reid_end = policy.reidemeister(knot_end_frame, render=True, render_offset=render_offset)
     undo_end_frame = reid_end
 
-    while not policy.undone_check():
+    undone = False
+    while not undone:
         undo_end_frame, pull, hold, action_vec = policy.undo(undo_end_frame, render=True, render_offset=render_offset)
+        undone = policy.policy_undone_check(undo_end_frame, pull, hold, action_vec, render_offset=render_offset)
     policy.reidemeister(undo_end_frame, render=True, render_offset=render_offset)
 
 if __name__ == '__main__':
     with open("rigidbody_params.json", "r") as f:
         params = json.load(f)
-    policy = Oracle(params)
+
+    #policy = Oracle(params)
+
+    BASE_DIR = os.getcwd()
+    DESCRIPTOR_DIR = os.path.join(BASE_DIR, 'dense_correspondence')
+    BBOX_DIR = os.path.join(BASE_DIR, 'mrcnn_bbox', 'networks')
+    path_to_refs = os.path.join(BASE_DIR, 'references', 'capsule')
+    with open("rigidbody_params.json", "r") as f:
+        params = json.load(f)
+    policy = Hierarchical(path_to_refs, DESCRIPTOR_DIR, BBOX_DIR, params)
     clear_scene()
     make_capsule_rope(params)
     add_camera_light()

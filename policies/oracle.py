@@ -12,9 +12,12 @@ class Oracle(object):
         self.max_actions = 7
         self.rope_length = params["num_segments"]
 
-    def undone_check(self):
-        # Have exceeded number of allowed actions, or no more crossings
-        return self.action_count > self.max_actions or find_knot(self.rope_length)[-1] == [0,0,0]
+    def policy_undone_check(self, start_frame, prev_pull, prev_hold, prev_action_vec, render_offset=0):
+        if self.action_count > self.max_actions or find_knot(self.rope_length)[-1]  == [0,0,0]:
+            return True
+        end2_idx = self.rope_length-1
+        end1_idx = -1
+        return undone_check(start_frame, prev_pull, prev_hold, prev_action_vec, end1_idx, end2_idx, render_offset=render_offset)
 
     def undo(self, start_frame, render=False, render_offset=0):
         pull_idx, hold_idx, action_vec = find_knot(self.rope_length)
