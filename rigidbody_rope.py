@@ -145,7 +145,7 @@ def make_cable_rig(params, bezier):
     bpy.context.view_layer.objects.active = bezier
     return bezier
 
-def rig_rope(params):
+def rig_rope(params, braid=0):
     bpy.ops.object.armature_add(enter_editmode=False, location=(0, 0, 0))
     arm = bpy.context.object
     n = params["num_segments"]
@@ -183,8 +183,10 @@ def rig_rope(params):
         bpy.data.objects[obj_name].hide_set(True)
         bpy.data.objects[obj_name].hide_render = True
     bezier.select_set(False)
-    # rope = make_braid_rig(params, bezier)
-    rope = make_cable_rig(params, bezier)
+    if braid:
+        rope = make_braid_rig(params, bezier)
+    else:
+        rope = make_cable_rig(params, bezier)
 
 def make_rope_v3(params):
     # This method relies on an STL file that contains a mesh for a

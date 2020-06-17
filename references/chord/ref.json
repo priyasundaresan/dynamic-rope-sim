@@ -1,0 +1,14 @@
+{
+    "reid_left_x": 46,
+    "reid_left_y": 238,
+    "reid_right_x": 540,
+    "reid_right_y": 217,
+    "crop_pull_x": 11,
+    "crop_pull_y": 28,
+    "crop_hold_x": 53,
+    "crop_hold_y": 32,
+    "ends_cf": "armature_ends",
+    "hold_cf": "FIX",
+    "pull_cf": "chord_pull_rgb",
+    "bbox": "bbox_chord_larger_mult"
+}

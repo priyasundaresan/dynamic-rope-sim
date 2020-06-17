@@ -3,6 +3,8 @@ import numpy as np
 from sklearn.neighbors import NearestNeighbors
 import sys
 import os
+import imageio
+import cv2
 sys.path.append(os.getcwd())
 from knots import *
 from render import *
@@ -147,8 +149,9 @@ def reidemeister_right(start_frame, end1_idx, end2_idx, render=False, render_off
     middle_up_frame = start_frame+50
     end_frame = middle_up_frame+70
     take_action(end1, middle_up_frame, (0,2,0))
-    # take_action(end1, end_frame, (17-end1.matrix_world.translation[0],0,0))
-    take_action(end1, end_frame, (17-end1.matrix_world.translation[0],0-end1.matrix_world.translation[1],0))
+    take_action(end1, middle_up_frame+20, (0,0,2))
+    take_action(end1, end_frame-15, (17-end1.matrix_world.translation[0],0-end1.matrix_world.translation[1],0))
+    take_action(end1, end_frame, (0,0,-2))
     for step in range(start_frame, end_frame):
         bpy.context.scene.frame_set(step)
         if render:
@@ -171,3 +174,28 @@ def reidemeister_left(start_frame, end1_idx, end2_idx, render=False, render_offs
         if render:
             render_frame(step, render_offset=render_offset, step=1)
     return end_frame
+
+def undone_check(start_frame, prev_pull, prev_hold, prev_action_vec, end1_idx, end2_idx, render_offset=0):
+    piece = "Cylinder"
+
+    hold_idx = pixels_to_cylinders([prev_hold])
+    pull_idx = pixels_to_cylinders([prev_pull])
+    pull_cyl = get_piece(piece, pull_idx)
+    hold_cyl = get_piece(piece, hold_idx)
+
+    end_idx = end1_idx # we are always undoing the right side
+    print("pull_idx", pull_idx)
+    print("end_idx", end_idx)
+    end_cyl = get_piece(piece, end_idx)
+    end_loc = end_cyl.matrix_world.translation
+    hold_loc = hold_cyl.matrix_world.translation
+    pull_loc = pull_cyl.matrix_world.translation
+
+    prev_action_vec = prev_action_vec[:-1]/np.linalg.norm(prev_action_vec[:-1])
+    end_hold_vec = np.array(end_loc - hold_loc)[:-1]/np.linalg.norm(np.array(end_loc - hold_loc)[:-1])
+    print("action_vec", prev_action_vec)
+    print("end_loc - hold_loc", end_hold_vec)
+    print("dot", np.dot(prev_action_vec, end_hold_vec))
+    if np.dot(prev_action_vec, end_hold_vec) > 0.7:
+        return True
+    return False
