@@ -14,7 +14,7 @@ from baseline import Heuristic
 from random_action import RandomAction
 
 def run_untangling_rollout(policy, params):
-    set_animation_settings(7000)
+    set_animation_settings(15000)
     #piece = "Cylinder"
     #last = params["num_segments"]-1
 
