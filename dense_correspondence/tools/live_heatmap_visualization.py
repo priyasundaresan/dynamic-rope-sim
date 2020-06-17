@@ -9,7 +9,7 @@ import numpy as np
 import copy
 from PIL import Image, ImageOps
 from dense_correspondence_network import DenseCorrespondenceNetwork
-from find_correspondences import CorrespondenceFinder 
+from find_correspondences import CorrespondenceFinder
 
 COLOR_RED = np.array([0, 0, 255])
 COLOR_GREEN = np.array([0,255,0])
@@ -42,7 +42,7 @@ class HeatmapVisualization(object):
         #filename = "%06d.png"
         #filename = "%06d_cropped.png"
         f1 = os.path.join(self._image_dir, filename % img1_index)
-        #f1 = os.path.join('../../reference_images/knot_reference.png')
+        #f1 = os.path.join('../../reference_images_bbox_crop/braid_crop_d_ref.png')
         f2 = os.path.join(self._image_dir, filename % img2_index)
         self.img1_pil = Image.open(f1).convert('RGB').resize((self._image_width, self._image_height))
         self.img2_pil = Image.open(f2).convert('RGB').resize((self._image_width, self._image_height))
@@ -164,17 +164,17 @@ class HeatmapVisualization(object):
 
 if __name__ == "__main__":
     base_dir = '../networks'
-    #network_dir = 'rope_cyl_400_dim16'
-    #network_dir = 'rope_400_cyl_rot_16'
-    network_dir = 'cyl_arma_pull_loose_depth'
+    #network_dir = 'crop_capsule_offset1'
+    network_dir = 'looser_bbox_cap_hold_rgb'
+    #network_dir = 'bbox_braid_2_hold_d'
     dcn = DenseCorrespondenceNetwork.from_model_folder(os.path.join(base_dir, network_dir), model_param_file=os.path.join(base_dir, network_dir, '003501.pth'))
     dcn.eval()
     with open('../cfg/dataset_info.json', 'r') as f:
         dataset_stats = json.load(f)
     dataset_mean, dataset_std_dev = dataset_stats["mean"], dataset_stats["std_dev"]
-    #image_dir = '../../small_crop_blur/processed/images'
-    #image_dir = '../../rope_ends_only/processed/images'
-    image_dir = '../../cyl_arma_pull_loose_depth/processed/images'
+    image_dir = '../../datasets/looser_bbox_cap_hold_rgb/processed/images'
+    #image_dir = '../../bbox_crops'
+
     heatmap_vis = HeatmapVisualization(dcn, dataset_mean, dataset_std_dev, image_dir)
     print "starting heatmap vis"
     heatmap_vis.run()

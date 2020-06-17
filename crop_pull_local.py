@@ -32,10 +32,10 @@ def process(img_idx, knots_info, crop_size=(50,50), plot=False):
     depth_crop = depth_img[hold_y-(crop_height)//2:hold_y+(crop_height)//2, hold_x-(crop_width)//2:hold_x+(crop_width)//2]
     mask_vis_crop = mask_vis[hold_y-(crop_height)//2:hold_y+(crop_height)//2, hold_x-(crop_width)//2:hold_x+(crop_width)//2]
     mask_crop = mask[hold_y-(crop_height)//2:hold_y+(crop_height)//2, hold_x-(crop_width)//2:hold_x+(crop_width)//2]
-    cv2.imwrite(os.path.join('image_crop', img_filename), img_crop)
-    cv2.imwrite(os.path.join('image_crop', depth_filename), depth_crop)
-    cv2.imwrite(os.path.join('image_crop', mask_filename), mask_crop)
-    cv2.imwrite(os.path.join('image_crop', mask_filename), mask_vis_crop)
+    cv2.imwrite(os.path.join('image_crop_pull', img_filename), img_crop)
+    cv2.imwrite(os.path.join('image_crop_pull', depth_filename), depth_crop)
+    cv2.imwrite(os.path.join('image_crop_pull', mask_filename), mask_crop)
+    cv2.imwrite(os.path.join('image_crop_pull', mask_vis_filename), mask_vis_crop)
     crop_pixels[:, 0] -= box_x
     crop_pixels[:, 1] -= box_y
 
@@ -53,23 +53,22 @@ def process(img_idx, knots_info, crop_size=(50,50), plot=False):
     return knots_info
 
 if __name__ == '__main__':
-    if os.path.exists("./image_crop"):
-        os.system("rm -rf ./image_crop")
-    os.makedirs('./image_crop')
-    if os.path.exists("./image_crop/images"):
-        os.system("rm -rf ./image_crop/images")
-    os.makedirs('./image_crop/images')
-    if os.path.exists("./image_crop/image_masks"):
-        os.system("rm -rf ./image_crop/image_masks")
-    os.makedirs('./image_crop/image_masks')
-    if os.path.exists("./image_crop/images_depth"):
-        os.system("rm -rf ./image_crop/images_depth")
-    os.makedirs('./image_crop/images_depth')
+    if os.path.exists("./image_crop_pull"):
+        os.system("rm -rf ./image_crop_pull")
+    os.makedirs('./image_crop_pull')
+    if os.path.exists("./image_crop_pull/images"):
+        os.system("rm -rf ./image_crop_pull/images")
+    os.makedirs('./image_crop_pull/images')
+    if os.path.exists("./image_crop_pull/image_masks"):
+        os.system("rm -rf ./image_crop_pull/image_masks")
+    os.makedirs('./image_crop_pull/image_masks')
+    if os.path.exists("./image_crop_pull/images_depth"):
+        os.system("rm -rf ./image_crop_pull/images_depth")
+    os.makedirs('./image_crop_pull/images_depth')
     with open("{}/knots_info.json".format('images', 'r')) as stream:
         knots_info = json.load(stream)
     for i in range(len(os.listdir('images'))-1):
         print("Processing image %04d"%i)
         knots_info = process(i, knots_info)
-    with open("./image_crop/images/knots_info.json", 'w') as outfile:
+    with open("./image_crop_pull/images/knots_info.json", 'w') as outfile:
         json.dump(knots_info, outfile, sort_keys=True, indent=2)
-    
