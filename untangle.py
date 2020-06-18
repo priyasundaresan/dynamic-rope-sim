@@ -40,22 +40,20 @@ def run_untangling_rollout(policy, params):
 
     reid_end = policy.reidemeister(knot_end_frame, render=True, render_offset=render_offset)
     undo_end_frame = reid_end
-    try:
-        bbox, _ = policy.bbox_untangle(undo_end_frame, bbox_predictor, render_offset=render_offset)
-    except:
-        bbox = 1
+
+    bbox, _ = policy.bbox_untangle(undo_end_frame, bbox_predictor, render_offset=render_offset)
     while bbox is not None:
         undone = False
         i = 0
-        while not undone and i < 15:
-            undo_end_frame, pull, hold, action_vec = policy.undo(undo_end_frame, render=True, render_offset=render_offset)
-            undone = policy.policy_undone_check(undo_end_frame, pull, hold, action_vec, render_offset=render_offset)
+        while not undone and i < 10:
+            try: # if rope goes out of frame, take a reid move
+                undo_end_frame, pull, hold, action_vec = policy.undo(undo_end_frame, render=True, render_offset=render_offset)
+                undone = policy.policy_undone_check(undo_end_frame, pull, hold, action_vec, render_offset=render_offset)
+            except:
+                policy.reidemeister(undo_end_frame, render=True, render_offset=render_offset)
             i += 1
         policy.reidemeister(undo_end_frame, render=True, render_offset=render_offset)
-        try:
-            bbox, _ = policy.bbox_untangle(undo_end_frame, bbox_predictor, render_offset=render_offset)
-        except:
-            bbox = None # oracle policy gets one try to untangle
+        bbox, _ = policy.bbox_untangle(undo_end_frame, bbox_predictor, render_offset=render_offset)
 
 if __name__ == '__main__':
 

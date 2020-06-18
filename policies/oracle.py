@@ -12,6 +12,9 @@ class Oracle(object):
         self.max_actions = 7
         self.rope_length = params["num_segments"]
 
+    def bbox_untangle(self):
+        return find_knot(self.rope_length)[-1]  == [0,0,0]
+
     def policy_undone_check(self, start_frame, prev_pull, prev_hold, prev_action_vec, render_offset=0):
         if self.action_count > self.max_actions or find_knot(self.rope_length)[-1]  == [0,0,0]:
             return True
@@ -26,7 +29,7 @@ class Oracle(object):
         pull_pixel, hold_pixel = cyl_to_pixels([pull_idx, hold_idx])
         self.action_count += 1
         return end_frame, pull_pixel[0], hold_pixel[0], action_vec
-    
+
     def reidemeister(self, start_frame, render=False, render_offset=0):
         middle_frame = reidemeister_right(start_frame, -1, self.rope_length-1, render=render, render_offset=render_offset)
         end_frame = reidemeister_left(middle_frame, -1, self.rope_length-1, render=render, render_offset=render_offset)
