@@ -34,6 +34,7 @@ def run_untangling_rollout(policy, params):
             raise Exception("Figure 8 and Pretzel config not yet supported")
     else:
         raise Exception("More than 2 knot configs not yet supported")
+
     knot_end_frame = random_perturb(knot_end_frame, params)
     render_offset = knot_end_frame
     render_frame(knot_end_frame, render_offset=render_offset, step=1)
@@ -41,7 +42,7 @@ def run_untangling_rollout(policy, params):
     reid_end = policy.reidemeister(knot_end_frame, render=True, render_offset=render_offset)
     undo_end_frame = reid_end
 
-    bbox, _ = policy.bbox_untangle(undo_end_frame, bbox_predictor, render_offset=render_offset)
+    bbox, _ = policy.bbox_untangle(undo_end_frame, render_offset=render_offset)
     while bbox is not None:
         undone = False
         i = 0
@@ -50,10 +51,14 @@ def run_untangling_rollout(policy, params):
                 undo_end_frame, pull, hold, action_vec = policy.undo(undo_end_frame, render=True, render_offset=render_offset)
                 undone = policy.policy_undone_check(undo_end_frame, pull, hold, action_vec, render_offset=render_offset)
             except:
-                policy.reidemeister(undo_end_frame, render=True, render_offset=render_offset)
+                undo_end_frame = policy.reidemeister(undo_end_frame, render=True, render_offset=render_offset)
             i += 1
-        policy.reidemeister(undo_end_frame, render=True, render_offset=render_offset)
-        bbox, _ = policy.bbox_untangle(undo_end_frame, bbox_predictor, render_offset=render_offset)
+            if undo_end_frame > 6000:
+                undo_end_frame = policy.reidemeister(undo_end_frame, render=True, render_offset=render_offset)
+                return
+        undo_end_frame = policy.reidemeister(undo_end_frame, render=True, render_offset=render_offset)
+        bbox, _ = policy.bbox_untangle(undo_end_frame, render_offset=render_offset)
+
 
 if __name__ == '__main__':
 
@@ -78,7 +83,7 @@ if __name__ == '__main__':
 
     clear_scene()
     make_capsule_rope(params)
-    if not params["texture"] is "capsule":
+    if not params["texture"] == "capsule":
         rig_rope(params, braid=params["texture"]=="braid")
     add_camera_light()
     set_render_settings(params["engine"],(params["render_width"],params["render_height"]))

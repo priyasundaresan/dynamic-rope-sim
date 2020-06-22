@@ -75,10 +75,10 @@ def annotate(frame, mapping, num_annotations, knot_only=True, end_only=False, ex
     if knot_only:
         annot_list = []
         pull, hold, _ = find_knot(50)
-        indices = list(range(pull-offset,pull-offset+2)) 
+        indices = list(range(pull-offset,pull-offset+2))
         #indices = list(range(pull-offset, pull+offset+1)) + list(range(hold-offset, hold+offset+1))
-        #indices = list(range(pull-offset, pull+offset+1))
-        #indices = list(range(hold-offset, hold+offset+1))
+        # indices = list(range(pull-offset, pull+offset+1))
+        # indices = list(range(hold-offset, hold+offset+1))
         box_offset = 4
         pull_idx_min, pull_idx_max = max(0,pull-box_offset), min(49,pull+box_offset+1)
         hold_idx_min, hold_idx_max = max(0,hold-box_offset), min(49,hold+box_offset+1)
@@ -129,7 +129,7 @@ def take_action(obj, frame, action_vec, animate=True):
     obj.location += Vector((dx,dy,dz))
     obj.keyframe_insert(data_path="location", frame=frame)
 
-def find_knot(num_segments, chain=False, depth_thresh=0.4, idx_thresh=3, pull_offset=3):
+def find_knot(num_segments, chain=False, depth_thresh=0.4, idx_thresh=3, pull_offset=3,knot_idx=None):
 
     piece = "Torus" if chain else "Cylinder"
     cache = {}
@@ -145,7 +145,8 @@ def find_knot(num_segments, chain=False, depth_thresh=0.4, idx_thresh=3, pull_of
     planar_coords = list(cache.keys())
     neigh.fit(planar_coords)
     # Now traverse and look for the under crossing
-    for i in range(num_segments):
+    idx_list = range(knot_idx[0], knot_idx[1]) if not knot_idx is None else range(num_segments)
+    for i in idx_list:
         cyl = get_piece(piece, i if i else -1)
         x,y,z = cyl.matrix_world.translation
         match_idxs = neigh.kneighbors([(x,y)], 2, return_distance=False) # 1st neighbor is always identical, we want 2nd
@@ -448,17 +449,17 @@ def generate_dataset(params, iters=1, chain=False, render=False):
     mapping = {}
 
     render_offset = 0
-    num_loosens = 5 # For each knot, we can do num_loosens loosening actions
+    num_loosens = 4# For each knot, we can do num_loosens loosening actions
     for i in range(iters):
         num_knots = 1
-        knot_end_frame = knots.tie_pretzel_knot(params, render=False)
-        if random.random() < 0.5:
-            knot_end_frame = flip_knot(knot_end_frame, render=False)
-        #if i%2==0:
-        #    knot_end_frame = knots.tie_pretzel_knot(params, render=False)
-        #elif i%2==1:
-        #    knot_end_frame = knots.tie_figure_eight(params, render=False)
-        reid_end_frame = reidemeister(params, knot_end_frame, render=False, mapping=mapping) 
+        # knot_end_frame = knots.tie_pretzel_knot(params, render=False)
+        # if random.random() < 0.5:
+        #     knot_end_frame = flip_knot(knot_end_frame, render=False)
+        if i%2==0:
+           knot_end_frame = knots.tie_pretzel_knot(params, render=False)
+        elif i%2==1:
+           knot_end_frame = knots.tie_figure_eight(params, render=False)
+        reid_end_frame = reidemeister(params, knot_end_frame, render=False, mapping=mapping)
         render_offset += reid_end_frame
 
         loosen_start = reid_end_frame
@@ -480,8 +481,13 @@ if __name__ == '__main__':
         params = json.load(f)
     clear_scene()
     make_capsule_rope(params)
-    # rig_rope(params)
+    # rig_rope(params, braid=True)
     add_camera_light()
     set_render_settings(params["engine"],(params["render_width"],params["render_height"]))
     make_table(params)
-    generate_dataset(params, iters=117, render=True)
+    generate_dataset(params, iters=1, render=True)
+
+#    os.mkdir('./cap_pull')
+#    os.system('mv ./images ./cap_pull')
+#    os.system('mv ./images_depth ./cap_pull')
+#    os.system('mv ./image_masks ./cap_pull')
