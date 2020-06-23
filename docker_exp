@@ -4,17 +4,16 @@ import os
 
 if __name__ == '__main__':
     from pyvirtualdisplay import Display
-    import os
     Display().start()
-    num_trials = 2
     
+    num_trials = 1 
+
     for i in range(1,num_trials+1):
-    # for i in range(4, 16):
         os.system('blender -b --python-use-system-env -P untangle.py')
         os.system('cd images && ffmpeg -framerate 200 -i %06d_rgb.png -pix_fmt yuv420p out.mp4 && rm *.png && cd ..')
         os.system('mv ./images/out.mp4 ./preds/')
         os.system('mv ./preds ./exp%d ' % (i))
-        os.system('mv ./exp%d ./test_pretzel/' % (i))
+        os.system('mv ./exp%d ./3tex_chord_hier_pretzel/' % (i))
 
     #for i in range(1,num_trials+1):
     # for i in range(4, 16):

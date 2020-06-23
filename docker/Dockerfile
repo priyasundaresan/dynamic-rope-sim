@@ -89,7 +89,8 @@ RUN ${BLENDERPIP} install \
                   setuptools==41.0.0 \
                   ffmpeg \
                   --find-links https://download.pytorch.org/whl/torch_stable.html torch torchvision \
-                  visdom 
+                  visdom \
+                  --upgrade certifi
 
 ENTRYPOINT bash -c "source /code/docker/entrypoint.sh && /bin/bash"
 

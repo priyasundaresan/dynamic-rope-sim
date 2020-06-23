@@ -1,4 +1,5 @@
 import torch.nn as nn
+import ssl
 import math
 import torch.utils.model_zoo as model_zoo
 import numpy as np
@@ -151,8 +152,8 @@ class ResNet(nn.Module):
         if self.fully_conv:
             self.avgpool = nn.AvgPool2d(7, padding=3, stride=1)
             self.fc = nn.Linear(512 * block.expansion, num_classes)	
-	
-	for m in self.modules():
+
+        for m in self.modules():
             if isinstance(m, nn.Conv2d):
                 n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
                 m.weight.data.normal_(0, math.sqrt(2. / n))
@@ -225,6 +226,7 @@ def resnet18(pretrained=False, **kwargs):
     """
     model = ResNet(BasicBlock, [2, 2, 2, 2], **kwargs)
     if pretrained:
+        ssl._create_default_https_context = ssl._create_unverified_context
         model.load_state_dict(model_zoo.load_url(model_urls['resnet18']))
     return model
 
@@ -237,6 +239,7 @@ def resnet34(pretrained=False, **kwargs):
     """
     model = ResNet(BasicBlock, [3, 4, 6, 3], **kwargs)
     if pretrained:
+        ssl._create_default_https_context = ssl._create_unverified_context
         model.load_state_dict(model_zoo.load_url(model_urls['resnet34']))
     return model
 
@@ -249,6 +252,7 @@ def resnet50(pretrained=False, **kwargs):
     """
     model = ResNet(Bottleneck, [3, 4, 6, 3], **kwargs)
     if pretrained:
+        ssl._create_default_https_context = ssl._create_unverified_context
         model.load_state_dict(model_zoo.load_url(model_urls['resnet50']))
     return model
 
@@ -261,6 +265,7 @@ def resnet101(pretrained=False, **kwargs):
     """
     model = ResNet(Bottleneck, [3, 4, 23, 3], **kwargs)
     if pretrained:
+        ssl._create_default_https_context = ssl._create_unverified_context
         model.load_state_dict(model_zoo.load_url(model_urls['resnet101']))
     return model
 
@@ -273,5 +278,6 @@ def resnet152(pretrained=False, **kwargs):
     """
     model = ResNet(Bottleneck, [3, 8, 36, 3], **kwargs)
     if pretrained:
+        ssl._create_default_https_context = ssl._create_unverified_context
         model.load_state_dict(model_zoo.load_url(model_urls['resnet152']))
     return model
