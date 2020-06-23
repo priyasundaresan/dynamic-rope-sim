@@ -10,10 +10,10 @@ LABEL Title="Blender in Docker"
 ENV DEBIAN_FRONTEND noninteractive
 ENV LC_ALL C.UTF-8
 ENV LANG C.UTF-8
-ENV PATH "$PATH:/bin/2.80/python/bin/"
-ENV BLENDER_PATH "/bin/2.80"
-ENV BLENDERPIP "/bin/2.80/python/bin/pip3"
-ENV BLENDERPY "/bin/2.80/python/bin/python3.7m"
+ENV PATH "$PATH:/bin/2.83/python/bin/"
+ENV BLENDER_PATH "/bin/2.83"
+ENV BLENDERPIP "/bin/2.83/python/bin/pip3"
+ENV BLENDERPY "/bin/2.83/python/bin/python3.7m"
 ENV HW="GPU"
 
 # Install dependencies
@@ -36,14 +36,14 @@ RUN apt-get update && apt-get install -y \
 RUN apt install xvfb -y
 
 # Download and install Blender
-# RUN wget https://mirror.clarkson.edu/blender/release/Blender2.83/blender-2.83.0-linux64.tar.xz \ 
-#     && tar -xvf blender-2.83.0-linux64.tar.xz --strip-components=1 -C /bin \ 
-#     && rm -rf blender-2.83.0-linux64.tar.xz \ 
-#     && rm -rf blender-2.83.0-linux64 
-RUN wget https://mirror.clarkson.edu/blender/release/Blender2.80/blender-2.80-linux-glibc217-x86_64.tar.bz2 \
-        && tar -xjvf blender-2.80-linux-glibc217-x86_64.tar.bz2 --strip-components=1 -C /bin \
-        && rm -rf blender-2.80-linux-glibc217-x86_64.tar.bz2 \
-        && rm -rf blender-2.80-linux-glibc217-x86_64
+RUN wget https://mirror.clarkson.edu/blender/release/Blender2.83/blender-2.83.0-linux64.tar.xz \ 
+    && tar -xvf blender-2.83.0-linux64.tar.xz --strip-components=1 -C /bin \ 
+    && rm -rf blender-2.83.0-linux64.tar.xz \ 
+    && rm -rf blender-2.83.0-linux64 
+# RUN wget https://mirror.clarkson.edu/blender/release/Blender2.80/blender-2.80-linux-glibc217-x86_64.tar.bz2 \
+#         && tar -xjvf blender-2.80-linux-glibc217-x86_64.tar.bz2 --strip-components=1 -C /bin \
+#         && rm -rf blender-2.80-linux-glibc217-x86_64.tar.bz2 \
+#         && rm -rf blender-2.80-linux-glibc217-x86_64
 
 # Download the Python source since it is not bundled with Blender
 RUN wget https://www.python.org/ftp/python/3.7.0/Python-3.7.0.tgz \ 
@@ -73,7 +73,6 @@ RUN pip install --upgrade pip && \
         piglet 
 
 # @JENN Install packages for Blender Python
-# RUN ${BLENDERPIP} install -r /code/docker/requirements.txt
 RUN ${BLENDERPIP} install \
                   sklearn \
                   opencv-python \
@@ -83,13 +82,11 @@ RUN ${BLENDERPIP} install \
                   matplotlib \
                   scipy==1.4.1 \
                   scikit-image \
-                  #tensorflow==2.2.0 \
                   tensorflow==1.13.1 \
                   opencv-contrib-python \
                   mrcnn==0.2 \
                   keras==2.2.4 \
                   setuptools==41.0.0 \
-                  # python-tk \
                   ffmpeg \
                   --find-links https://download.pytorch.org/whl/torch_stable.html torch torchvision \
                   visdom 
