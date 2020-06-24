@@ -131,8 +131,12 @@ class Hierarchical(object):
         return pull_pixel, hold_pixel
 
     def bbox_untangle(self, start_frame, render_offset=0):
-        path_to_curr_img = "images/%06d_rgb.png" % (start_frame-render_offset)
-        curr_img = imageio.imread(path_to_curr_img)
+        try:
+            path_to_curr_img = "images/%06d_rgb.png" % (start_frame-render_offset)
+            curr_img = imageio.imread(path_to_curr_img)
+        except:
+            path_to_curr_img = "images/%06d_rgb.png" % (start_frame-render_offset-1)
+            curr_img = imageio.imread(path_to_curr_img)
         boxes = self.bbox_finder.predict(curr_img, plot=False)
         boxes = sorted(boxes, key=lambda box: box[1], reverse=True)
         if len(boxes) == 0:
@@ -146,6 +150,8 @@ class Hierarchical(object):
         if box is None:
             return True
         path_to_curr_img = "images/%06d_rgb.png"%(start_frame-render_offset)
+        if not os.path.exists(path_to_curr_img):
+            path_to_curr_img = "images/%06d_rgb.png"%(start_frame-render_offset-1)
         end2_pixel, end1_pixel = descriptor_matches(self.ends_cf, self.path_to_ends_ref, path_to_curr_img, \
                             self.ends_ref_pixels, start_frame-render_offset)
         end2_idx = pixels_to_cylinders([end2_pixel])
@@ -180,6 +186,8 @@ class Hierarchical(object):
 
     def reidemeister(self, start_frame, render=False, render_offset=0):
         path_to_curr_img = "images/%06d_rgb.png"%(start_frame-render_offset)
+        if not os.path.exists(path_to_curr_img):
+            path_to_curr_img = "images/%06d_rgb.png"%(start_frame-1-render_offset)
         end2_pixel, end1_pixel = descriptor_matches(self.ends_cf, self.path_to_ends_ref, path_to_curr_img, \
                             self.ends_ref_pixels, start_frame-render_offset)
         end2_idx = pixels_to_cylinders([end2_pixel])

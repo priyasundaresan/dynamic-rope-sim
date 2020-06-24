@@ -27,7 +27,7 @@ def run_untangling_rollout(policy, params):
             knot_end_frame = tie_figure_eight(params, render=False)
     elif num_knots == 2:
         if "pretzel" in params["knots"] and not "fig8" in params["knots"]:
-            knot_end_frame = tie_double_pretzel(params, render=False)
+            knot_end_frame = tie_double_pretzel(params, render=True)
         elif "fig8" in params["knots"] and not "pretzel" in params["knots"]:
             raise Exception("Double Figure 8 config not yet supported")
         else:
@@ -48,8 +48,9 @@ def run_untangling_rollout(policy, params):
         i = 0
         while not undone and i < 10:
             try: # if rope goes out of frame, take a reid move
-                undo_end_frame, pull, hold, action_vec = policy.undo(undo_end_frame, render=True, render_offset=render_offset)
-                undone = policy.policy_undone_check(undo_end_frame, pull, hold, action_vec, render_offset=render_offset)
+                undo_end, pull, hold, action_vec = policy.undo(undo_end_frame, render=True, render_offset=render_offset)
+                undone = policy.policy_undone_check(undo_end, pull, hold, action_vec, render_offset=render_offset)
+                undo_end_frame = undo_end
             except:
                 undo_end_frame = policy.reidemeister(undo_end_frame, render=True, render_offset=render_offset)
             i += 1
@@ -76,7 +77,7 @@ if __name__ == '__main__':
     BBOX_DIR = os.path.join(BASE_DIR, 'mrcnn_bbox', 'networks')
     path_to_refs = os.path.join(BASE_DIR, 'references', params["texture"])
 
-    # policy = Oracle(params)
+    #policy = Oracle(params)
     policy = Hierarchical(path_to_refs, DESCRIPTOR_DIR, BBOX_DIR, params)
     #policy = Heuristic(path_to_refs, BBOX_DIR, params)
     # policy = RandomAction(path_to_refs, BBOX_DIR, params)

@@ -140,7 +140,7 @@ def take_undo_action(start_frame, pull_idx, hold_idx, norm_action_vec, render=Fa
         if render:
             render_frame(step, render_offset=render_offset, step=1)
 
-    return start_frame+200, action_vec
+    return start_frame+200+settle_time, action_vec
 
 def reidemeister_right(start_frame, end1_idx, end2_idx, render=False, render_offset=0):
     piece = "Cylinder"
@@ -174,7 +174,7 @@ def reidemeister_left(start_frame, end1_idx, end2_idx, render=False, render_offs
         bpy.context.scene.frame_set(step)
         if render:
             render_frame(step, render_offset=render_offset, step=1)
-    return end_frame
+    return end_frame+settle_time
 
 def undone_check(start_frame, prev_pull, prev_hold, prev_action_vec, end1_idx, end2_idx, render_offset=0):
     piece = "Cylinder"
