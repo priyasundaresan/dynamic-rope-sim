@@ -108,7 +108,7 @@ def random_perturb(start_frame, params, render=False, render_offset=0):
 
     take_action(pull_cyl, mid_frame, (dx,dy,dz))
     toggle_animation(pull_cyl, mid_frame, False)
-    for step in range(start_frame, end_frame):
+    for step in range(start_frame, end_frame+1):
         bpy.context.scene.frame_set(step)
         if render:
             render_frame(step, render_offset=render_offset)
@@ -135,7 +135,7 @@ def take_undo_action(start_frame, pull_idx, hold_idx, norm_action_vec, render=Fa
 
     settle_time = 10
     # Let the rope settle after the action, so we can know where the ends are afterwards
-    for step in range(start_frame + 10, start_frame + 200 + settle_time):
+    for step in range(start_frame + 10, start_frame + 200 + settle_time+1):
         bpy.context.scene.frame_set(step)
         if render:
             render_frame(step, render_offset=render_offset, step=1)
@@ -153,7 +153,7 @@ def reidemeister_right(start_frame, end1_idx, end2_idx, render=False, render_off
     take_action(end1, middle_up_frame, (0,0,2))
     take_action(end1, middle_move_frame, (17-end1.matrix_world.translation[0],0-end1.matrix_world.translation[1],0))
     take_action(end1, end_frame, (0,0,-2))
-    for step in range(start_frame, end_frame):
+    for step in range(start_frame, end_frame+1):
         bpy.context.scene.frame_set(step)
         if render:
             render_frame(step, render_offset=render_offset, step=1)
@@ -170,7 +170,7 @@ def reidemeister_left(start_frame, end1_idx, end2_idx, render=False, render_offs
     toggle_animation(end2, end_frame, False)
 
     settle_time = 10
-    for step in range(start_frame, end_frame+settle_time):
+    for step in range(start_frame, end_frame+settle_time+1):
         bpy.context.scene.frame_set(step)
         if render:
             render_frame(step, render_offset=render_offset, step=1)

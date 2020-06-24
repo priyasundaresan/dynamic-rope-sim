@@ -94,19 +94,20 @@ class Hierarchical(object):
         box, confidence = self.bbox_untangle(start_frame, render_offset=render_offset)
         if box is None:
             return None, None
-        path_to_curr_img = "images/%06d_rgb.png" % (start_frame-render_offset)
-        path_to_curr_img_depth = "images_depth/%06d_rgb.png" % (start_frame-render_offset)
-        path_to_curr_img_crop = "images/%06d_crop.png" % (start_frame-render_offset)
-        path_to_curr_img_depth_crop = "images_depth/%06d_crop.png" % (start_frame-render_offset)
-        path_to_curr_img_hold_crop = "images/%06d_hold_crop.png" % (start_frame-render_offset)
-        path_to_curr_img_depth_hold_crop = "images_depth/%06d_hold_crop.png" % (start_frame-render_offset)
+        img_num = start_frame-render_offset
+        path_to_curr_img = "images/%06d_rgb.png" % (img_num)
+        path_to_curr_img_depth = "images_depth/%06d_rgb.png" % (img_num)
+        path_to_curr_img_crop = "images/%06d_crop.png" % (img_num)
+        path_to_curr_img_depth_crop = "images_depth/%06d_crop.png" % (img_num)
+        path_to_curr_img_hold_crop = "images/%06d_hold_crop.png" % (img_num)
+        path_to_curr_img_depth_hold_crop = "images_depth/%06d_hold_crop.png" % (img_num)
         img = cv2.imread(path_to_curr_img)
         img_depth = cv2.imread(path_to_curr_img_depth)
         crop, rescale_factor, (x_off, y_off) = crop_and_resize(box, img)
         crop_depth, _, _ = crop_and_resize(box, img_depth)
-        cv2.imwrite("images/%06d_crop.png" % (start_frame-render_offset), crop)
-        cv2.imwrite("images_depth/%06d_crop.png" % (start_frame-render_offset), crop_depth)
-        cv2.imwrite("./preds/%06d_bbox.png" % (start_frame-render_offset), crop)
+        cv2.imwrite("images/%06d_crop.png" % (img_num), crop)
+        cv2.imwrite("images_depth/%06d_crop.png" % (img_num), crop_depth)
+        cv2.imwrite("./preds/%06d_bbox.png" % (img_num), crop)
 
         path_to_curr_hold_img = path_to_curr_img_depth_crop if depth else path_to_curr_img_crop
         hold_crop_pixel = descriptor_matches(self.hold_cf, self.path_to_hold_ref, path_to_curr_hold_img, \
@@ -118,8 +119,8 @@ class Hierarchical(object):
         hold_box = [hold_x-hold_box_width//2, hold_y-hold_box_height//2, hold_x+hold_box_width//2, hold_y+hold_box_height//2]
         hold_crop_rgb, hold_rescale_factor, (hold_x_off, hold_y_off) = crop_and_resize(hold_box, img, aspect=(50,50))
         hold_crop_depth, hold_rescale_factor, (hold_x_off, hold_y_off) = crop_and_resize(hold_box, img_depth, aspect=(50,50))
-        cv2.imwrite("images/%06d_hold_crop.png" % (start_frame-render_offset), hold_crop_rgb)
-        cv2.imwrite("images_depth/%06d_hold_crop.png" % (start_frame-render_offset), hold_crop_depth)
+        cv2.imwrite("images/%06d_hold_crop.png" % (img_num), hold_crop_rgb)
+        cv2.imwrite("images_depth/%06d_hold_crop.png" % (img_num), hold_crop_depth)
 
         path_to_curr_pull_img = path_to_curr_img_depth_hold_crop if depth else path_to_curr_img_hold_crop
         pull_crop_pixel = descriptor_matches(self.pull_cf, self.path_to_pull_ref, path_to_curr_pull_img, self.pull_ref_pixels, \
@@ -131,12 +132,8 @@ class Hierarchical(object):
         return pull_pixel, hold_pixel
 
     def bbox_untangle(self, start_frame, render_offset=0):
-        try:
-            path_to_curr_img = "images/%06d_rgb.png" % (start_frame-render_offset)
-            curr_img = imageio.imread(path_to_curr_img)
-        except:
-            path_to_curr_img = "images/%06d_rgb.png" % (start_frame-render_offset-1)
-            curr_img = imageio.imread(path_to_curr_img)
+        path_to_curr_img = "images/%06d_rgb.png" % (start_frame-render_offset)
+        curr_img = imageio.imread(path_to_curr_img)
         boxes = self.bbox_finder.predict(curr_img, plot=False)
         boxes = sorted(boxes, key=lambda box: box[1], reverse=True)
         if len(boxes) == 0:
@@ -150,8 +147,6 @@ class Hierarchical(object):
         if box is None:
             return True
         path_to_curr_img = "images/%06d_rgb.png"%(start_frame-render_offset)
-        if not os.path.exists(path_to_curr_img):
-            path_to_curr_img = "images/%06d_rgb.png"%(start_frame-render_offset-1)
         end2_pixel, end1_pixel = descriptor_matches(self.ends_cf, self.path_to_ends_ref, path_to_curr_img, \
                             self.ends_ref_pixels, start_frame-render_offset)
         end2_idx = pixels_to_cylinders([end2_pixel])
@@ -186,8 +181,6 @@ class Hierarchical(object):
 
     def reidemeister(self, start_frame, render=False, render_offset=0):
         path_to_curr_img = "images/%06d_rgb.png"%(start_frame-render_offset)
-        if not os.path.exists(path_to_curr_img):
-            path_to_curr_img = "images/%06d_rgb.png"%(start_frame-1-render_offset)
         end2_pixel, end1_pixel = descriptor_matches(self.ends_cf, self.path_to_ends_ref, path_to_curr_img, \
                             self.ends_ref_pixels, start_frame-render_offset)
         end2_idx = pixels_to_cylinders([end2_pixel])
