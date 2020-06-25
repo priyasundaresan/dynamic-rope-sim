@@ -25,7 +25,7 @@ def load_bbox(path_to_refs, bbox_net_dir):
     model.load_weights(model_path, by_name=True)
     bbox_predictor = BBoxFinder(model, cfg)
     return bbox_predictor
-    
+
 class Heuristic(object):
     # HOLD = HIGHEST DEPTH PIXEL, PULL = 15px LEFT OF THAT, ORACLE REID
     def __init__(self, path_to_refs, bbox_net_dir, params):
@@ -38,7 +38,10 @@ class Heuristic(object):
         path_to_curr_img = "images/%06d_rgb.png" % (start_frame-render_offset)
         curr_img = imageio.imread(path_to_curr_img)
         boxes = self.bbox_finder.predict(curr_img, plot=False)
-        boxes = sorted(boxes, key=lambda box: box[1], reverse=True)
+        # sorting by confidence
+        # boxes = sorted(boxes, key=lambda box: box[1], reverse=True)
+        # sort right to left
+        boxes = sorted(boxes, key=lambda box: max(box[0][0], box[0][2]), reverse=True)
         if len(boxes) == 0:
             return None, 0
         return boxes[0] # ASSUME first box is knot to be untied
@@ -62,7 +65,7 @@ class Heuristic(object):
         crop, rescale_factor, (x_off, y_off) = crop_and_resize(box, img_depth)
         cv2.imwrite("./preds/%06d_crop_depth.png" % (start_frame-render_offset), crop)
         cv2.imwrite("./preds/%06d_bbox.png" % (start_frame-render_offset), crop)
-    
+
         y,x,_ = np.where(crop==np.amax(crop))
         highest_depth_px = np.vstack((x,y)).T
         highest_depth_px = np.sort(highest_depth_px, axis=0) # Of the highest depth pixels, take the rightmost one to be the hold
@@ -107,4 +110,3 @@ if __name__ == '__main__':
     with open("../rigidbody_params.json", "r") as f:
         params = json.load(f)
     policy = Random(path_to_refs, BBOX_DIR, params)
-    

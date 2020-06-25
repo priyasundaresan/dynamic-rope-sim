@@ -135,7 +135,10 @@ class Hierarchical(object):
         path_to_curr_img = "images/%06d_rgb.png" % (start_frame-render_offset)
         curr_img = imageio.imread(path_to_curr_img)
         boxes = self.bbox_finder.predict(curr_img, plot=False)
-        boxes = sorted(boxes, key=lambda box: box[1], reverse=True)
+        # sorting by confidence
+        # boxes = sorted(boxes, key=lambda box: box[1], reverse=True)
+        # sort right to left
+        boxes = sorted(boxes, key=lambda box: max(box[0][0], box[0][2]), reverse=True)
         if len(boxes) == 0:
             return None, 0
         return boxes[0] # ASSUME first box is knot to be untied
