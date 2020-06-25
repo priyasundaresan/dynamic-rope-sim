@@ -165,7 +165,7 @@ def reidemeister_left(start_frame, end1_idx, end2_idx, render=False, render_offs
     end_frame = start_frame + 70
     end2 = get_piece(piece, end2_idx)
     # take_action(end2, end_frame, (-8-end2.matrix_world.translation[0],0,0))
-    take_action(end2, end_frame, (-8-end2.matrix_world.translation[0],0-end2.matrix_world.translation[0],0))
+    take_action(end2, end_frame, (-8-end2.matrix_world.translation[0],0-end2.matrix_world.translation[1],0))
     # Drop the ends
     toggle_animation(end2, end_frame, False)
 
