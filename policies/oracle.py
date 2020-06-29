@@ -9,7 +9,7 @@ sys.path.append(os.path.join(os.getcwd(), '..'))
 class Oracle(object):
     def __init__(self, params):
         self.action_count = 0
-        self.max_actions = 7
+        self.max_actions = 10
         self.rope_length = params["num_segments"]
 
     def policy_undone_check(self, start_frame, prev_pull, prev_hold, prev_action_vec, render_offset=0):

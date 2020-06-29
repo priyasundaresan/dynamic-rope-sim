@@ -4,8 +4,8 @@ import sys
 import os
 import cv2
 import imageio
-# BASE_DIR = '/Users/priyasundaresan/Desktop/blender/dynamic-rope'
-BASE_DIR = '/Users/jennifergrannen/Documents/Berkeley/projects/rope/dynamic-rope-sim'
+BASE_DIR = '/Users/priyasundaresan/Desktop/blender/dynamic-rope'
+#BASE_DIR = '/Users/jennifergrannen/Documents/Berkeley/projects/rope/dynamic-rope-sim'
 sys.path.append(BASE_DIR)
 sys.path.insert(0, os.path.join(BASE_DIR, "dense_correspondence/pytorch-segmentation-detection"))
 sys.path.insert(0, os.path.join(BASE_DIR, "dense_correspondence/tools"))
@@ -141,16 +141,19 @@ class Hierarchical(object):
         return boxes[0] # ASSUME first box is knot to be untied
 
     def policy_undone_check(self, start_frame, prev_pull, prev_hold, prev_action_vec, render_offset=0):
-        box, confidence = self.bbox_untangle(start_frame, render_offset=render_offset)
-        if box is None:
-            return True
+        #box, confidence = self.bbox_untangle(start_frame, render_offset=render_offset)
+        #if box is None:
+        #    return True
         path_to_curr_img = "images/%06d_rgb.png"%(start_frame-render_offset)
         end2_pixel, end1_pixel = descriptor_matches(self.ends_cf, self.path_to_ends_ref, path_to_curr_img, \
                             self.ends_ref_pixels, start_frame-render_offset)
         end2_idx = pixels_to_cylinders([end2_pixel])
         end1_idx = pixels_to_cylinders([end1_pixel])
         THRESH = 80
-        nearby = np.linalg.norm(np.array(prev_hold) - np.array(end1_pixel)) < THRESH
+        if prev_hold is not None:
+            nearby = np.linalg.norm(np.array(prev_hold) - np.array(end1_pixel)) < THRESH
+        else:
+            nearby = True
         return undone_check(start_frame, prev_pull, prev_hold, prev_action_vec, end1_idx, end2_idx, render_offset=render_offset) and nearby
 
     def undo(self, start_frame, render=False, render_offset=0):
