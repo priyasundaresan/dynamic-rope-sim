@@ -108,7 +108,7 @@ def random_perturb(start_frame, params, render=False, render_offset=0):
 
     take_action(pull_cyl, mid_frame, (dx,dy,dz))
     toggle_animation(pull_cyl, mid_frame, False)
-    for step in range(start_frame, end_frame):
+    for step in range(start_frame, end_frame+1):
         bpy.context.scene.frame_set(step)
         if render:
             render_frame(step, render_offset=render_offset)
@@ -135,12 +135,12 @@ def take_undo_action(start_frame, pull_idx, hold_idx, norm_action_vec, render=Fa
 
     settle_time = 10
     # Let the rope settle after the action, so we can know where the ends are afterwards
-    for step in range(start_frame + 10, start_frame + 200 + settle_time):
+    for step in range(start_frame + 10, start_frame + 200 + settle_time+1):
         bpy.context.scene.frame_set(step)
         if render:
             render_frame(step, render_offset=render_offset, step=1)
 
-    return start_frame+200, action_vec
+    return start_frame+200+settle_time, action_vec
 
 def reidemeister_right(start_frame, end1_idx, end2_idx, render=False, render_offset=0):
     piece = "Cylinder"
@@ -151,8 +151,8 @@ def reidemeister_right(start_frame, end1_idx, end2_idx, render=False, render_off
     end_frame = middle_move_frame+50
     take_action(end1, middle_up_frame, (0,0,1))
     take_action(end1, middle_move_frame, (17-end1.matrix_world.translation[0],0-end1.matrix_world.translation[1],0))
-    take_action(end1, end_frame, (0,0,-1))
-    for step in range(start_frame, end_frame):
+    take_action(end1, end_frame, (0,0,-2))
+    for step in range(start_frame, end_frame+1):
         bpy.context.scene.frame_set(step)
         if render:
             render_frame(step, render_offset=render_offset, step=1)
@@ -164,16 +164,16 @@ def reidemeister_left(start_frame, end1_idx, end2_idx, render=False, render_offs
     end_frame = start_frame + 70
     end2 = get_piece(piece, end2_idx)
     # take_action(end2, end_frame, (-8-end2.matrix_world.translation[0],0,0))
-    take_action(end2, end_frame, (-8-end2.matrix_world.translation[0],0-end2.matrix_world.translation[0],0))
+    take_action(end2, end_frame, (-8-end2.matrix_world.translation[0],0-end2.matrix_world.translation[1],0))
     # Drop the ends
     toggle_animation(end2, end_frame, False)
 
     settle_time = 10
-    for step in range(start_frame, end_frame+settle_time):
+    for step in range(start_frame, end_frame+settle_time+1):
         bpy.context.scene.frame_set(step)
         if render:
             render_frame(step, render_offset=render_offset, step=1)
-    return end_frame
+    return end_frame+settle_time
 
 def undone_check(start_frame, prev_pull, prev_hold, prev_action_vec, end1_idx, end2_idx, render_offset=0):
     piece = "Cylinder"

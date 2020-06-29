@@ -5,10 +5,10 @@
     "reid_right_y": 217,
     "crop_pull_x": 11,
     "crop_pull_y": 28,
-    "crop_hold_x": 53,
-    "crop_hold_y": 32,
+    "crop_hold_x": 61,
+    "crop_hold_y": 37,
     "ends_cf": "armature_ends",
-    "hold_cf": "FIX",
+    "hold_cf": "chord_hold_larger_rgb",
     "pull_cf": "chord_pull_rgb",
     "bbox": "bbox_chord_larger_mult"
 }
