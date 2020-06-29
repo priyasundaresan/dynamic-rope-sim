@@ -10,7 +10,7 @@ sys.path.append(os.path.join(os.getcwd(), '..'))
 class Oracle(object):
     def __init__(self, params):
         self.action_count = 0
-        self.max_actions = 7
+        self.max_actions = 10
         self.rope_length = params["num_segments"]
         self.num_knots = len(params["knots"])
 

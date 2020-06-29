@@ -31,7 +31,7 @@ class RandomAction(object):
     def __init__(self, path_to_refs, bbox_net_dir, params):
         self.bbox_finder = load_bbox(path_to_refs, bbox_net_dir)
         self.action_count = 0
-        self.max_action_count = 15
+        self.max_action_count = 10
         self.rope_length = params["num_segments"]
 
     def bbox_untangle(self, start_frame, render_offset=0):
@@ -84,8 +84,8 @@ class RandomAction(object):
 
     def undo(self, start_frame, render=False, render_offset=0):
         pull_pixel, hold_pixel = self.find_pull_hold(start_frame, render_offset=render_offset)
-        dx = pull_pixel[0] - hold_pixel[0]
-        dy = pull_pixel[1] - hold_pixel[1]
+        dx = int(0.6*(pull_pixel[0] - hold_pixel[0]))
+        dy = int(0.6*(pull_pixel[1] - hold_pixel[1]))
         action_vec = [dx, dy, 6] # 6 is arbitrary for dz
         action_vec /= np.linalg.norm(action_vec)
 

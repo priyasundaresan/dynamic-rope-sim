@@ -139,6 +139,7 @@ def annotate(frame, offset=4, num_knots=1):
         min_y -= np.random.randint(10, 12)
         max_x += np.random.randint(10, 12)
         max_y += np.random.randint(10, 12)
+        print("Width: %d, Height: %d"%(max_x - min_x, max_y - min_y))
         annot_list.append([min_x,min_y,max_x,max_y])
     create_labimg_xml(frame, annot_list)
 
@@ -218,8 +219,8 @@ def randomize_camera():
     dx = np.random.uniform(-xoffset, xoffset)
     dy = np.random.uniform(-yoffset, yoffset)
     dz = np.random.uniform(-zoffset, zoffset)
-    bpy.context.scene.camera.rotation_euler = (0, 0, rot)
-    bpy.context.scene.camera.location = Vector((2,0,28)) + Vector((dx, dy, dz))
+    #bpy.context.scene.camera.rotation_euler = (0, 0, rot)
+    #bpy.context.scene.camera.location = Vector((2,0,28)) + Vector((dx, dy, dz))
     
 def render_frame(frame, render_offset=0, step=5, filename="%05d.jpg", folder="images", annot=True, num_knots=1, mapping=None):
     # Renders a single frame in a sequence (if frame%step == 0)
@@ -281,7 +282,6 @@ def reidemeister(params, start_frame, render=False, render_offset=0, annot=True,
     middle_frame = start_frame+50
     end_frame = start_frame+100
 
-    print("DIST", 11-end1.matrix_world.translation[0])
     take_action(end1, middle_frame, (np.random.uniform(9,11)-end1.matrix_world.translation[0],np.random.uniform(-3,3),0))
     for step in range(start_frame, middle_frame):
         bpy.context.scene.frame_set(step)
@@ -382,9 +382,8 @@ def generate_dataset(params, chain=False, render=False):
     #    reid_start = random_loosen(params, reid_end_frame, render=render, render_offset=knot_end_frame, mapping=mapping)
 
     render_offset = 0
-    num_loosens = 3
-    for i in range(1):
-        #knot_type = random.choice(range(3))
+    num_loosens = 4
+    for i in range(2):
         num_knots = 1
         if i%6==0:
             knot_end_frame = tie_pretzel_knot(params, render=False)
@@ -413,7 +412,7 @@ if __name__ == '__main__':
     clear_scene()
     #make_rope(params)
     make_capsule_rope(params)
-    #rig_rope(params)
+    rig_rope(params)
     add_camera_light()
     set_render_settings(params["engine"],(params["render_width"],params["render_height"]))
     make_table(params)

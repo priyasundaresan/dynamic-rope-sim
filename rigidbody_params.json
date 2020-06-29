@@ -11,6 +11,6 @@
     "engine": "BLENDER_WORKBENCH",
     "render_width": 640,
     "render_height": 480,
-    "texture": "braid",
+    "texture": "capsule",
     "knots": ["pretzel"]
 }

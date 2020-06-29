@@ -26,8 +26,8 @@ class HeatmapVisualization(object):
         self._reticle_color = COLOR_GREEN
         self._network_reticle_color = COLOR_RED
         self._image_dir = image_dir
-        self._image_width = 80
-        self._image_height = 60
+        self._image_width = 50
+        self._image_height = 50
 
     def _get_new_images(self):
         """
@@ -164,17 +164,15 @@ class HeatmapVisualization(object):
 
 if __name__ == "__main__":
     base_dir = '../networks'
-    #network_dir = 'crop_capsule_offset1'
-    network_dir = 'looser_bbox_cap_hold_rgb'
-    #network_dir = 'bbox_braid_2_hold_d'
+    #network_dir = 'capsules_3.5k_pull_hold_gtbbox_rot'
+    network_dir = 'cyl_crop_depth'
     dcn = DenseCorrespondenceNetwork.from_model_folder(os.path.join(base_dir, network_dir), model_param_file=os.path.join(base_dir, network_dir, '003501.pth'))
     dcn.eval()
     with open('../cfg/dataset_info.json', 'r') as f:
         dataset_stats = json.load(f)
     dataset_mean, dataset_std_dev = dataset_stats["mean"], dataset_stats["std_dev"]
-    image_dir = '../../datasets/looser_bbox_cap_hold_rgb/processed/images'
-    #image_dir = '../../bbox_crops'
-
+    image_dir = '../../cyl_crop_depth/processed/images'
+    #image_dir = '../../images'
     heatmap_vis = HeatmapVisualization(dcn, dataset_mean, dataset_std_dev, image_dir)
     print "starting heatmap vis"
     heatmap_vis.run()

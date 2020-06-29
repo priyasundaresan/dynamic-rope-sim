@@ -12,6 +12,7 @@ import knots
 import xml.etree.cElementTree as ET
 from xml.dom import minidom
 from render_bbox import *
+from dr_utils import *
 
 def set_animation_settings(anim_end):
     # Sets up the animation to run till frame anim_end (otherwise default terminates @ 250)
@@ -38,16 +39,16 @@ def set_render_settings(engine, render_size):
     render_width, render_height = render_size
     scene.render.resolution_x = render_width
     scene.render.resolution_y = render_height
+    #scene.view_settings.exposure = 1.3
     #scene.view_settings.exposure = 0.8
     if engine == 'BLENDER_WORKBENCH':
-        #scene.render.display_mode
         scene.render.image_settings.color_mode = 'RGB'
         scene.display_settings.display_device = 'None'
         scene.sequencer_colorspace_settings.name = 'XYZ'
         scene.render.image_settings.file_format='PNG'
     elif engine == "BLENDER_EEVEE":
-        scene.eevee.taa_samples = 1
         scene.view_settings.view_transform = 'Raw'
+        scene.eevee.taa_samples = 1
         scene.eevee.taa_render_samples = 1
 
 def create_pixelannot_xml(annotation_idx, pixel):
@@ -167,9 +168,6 @@ def find_knot(num_segments, chain=False, depth_thresh=0.4, idx_thresh=3, pull_of
             return pull_idx, hold_idx, action_vec # Found! Return the pull, hold, and action
     return 16, 25, [0,0,0] # Didn't find a pull/hold
 
-def randomize_camera():
-    bpy.context.scene.camera.rotation_euler = (0, 0, np.random.uniform(-np.pi/4, np.pi/4))
-
 def center_camera(randomize=True, flip=False):
     # move camera to above knot location as crop
     knot_pull, knot_hold, _ = find_knot(50)
@@ -204,34 +202,26 @@ def center_camera(randomize=True, flip=False):
     bpy.context.scene.camera.location = (camera_x+dx, camera_y+dy, camera_z+dz)
     return
 
-def pattern(obj, texture_filename):
-    '''Add image texture to object'''
-    if '%sTexture' % obj.name in bpy.data.materials:
-        mat = bpy.data.materials['%sTexture'%obj.name]
-    else:
-        mat = bpy.data.materials.new(name="%sTexture"%obj.name)
-        mat.use_nodes = True
-    texImage = mat.node_tree.nodes.new('ShaderNodeTexImage')
-    bsdf = mat.node_tree.nodes["Principled BSDF"]
-    texImage.image = bpy.data.images.load(texture_filename)
-    mat.node_tree.links.new(bsdf.inputs['Base Color'], texImage.outputs['Color'])
-    mat.specular_intensity = np.random.uniform(0, 0.3)
-    mat.roughness = np.random.uniform(0.5, 1)
-    if not obj.data.materials:
-        obj.data.materials.append(mat)
-    else:
-        obj.data.materials[0] = mat
-
-def texture_randomize(obj, textures_folder):
-    rand_img_path = random.choice(os.listdir(textures_folder))
-    img_filepath = os.path.join(textures_folder, rand_img_path)
-    pattern(obj, img_filepath)
 
 def render_frame(frame, render_offset=0, step=2, num_annotations=100, filename="%06d_rgb.png", folder="images", annot=True, mapping=None):
+    global rig
     # Renders a single frame in a sequence (if frame%step == 0)
     frame -= render_offset
-    randomize_camera()
-    #center_camera()
+
+    # DOMAIN RANDOMIZATION
+    #randomize_camera()
+    #randomize_light()
+    #table = bpy.data.objects["Plane"]
+    #if random.random() < 0.33:
+    #    texture_randomize(table, 'dr_data/val2017')
+    #elif random.random() < 0.66:
+    #    texture_randomize(table, 'dr_data/fabrics')
+    #else:
+    #    color_randomize(table)
+
+    #color = (np.random.uniform(0.7,1.0),np.random.uniform(0.6,1.0),np.random.uniform(0.6,1.0))
+    #color_randomize(rig, color=color)
+
     if frame%step == 0:
         scene = bpy.context.scene
 
@@ -451,6 +441,10 @@ def generate_dataset(params, iters=1, chain=False, render=False):
     render_offset = 0
     num_loosens = 4# For each knot, we can do num_loosens loosening actions
     for i in range(iters):
+        #clear_scene()
+        #make_capsule_rope(params)
+        #rig = rig_rope(params, braid=random.choice((0,1)))
+
         num_knots = 1
         # knot_end_frame = knots.tie_pretzel_knot(params, render=False)
         # if random.random() < 0.5:
@@ -481,7 +475,7 @@ if __name__ == '__main__':
         params = json.load(f)
     clear_scene()
     make_capsule_rope(params)
-    # rig_rope(params, braid=True)
+    rig = rig_rope(params)
     add_camera_light()
     set_render_settings(params["engine"],(params["render_width"],params["render_height"]))
     make_table(params)
