@@ -120,8 +120,11 @@ def take_undo_action(start_frame, pull_idx, hold_idx, norm_action_vec, render=Fa
     pull_cyl = get_piece(piece, pull_idx)
     hold_cyl = get_piece(piece, hold_idx)
 
+    print("HOLD", hold_idx)
+    print("PULL", hold_idx)
+
     ## Undoing
-    if abs(hold_idx - pull_idx) > 5:
+    if abs(hold_idx - pull_idx) > 14:
         take_action(hold_cyl, start_frame + 100, (0,0,0))
     for step in range(start_frame, start_frame+10):
         bpy.context.scene.frame_set(step)
@@ -149,7 +152,6 @@ def reidemeister_right(start_frame, end1_idx, end2_idx, render=False, render_off
     middle_up_frame = start_frame+50
     middle_move_frame = middle_up_frame+70
     end_frame = middle_move_frame+50
-    # take_action(end1, middle_up_frame, (0,2,0))
     take_action(end1, middle_up_frame, (0,0,2))
     take_action(end1, middle_move_frame, (17-end1.matrix_world.translation[0],0-end1.matrix_world.translation[1],0))
     take_action(end1, end_frame, (0,0,-2))
@@ -164,7 +166,6 @@ def reidemeister_left(start_frame, end1_idx, end2_idx, render=False, render_offs
     piece = "Cylinder"
     end_frame = start_frame + 70
     end2 = get_piece(piece, end2_idx)
-    # take_action(end2, end_frame, (-8-end2.matrix_world.translation[0],0,0))
     take_action(end2, end_frame, (-8-end2.matrix_world.translation[0],0-end2.matrix_world.translation[1],0))
     # Drop the ends
     toggle_animation(end2, end_frame, False)

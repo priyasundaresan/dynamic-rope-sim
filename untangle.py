@@ -39,7 +39,10 @@ def run_untangling_rollout(policy, params):
     render_offset = knot_end_frame
     render_frame(knot_end_frame, render_offset=render_offset, step=1)
 
+    num_actions = 0
+
     reid_end = policy.reidemeister(knot_end_frame, render=True, render_offset=render_offset)
+    num_actions += 1
     undo_end_frame = reid_end
 
     bbox, _ = policy.bbox_untangle(undo_end_frame, render_offset=render_offset)
@@ -51,13 +54,17 @@ def run_untangling_rollout(policy, params):
                 undo_end, pull, hold, action_vec = policy.undo(undo_end_frame, render=True, render_offset=render_offset)
                 undone = policy.policy_undone_check(undo_end, pull, hold, action_vec, render_offset=render_offset)
                 undo_end_frame = undo_end
+                num_actions += 1
             except:
                 undo_end_frame = policy.reidemeister(undo_end_frame, render=True, render_offset=render_offset)
+                num_actions += 1
             i += 1
-            if undo_end_frame > 6000:
+            if num_actions == 29:
                 undo_end_frame = policy.reidemeister(undo_end_frame, render=True, render_offset=render_offset)
+                num_actions += 1
                 return
         undo_end_frame = policy.reidemeister(undo_end_frame, render=True, render_offset=render_offset)
+        num_actions += 1
         bbox, _ = policy.bbox_untangle(undo_end_frame, render_offset=render_offset)
 
 
@@ -78,9 +85,9 @@ if __name__ == '__main__':
     path_to_refs = os.path.join(BASE_DIR, 'references', params["texture"])
 
     #policy = Oracle(params)
-    policy = Hierarchical(path_to_refs, DESCRIPTOR_DIR, BBOX_DIR, params)
-    #policy = Heuristic(path_to_refs, BBOX_DIR, params)
-    # policy = RandomAction(path_to_refs, BBOX_DIR, params)
+    # policy = Hierarchical(path_to_refs, DESCRIPTOR_DIR, BBOX_DIR, params)
+    # policy = Heuristic(path_to_refs, BBOX_DIR, params)
+    policy = RandomAction(path_to_refs, BBOX_DIR, params)
 
     clear_scene()
     make_capsule_rope(params)
