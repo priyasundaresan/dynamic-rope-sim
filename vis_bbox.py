@@ -7,19 +7,6 @@ import math
 import json
 import colorsys
 
-def show_knots(idx, knots_info, save=True):
-    image_filename = "{0:05d}.jpg".format(idx)
-    img = cv2.imread('images/{}'.format(image_filename))
-    pixels = knots_info[str(idx)]
-    pixels = [i[0] for i in pixels]
-    vis = img.copy()
-    print("Annotating %06d"%idx)
-    start, end = pixels
-    vis = cv2.rectangle(vis, tuple(start), tuple(end), (255, 0, 0), 2) 
-    if save:
-    	annotated_filename = "{0:06d}_annotated.png".format(idx)
-    	cv2.imwrite('./annotated/{}'.format(annotated_filename), vis)
-
 def show_boxes(idx, save=True):
     # load and parse the file
     image_filename = "{0:05d}.jpg".format(idx)

@@ -4,7 +4,8 @@ import sys
 import os
 import cv2
 import imageio
-BASE_DIR = '/Users/priyasundaresan/Desktop/blender/dynamic-rope'
+# BASE_DIR = '/Users/priyasundaresan/Desktop/blender/dynamic-rope'
+BASE_DIR = '/Users/jennifergrannen/Documents/Berkeley/projects/rope/dynamic-rope-sim'
 sys.path.append(BASE_DIR)
 sys.path.insert(0, os.path.join(BASE_DIR, "dense_correspondence/pytorch-segmentation-detection"))
 sys.path.insert(0, os.path.join(BASE_DIR, "dense_correspondence/tools"))
@@ -90,13 +91,15 @@ class Hierarchical(object):
         self.rope_length = params["num_segments"]
         self.max_frame_count = 50000
 
-    def find_pull_hold(self, start_frame, render_offset=0):
+    def find_pull_hold(self, start_frame, render_offset=0, depth=0):
         box, confidence = self.bbox_untangle(start_frame, render_offset=render_offset)
         if box is None:
             return None, None
         path_to_curr_img = "images/%06d_rgb.png" % (start_frame-render_offset)
         path_to_curr_img_depth = "images_depth/%06d_rgb.png" % (start_frame-render_offset)
+        path_to_curr_img_crop = "images/%06d_crop.png" % (start_frame-render_offset)
         path_to_curr_img_depth_crop = "images_depth/%06d_crop.png" % (start_frame-render_offset)
+        path_to_curr_img_hold_crop = "images/%06d_hold_crop.png" % (start_frame-render_offset)
         path_to_curr_img_depth_hold_crop = "images_depth/%06d_hold_crop.png" % (start_frame-render_offset)
         img = cv2.imread(path_to_curr_img)
         img_depth = cv2.imread(path_to_curr_img_depth)
@@ -105,17 +108,22 @@ class Hierarchical(object):
         cv2.imwrite("images/%06d_crop.png" % (start_frame-render_offset), crop)
         cv2.imwrite("images_depth/%06d_crop.png" % (start_frame-render_offset), crop_depth)
         cv2.imwrite("./preds/%06d_bbox.png" % (start_frame-render_offset), crop)
-    
-        hold_crop_pixel = descriptor_matches(self.hold_cf, self.path_to_hold_ref, path_to_curr_img_depth_crop, \
+
+        path_to_curr_hold_img = path_to_curr_img_depth_crop if depth else path_to_curr_img_crop
+        hold_crop_pixel = descriptor_matches(self.hold_cf, self.path_to_hold_ref, path_to_curr_hold_img, \
                                 self.hold_ref_pixels, start_frame-render_offset)[0]
         hold_pixel = pixel_crop_to_full(np.array([hold_crop_pixel]), rescale_factor, x_off, y_off)[0]
         hold_pixel = (int(hold_pixel[0]), int(hold_pixel[1]))
         hold_x, hold_y = hold_pixel
         hold_box_width, hold_box_height = self.hold_box_width, self.hold_box_height
-        hold_box = [hold_x-hold_box_width//2, hold_y-hold_box_height//2, hold_x+hold_box_width//2, hold_y+hold_box_height//2] 
+        hold_box = [hold_x-hold_box_width//2, hold_y-hold_box_height//2, hold_x+hold_box_width//2, hold_y+hold_box_height//2]
+        hold_crop_rgb, hold_rescale_factor, (hold_x_off, hold_y_off) = crop_and_resize(hold_box, img, aspect=(50,50))
         hold_crop_depth, hold_rescale_factor, (hold_x_off, hold_y_off) = crop_and_resize(hold_box, img_depth, aspect=(50,50))
+        cv2.imwrite("images/%06d_hold_crop.png" % (start_frame-render_offset), hold_crop_rgb)
         cv2.imwrite("images_depth/%06d_hold_crop.png" % (start_frame-render_offset), hold_crop_depth)
-        pull_crop_pixel = descriptor_matches(self.pull_cf, self.path_to_pull_ref, path_to_curr_img_depth_hold_crop, self.pull_ref_pixels, \
+
+        path_to_curr_pull_img = path_to_curr_img_depth_hold_crop if depth else path_to_curr_img_hold_crop
+        pull_crop_pixel = descriptor_matches(self.pull_cf, self.path_to_pull_ref, path_to_curr_pull_img, self.pull_ref_pixels, \
                             start_frame-render_offset)[0]
         hold_pixel = pixel_crop_to_full(np.array([hold_crop_pixel]), rescale_factor, x_off, y_off)[0]
         pull_pixel = pixel_crop_to_full(np.array([pull_crop_pixel]), hold_rescale_factor, hold_x_off, hold_y_off)[0]
@@ -170,7 +178,7 @@ class Hierarchical(object):
         end_frame, action_vec = take_undo_action(start_frame, pull_idx, hold_idx, action_vec, render=render, render_offset=render_offset)
         self.action_count += 1
         return end_frame, pull_pixel, hold_pixel, action_vec
-    
+
     def reidemeister(self, start_frame, render=False, render_offset=0):
         path_to_curr_img = "images/%06d_rgb.png"%(start_frame-render_offset)
         end2_pixel, end1_pixel = descriptor_matches(self.ends_cf, self.path_to_ends_ref, path_to_curr_img, \
@@ -188,7 +196,8 @@ class Hierarchical(object):
         return reidemeister_left(middle_frame, end1_idx, end2_idx, render=render, render_offset=render_offset)
 
 if __name__ == '__main__':
-    BASE_DIR = '/Users/priyasundaresan/Desktop/blender/dynamic-rope'
+    # BASE_DIR = '/Users/priyasundaresan/Desktop/blender/dynamic-rope'
+    BASE_DIR = '/Users/jennifergrannen/Documents/Berkeley/projects/rope/dynamic-rope-sim'
     DESCRIPTOR_DIR = os.path.join(BASE_DIR, 'dense_correspondence')
     BBOX_DIR = os.path.join(BASE_DIR, 'mrcnn_bbox', 'networks')
     path_to_refs = os.path.join(BASE_DIR, 'references', 'capsule')

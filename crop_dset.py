@@ -7,7 +7,7 @@ import argparse
 from xml.etree import ElementTree
 import numpy as np
 
-def process(img_idx, knots_info, crop_size=(50,50), plot=False):
+def process(img_idx, knots_info, crop_size=(120,90), plot=False):
     img_filename = 'images/%06d_rgb.png'%img_idx
     depth_filename = 'images_depth/%06d_rgb.png'%img_idx
     mask_vis_filename = 'image_masks/%06d_visible_mask.png'%img_idx
