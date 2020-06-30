@@ -84,7 +84,7 @@ if __name__ == '__main__':
     BBOX_DIR = os.path.join(BASE_DIR, 'mrcnn_bbox', 'networks')
     path_to_refs = os.path.join(BASE_DIR, 'references', params["texture"])
 
-    #policy = Oracle(params)
+    # policy = Oracle(params)
     # policy = Hierarchical(path_to_refs, DESCRIPTOR_DIR, BBOX_DIR, params)
     # policy = Heuristic(path_to_refs, BBOX_DIR, params)
     policy = RandomAction(path_to_refs, BBOX_DIR, params)

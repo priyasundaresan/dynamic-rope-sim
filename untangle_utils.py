@@ -120,11 +120,8 @@ def take_undo_action(start_frame, pull_idx, hold_idx, norm_action_vec, render=Fa
     pull_cyl = get_piece(piece, pull_idx)
     hold_cyl = get_piece(piece, hold_idx)
 
-    print("HOLD", hold_idx)
-    print("PULL", hold_idx)
-
     ## Undoing
-    if abs(hold_idx - pull_idx) > 14:
+    if abs(hold_idx - pull_idx) > 5:
         take_action(hold_cyl, start_frame + 100, (0,0,0))
     for step in range(start_frame, start_frame+10):
         bpy.context.scene.frame_set(step)
@@ -152,7 +149,7 @@ def reidemeister_right(start_frame, end1_idx, end2_idx, render=False, render_off
     middle_up_frame = start_frame+50
     middle_move_frame = middle_up_frame+70
     end_frame = middle_move_frame+50
-    take_action(end1, middle_up_frame, (0,0,1))
+    take_action(end1, middle_up_frame, (0,0,2))
     take_action(end1, middle_move_frame, (17-end1.matrix_world.translation[0],0-end1.matrix_world.translation[1],0))
     take_action(end1, end_frame, (0,0,-2))
     for step in range(start_frame, end_frame+1):

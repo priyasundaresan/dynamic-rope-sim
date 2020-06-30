@@ -4,7 +4,8 @@ import sys
 import os
 import cv2
 import imageio
-BASE_DIR = '/Users/priyasundaresan/Desktop/blender/dynamic-rope'
+# BASE_DIR = '/Users/priyasundaresan/Desktop/blender/dynamic-rope'
+BASE_DIR = '/Users/jennifergrannen/Documents/Berkeley/projects/rope/dynamic-rope-sim'
 sys.path.append(BASE_DIR)
 sys.path.insert(0, os.path.join(BASE_DIR, "mrcnn_bbox/tools"))
 
@@ -47,12 +48,17 @@ class Heuristic(object):
         return boxes[0] # ASSUME first box is knot to be untied
 
     def policy_undone_check(self, start_frame, prev_pull, prev_hold, prev_action_vec, render_offset=0):
-        if self.action_count > self.max_action_count:
-            return True
+        # if self.action_count > self.max_action_count:
+        #     return True
         box, confidence = self.bbox_untangle(start_frame, render_offset=render_offset)
         if box is None:
             return True
-        return False
+        end2_idx = self.rope_length-1
+        end1_idx = -1
+        ret = undone_check(start_frame, prev_pull, prev_hold, prev_action_vec, end1_idx, end2_idx, render_offset=render_offset)
+        # if ret:
+        #     self.num_knots -= 1
+        return ret
 
     def find_pull_hold(self, start_frame, render_offset=0):
         # Hold = highest depth pixel
