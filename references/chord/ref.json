@@ -10,5 +10,7 @@
     "ends_cf": "armature_ends",
     "hold_cf": "chord_hold_larger_rgb",
     "pull_cf": "chord_pull_rgb",
-    "bbox": "bbox_chord_larger_mult"
+    "bbox": "bbox_chord_larger_mult",
+    "ends_kp": "pull_hold_ends_rand",
+    "knot_kp": "pull_hold_ends_rand"
 }
