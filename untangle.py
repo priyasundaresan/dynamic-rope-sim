@@ -12,6 +12,7 @@ from oracle import Oracle
 from hierarchical_descriptors import Hierarchical
 from baseline import Heuristic
 from random_action import RandomAction
+from hierarchical_keypoints import Hierarchical_kp
 
 def run_untangling_rollout(policy, params):
     set_animation_settings(15000)
@@ -23,7 +24,7 @@ def run_untangling_rollout(policy, params):
     if num_knots == 1:
         if params["knots"][0] == "pretzel":
             knot_end_frame = tie_pretzel_knot(params, render=False)
-        elif params["knots"][1] == "fig8":
+        elif params["knots"][0] == "fig8":
             knot_end_frame = tie_figure_eight(params, render=False)
     elif num_knots == 2:
         if "pretzel" in params["knots"] and not "fig8" in params["knots"]:
@@ -39,7 +40,10 @@ def run_untangling_rollout(policy, params):
     render_offset = knot_end_frame
     render_frame(knot_end_frame, render_offset=render_offset, step=1)
 
+    num_actions = 0
+
     reid_end = policy.reidemeister(knot_end_frame, render=True, render_offset=render_offset)
+    num_actions += 1
     undo_end_frame = reid_end
 
     bbox, _ = policy.bbox_untangle(undo_end_frame, render_offset=render_offset)
@@ -51,13 +55,17 @@ def run_untangling_rollout(policy, params):
                 undo_end, pull, hold, action_vec = policy.undo(undo_end_frame, render=True, render_offset=render_offset)
                 undone = policy.policy_undone_check(undo_end, pull, hold, action_vec, render_offset=render_offset)
                 undo_end_frame = undo_end
+                num_actions += 1
             except:
                 undo_end_frame = policy.reidemeister(undo_end_frame, render=True, render_offset=render_offset)
+                num_actions += 1
             i += 1
-            if undo_end_frame > 6000:
+            if num_actions == 29:
                 undo_end_frame = policy.reidemeister(undo_end_frame, render=True, render_offset=render_offset)
+                num_actions += 1
                 return
         undo_end_frame = policy.reidemeister(undo_end_frame, render=True, render_offset=render_offset)
+        num_actions += 1
         bbox, _ = policy.bbox_untangle(undo_end_frame, render_offset=render_offset)
 
 
@@ -74,13 +82,15 @@ if __name__ == '__main__':
 
     BASE_DIR = os.getcwd()
     DESCRIPTOR_DIR = os.path.join(BASE_DIR, 'dense_correspondence')
+    KP_DIR = os.path.join(BASE_DIR, 'keypoints')
     BBOX_DIR = os.path.join(BASE_DIR, 'mrcnn_bbox', 'networks')
     path_to_refs = os.path.join(BASE_DIR, 'references', params["texture"])
 
-    #policy = Oracle(params)
-    #policy = Hierarchical(path_to_refs, DESCRIPTOR_DIR, BBOX_DIR, params)
-    #policy = Heuristic(path_to_refs, BBOX_DIR, params)
-    policy = RandomAction(path_to_refs, BBOX_DIR, params)
+    # policy = Oracle(params)
+    # policy = Hierarchical(path_to_refs, DESCRIPTOR_DIR, BBOX_DIR, params)
+    # policy = Heuristic(path_to_refs, BBOX_DIR, params)
+    # policy = RandomAction(path_to_refs, BBOX_DIR, params)
+    policy = Hierarchical_kp(path_to_refs, KP_DIR, BBOX_DIR, params)
 
     clear_scene()
     make_capsule_rope(params)
