@@ -114,9 +114,9 @@ def random_perturb(start_frame, params, render=False, render_offset=0):
             render_frame(step, render_offset=render_offset)
     return end_frame
 
-def take_undo_action(start_frame, pull_idx, hold_idx, norm_action_vec, render=False, render_offset=0):
+def take_undo_action(start_frame, pull_idx, hold_idx, norm_action_vec, render=False, render_offset=0, scale_action=True):
     piece = "Cylinder"
-    action_vec = norm_action_vec*3
+    action_vec = norm_action_vec*3 if scale_action else norm_action_vec
     pull_cyl = get_piece(piece, pull_idx)
     hold_cyl = get_piece(piece, hold_idx)
 

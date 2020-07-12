@@ -10,7 +10,7 @@ from PIL import Image
 BASE_DIR = '/Users/jennifergrannen/Documents/Berkeley/projects/rope/dynamic-rope-sim'
 sys.path.append(BASE_DIR)
 sys.path.insert(0, os.path.join(BASE_DIR, "mrcnn_bbox/tools"))
-sys.path.insert(0, os.path.join(BASE_DIR, "keypoints/src"))
+sys.path.insert(0, os.path.join(BASE_DIR, "keypoints_dir/src"))
 
 from untangle_utils import *
 from render import find_knot
@@ -46,9 +46,9 @@ def load_nets(path_to_refs, kp_dir, bbox_dir):
     model.load_weights(model_path, by_name=True)
     bbox_predictor = BBoxFinder(model, cfg)
     nets = {"ends_kp": load_kp(kp_dir, ref_annots["ends_kp"], 640, 480, 4), \
-            "knot_kp": load_kp(kp_dir, ref_annots["knot_kp"], 640, 480, 4), \
+            # "knot_kp": load_kp(kp_dir, ref_annots["knot_kp"], 640, 480, 4), \
             # JENN: uncomment when using bbox training
-            # "knot_kp": load_kp(kp_dir, ref_annots["knot_kp"], 80, 60, None, None, 4), \
+            "knot_kp": load_kp(kp_dir, ref_annots["knot_kp"], 80, 60, 2), \
             "bbox": bbox_predictor}
     return nets
 
@@ -60,10 +60,10 @@ def kp_matches(prediction, path_to_curr_img, curr_frame, num_classes, use_cuda=0
         img_t = img_t.cuda()
     result, keypoints = prediction.predict(img_t)
     prediction.plot(img, result, keypoints, image_id=curr_frame)
-    
+
     print("KEYPOINTS", keypoints)
     # TODO: later return end1, end2 pixels if ends_cf OR hold, pull pixels if knot_cf
-    # currently returns end2, pull, hold, end1
+    # currently returns end1, pull, hold, end2
     return keypoints
 
 class Hierarchical_kp(object):
@@ -95,13 +95,13 @@ class Hierarchical_kp(object):
         path_to_curr_hold_img = path_to_curr_img_depth_crop if depth else path_to_curr_img_crop
         # @JENN FIX
         # for current global view cf:
-        _, pull_pixel, hold_pixel, _ = kp_matches(self.knot_kp, path_to_curr_img, start_frame-render_offset, 4)
-        print("PULL", pull_pixel)
-        print("HOLD", hold_pixel)
+        # _, pull_pixel, hold_pixel, _ = kp_matches(self.knot_kp, path_to_curr_img, start_frame-render_offset, 4)
+        # print("PULL", pull_pixel)
+        # print("HOLD", hold_pixel)
         # uncomment for bbox cf:
-        # pull_crop_pixel, hold_crop_pixel = kp_matches(self.knot_kp, path_to_curr_img_crop, start_frame-render_offset, 2)
-        # hold_pixel = pixel_crop_to_full(np.array([hold_crop_pixel]), rescale_factor, x_off, y_off)[0]
-        # pull_pixel = pixel_crop_to_full(np.array([pull_crop_pixel]), rescale_factor, x_off, y_off)[0]
+        pull_crop_pixel, hold_crop_pixel = kp_matches(self.knot_kp, path_to_curr_img_crop, start_frame-render_offset, 2)
+        hold_pixel = pixel_crop_to_full(np.array([hold_crop_pixel]), rescale_factor, x_off, y_off)[0]
+        pull_pixel = pixel_crop_to_full(np.array([pull_crop_pixel]), rescale_factor, x_off, y_off)[0]
         pull_pixel = (int(pull_pixel[0]), int(pull_pixel[1]))
         hold_pixel = (int(hold_pixel[0]), int(hold_pixel[1]))
         return pull_pixel, hold_pixel
@@ -125,7 +125,7 @@ class Hierarchical_kp(object):
         path_to_curr_img = "images/%06d_rgb.png"%(start_frame-render_offset)
         # @JENN FIX
         # for current global view cf:
-        end2_pixel, _, _, end1_pixel = kp_matches(self.ends_kp, path_to_curr_img, start_frame-render_offset, 4)
+        end1_pixel, _, _, end2_pixel = kp_matches(self.ends_kp, path_to_curr_img, start_frame-render_offset, 4)
         # uncomment for bbox cf:
         # end2_pixel, end1_pixel = kp_matches(self.ends_kp, path_to_curr_img, start_frame-render_offset, 2)
         end2_idx = pixels_to_cylinders([end2_pixel])
@@ -162,7 +162,7 @@ class Hierarchical_kp(object):
         path_to_curr_img = "images/%06d_rgb.png"%(start_frame-render_offset)
         # @JENN FIX
         # for current global view cf:
-        end2_pixel, _, _, end1_pixel = kp_matches(self.ends_kp, path_to_curr_img, start_frame-render_offset, 4)
+        end1_pixel, _, _, end2_pixel = kp_matches(self.ends_kp, path_to_curr_img, start_frame-render_offset, 4)
         # uncomment for bbox cf:
         # end2_pixel, end1_pixel = kp_matches(self.ends_kp, path_to_curr_img, start_frame-render_offset, 2)
         end2_idx = pixels_to_cylinders([end2_pixel])
@@ -172,7 +172,7 @@ class Hierarchical_kp(object):
         path_to_curr_img = "images/%06d_rgb.png"%(middle_frame-1-render_offset)
         # @JENN FIX
         # for current global view cf:
-        end2_pixel, _, _, end1_pixel = kp_matches(self.ends_kp, path_to_curr_img, start_frame-render_offset, 4)
+        end1_pixel, _, _, end2_pixel = kp_matches(self.ends_kp, path_to_curr_img, start_frame-render_offset, 4)
         # uncomment for bbox cf:
         # end2_pixel, end1_pixel = kp_matches(self.ends_kp, path_to_curr_img, start_frame-render_offset, 2)
         end2_idx = pixels_to_cylinders([end2_pixel])
@@ -183,7 +183,7 @@ class Hierarchical_kp(object):
 if __name__ == '__main__':
     # BASE_DIR = '/Users/priyasundaresan/Desktop/blender/dynamic-rope'
     BASE_DIR = '/Users/jennifergrannen/Documents/Berkeley/projects/rope/dynamic-rope-sim'
-    KP_DIR = os.path.join(BASE_DIR, 'keypoints')
+    KP_DIR = os.path.join(BASE_DIR, 'keypoints_dir')
     BBOX_DIR = os.path.join(BASE_DIR, 'mrcnn_bbox', 'networks')
     path_to_refs = os.path.join(BASE_DIR, 'references', 'capsule')
     with open("../rigidbody_params.json", "r") as f:
