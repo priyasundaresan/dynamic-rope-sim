@@ -65,13 +65,18 @@ class BC(object):
         # JENN FIX THIS
         return False
 
+    def bbox_untangle(self, start_frame, render_offset=0):
+        # JENN FIX THIS
+        return True, None
+
     def undo(self, start_frame, render=False, render_offset=0):
         pull_pixel, hold_pixel, drop_pixel = self.find_pull_hold(start_frame, render_offset=render_offset)
         if pull_pixel is None:
             return start_frame, None, None, None
         dx = drop_pixel[0] - pull_pixel[0]
         dy = drop_pixel[1] - pull_pixel[1]
-        action_vec = [dx, dy, 6] # 6 is arbitrary for dz
+        action_vec = [dx, dy, 1] # 6 is arbitrary for dz
+        print("ACTION NORM:", np.linalg.norm(action_vec))
 
         hold_idx = pixels_to_cylinders([hold_pixel])
         pull_idx = pixels_to_cylinders([pull_pixel])

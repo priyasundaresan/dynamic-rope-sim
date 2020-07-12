@@ -46,12 +46,12 @@ def pixel_full_to_crop(pixels, crop_rescale_factor, x_offset, y_offset, aspect=(
 def crop(filename, dir, bbox_predictor):
     num = int(filename[:5])
     knots_info_filename = "%05d.npy"%num
-    mask_filename = '%06d_visible_mask.png'%num
+#    mask_filename = '%06d_visible_mask.png'%num
 #    depth_filename = "%06d_rgb.png"%num
     img_filename = filename
     knots_info = np.load("./%s/keypoints/%s"%(dir, knots_info_filename))
     img = cv2.imread('./%s/images/%s'%(dir, filename)).copy()
-    mask = cv2.imread('./%s/image_masks/%s'%(dir, mask_filename)).copy()
+#    mask = cv2.imread('./%s/image_masks/%s'%(dir, mask_filename)).copy()
 #    depth = cv2.imread('./%s/images_depth/%s'%(dir, depth_filename)).copy()
     # get box
     boxes = bbox_predictor.predict(img, plot=False, annotate=False)
@@ -69,7 +69,7 @@ def crop(filename, dir, bbox_predictor):
     #box = [xmin, ymin, xmax, ymax]
     # crop img and mask
     cropped_img, rescale_factor_img, (x_off_img, y_off_img) = crop_and_resize(box, img)
-    cropped_mask, _, _ = crop_and_resize(box, mask)
+#    cropped_mask, _, _ = crop_and_resize(box, mask)
 #    cropped_depth, _, _ = crop_and_resize(box, depth)
 
     # rescale annotations
@@ -84,7 +84,7 @@ def crop(filename, dir, bbox_predictor):
         #return knots_info
     knots_info = cropped_pixels
     cv2.imwrite('./image_crop/images/{}'.format(img_filename), cropped_img)
-    cv2.imwrite('./image_crop/image_masks/{}'.format(mask_filename), cropped_mask)
+#    cv2.imwrite('./image_crop/image_masks/{}'.format(mask_filename), cropped_mask)
 #    cv2.imwrite('./image_crop/images_depth/{}'.format(depth_filename), cropped_depth)
     np.save('./image_crop/keypoints/%s'%knots_info_filename, knots_info)
     return
@@ -101,7 +101,7 @@ if __name__ == '__main__':
         os.system('rm -r ./image_crop')
     os.mkdir('./image_crop')
     os.mkdir('./image_crop/images')
-    os.mkdir('./image_crop/image_masks')
+#    os.mkdir('./image_crop/image_masks')
     # os.mkdir('./image_crop/images_depth')
     os.mkdir('./image_crop/keypoints')
 
@@ -127,5 +127,5 @@ if __name__ == '__main__':
     # with open("./image_crop/images/knots_info.json", 'w') as outfile:
     #     json.dump(knots_info, outfile, sort_keys=True, indent=2)
     
-    os.system('python mask.py --dir ./image_crop/image_masks')
+#    os.system('python mask.py --dir ./image_crop/image_masks')
 #    os.system('python reorder_kpts.py --dir image_crop')

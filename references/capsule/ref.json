@@ -8,7 +8,7 @@
     "crop_hold_x": 36,
     "crop_hold_y": 20,
     "ends_cf": "ends",
-    "hold_cf": "bbox_capsule_2_hold_rgb",
+    "hold_cf": "cap_hold_rgb",
     "pull_cf": "cap_pull_rgb",
-    "bbox": "bbox_capsule_mult_looser"
+    "bbox": "bbox_larger_mult"
 }

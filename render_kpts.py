@@ -101,7 +101,8 @@ def annotate(frame, offset=4, num_knots=1):
             )
     annot_list = []
     pull_idx, hold_idx, _ = find_knot(50)
-    indices = [-1, pull_idx, hold_idx, 50-1]
+#    indices = [-1, pull_idx, hold_idx, 50-1]
+    indices = [pull_idx, hold_idx]
     annotations = [] # [[x1,y1],[x2,y2],...
     for i in indices:
         cyl = get_piece("Cylinder", i if i != 0 else -1)
@@ -171,7 +172,7 @@ def render_frame(frame, render_offset=0, step=10, filename="%05d.jpg", folder="i
     if frame%step == 0:
         scene = bpy.context.scene
         index = frame//step
-        #render_mask("image_masks/%06d_visible_mask.png", "images_depth/%06d_rgb.png", index)
+        # render_mask("image_masks/%06d_visible_mask.png", "images_depth/%06d_rgb.png", index)
         scene.render.filepath = os.path.join(folder, filename) % index
         bpy.ops.render.render(write_still=True)
         if annot:

@@ -52,14 +52,14 @@ def run_untangling_rollout(policy, params):
         undone = False
         i = 0
         while not undone and i < 10:
-            try: # if rope goes out of frame, take a reid move
-                undo_end, pull, hold, action_vec = policy.undo(undo_end_frame, render=True, render_offset=render_offset)
-                undone = policy.policy_undone_check(undo_end, pull, hold, action_vec, render_offset=render_offset)
-                undo_end_frame = undo_end
-                num_actions += 1
-            except:
-                undo_end_frame = policy.reidemeister(undo_end_frame, render=True, render_offset=render_offset)
-                num_actions += 1
+            # try: # if rope goes out of frame, take a reid move
+            undo_end, pull, hold, action_vec = policy.undo(undo_end_frame, render=True, render_offset=render_offset)
+            undone = policy.policy_undone_check(undo_end, pull, hold, action_vec, render_offset=render_offset)
+            undo_end_frame = undo_end
+            num_actions += 1
+            # except:
+            #     undo_end_frame = policy.reidemeister(undo_end_frame, render=True, render_offset=render_offset)
+            #     num_actions += 1
             i += 1
             if num_actions == 29:
                 undo_end_frame = policy.reidemeister(undo_end_frame, render=True, render_offset=render_offset)
@@ -92,8 +92,8 @@ if __name__ == '__main__':
     # policy = Hierarchical(path_to_refs, DESCRIPTOR_DIR, BBOX_DIR, params)
     # policy = Heuristic(path_to_refs, BBOX_DIR, params)
     # policy = RandomAction(path_to_refs, BBOX_DIR, params)
-    # policy = Hierarchical_kp(path_to_refs, KP_DIR, BBOX_DIR, params)
-    policy = BC(path_to_refs, BC_DIR, params)
+    policy = Hierarchical_kp(path_to_refs, KP_DIR, BBOX_DIR, params)
+    # policy = BC(path_to_refs, BC_DIR, params)
 
     clear_scene()
     make_capsule_rope(params)
