@@ -53,14 +53,34 @@ def randomize_camera():
     bpy.context.scene.camera.location += Vector((dx,dy,dz))
     bpy.context.scene.camera.rotation_euler = (0, 0, np.random.uniform(-np.pi/4, np.pi/4))
 
+def randomize_rig(rig, mode="capsule", ):
+    if mode=="capsule":
+        rig = bpy.data.objects['BezierCircle']
+        new_scale = np.random.uniform(0.5,1.25)
+        rig.scale = (new_scale, new_scale, new_scale)
+    else:
+        pass
+        #circle = bpy.data.objects["Circle.003"]
+        #sx,sy,sz = circle.scale
+        #sy = np.random.uniform(0.06,0.15)
+        #sy = sx
+        #circle.scale = (sx,sy,sz)
+        #new_off = np.random.uniform(11,13)
+        #new_iter = np.random.uniform(14,16)
+        #rig.modifiers["Screw"].screw_offset = new_off
+        #rig.modifiers["Screw"].iterations = new_iter
+
 def pattern(obj, texture_filename):
-    '''Add image texture to object'''
-    if '%sTexture' % obj.name in bpy.data.materials:
+    '''Add image texture to object (don't create new materials, just overwrite the existing one if there is one)'''
+    if '%sTexture' % obj.name in bpy.data.materials: 
         mat = bpy.data.materials['%sTexture'%obj.name]
     else:
         mat = bpy.data.materials.new(name="%sTexture"%obj.name)
         mat.use_nodes = True
-    texImage = mat.node_tree.nodes.new('ShaderNodeTexImage')
+    if "Image Texture" in mat.node_tree.nodes:
+        texImage = mat.node_tree.nodes["Image Texture"]
+    else:
+        texImage = mat.node_tree.nodes.new('ShaderNodeTexImage')
     bsdf = mat.node_tree.nodes["Principled BSDF"]
     texImage.image = bpy.data.images.load(texture_filename)
     mat.node_tree.links.new(bsdf.inputs['Base Color'], texImage.outputs['Color'])

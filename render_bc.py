@@ -26,11 +26,11 @@ def set_render_settings(engine, render_size):
         os.makedirs('./images')
     else:
         os.system('rm -r ./images')
-    if not os.path.exists("./keypoints"):
-        os.makedirs('./keypoints')
+    if not os.path.exists("./actions"):
+        os.makedirs('./actions')
     else:
-        os.system('rm -r ./keypoints')
-        os.makedirs('./keypoints')
+        os.system('rm -r ./actions')
+        os.makedirs('./actions')
     scene = bpy.context.scene
     scene.render.engine = engine
     render_width, render_height = render_size
@@ -49,9 +49,9 @@ def set_render_settings(engine, render_size):
         scene.view_settings.view_transform = 'Raw'
         scene.eevee.taa_render_samples = 1
 
-def save_kpts(annotation_idx, annotation_list):
+def save_actions(annotation_idx, annotation_list):
     np_annotations = np.array(annotation_list)
-    np.save('keypoints/%05d.npy'%annotation_idx, np_annotations)
+    np.save('actions/%05d.npy'%annotation_idx, np_annotations)
 
 def find_knot(num_segments, chain=False, depth_thresh=0.4, idx_thresh=3, pull_offset=3):
 
@@ -100,15 +100,19 @@ def annotate(frame, offset=4, num_knots=1):
             int(scene.render.resolution_y),
             )
     annot_list = []
-    pull_idx, hold_idx, _ = find_knot(50)
-    indices = [-1, pull_idx, hold_idx, 50-1]
+    pull_idx, hold_idx, action_vec = find_knot(50)
+    action_vec /= np.linalg.norm(action_vec)
+    action_vec *= 2.5
+    pull_loc = get_piece("Cylinder", pull_idx).matrix_world.translation
+    pull_offset = pull_loc + Vector(action_vec)
+    hold_loc = get_piece("Cylinder", hold_idx).matrix_world.translation
+    locs = [pull_loc, pull_offset, hold_loc]
     annotations = [] # [[x1,y1],[x2,y2],...
-    for i in indices:
-        cyl = get_piece("Cylinder", i if i != 0 else -1)
-        camera_coord = bpy_extras.object_utils.world_to_camera_view(scene, bpy.context.scene.camera, cyl.matrix_world.translation)
+    for loc in locs:
+        camera_coord = bpy_extras.object_utils.world_to_camera_view(scene, bpy.context.scene.camera, loc)
         x, y = [round(camera_coord.x * render_size[0]), round(render_size[1] - camera_coord.y * render_size[1])]
         annotations.append([x,y])
-    save_kpts(frame, annotations)
+    save_actions(frame, annotations)
 
 def get_piece(piece_name, piece_id):
     # Returns the piece with name piece_name, index piece_id
@@ -155,16 +159,16 @@ def render_frame(frame, render_offset=0, step=10, filename="%05d.jpg", folder="i
     randomize_camera()
     #randomize_rig(rig, mode="braid")
     #randomize_rig(rig)
-    randomize_light()
-    table = bpy.data.objects["Plane"]
-    if random.random() < 0.33:
-        texture_randomize(table, 'dr_data/val2017')
-    elif random.random() < 0.66:
-        texture_randomize(table, 'dr_data/fabrics')
-    else:
-        color_randomize(table)
-    color = (np.random.uniform(0.7,1.0),np.random.uniform(0.7,1.0),np.random.uniform(0.7,1.0))
-    color_randomize(rig, color=color)
+    #randomize_light()
+    #table = bpy.data.objects["Plane"]
+    #if random.random() < 0.33:
+    #    texture_randomize(table, 'dr_data/val2017')
+    #elif random.random() < 0.66:
+    #    texture_randomize(table, 'dr_data/fabrics')
+    #else:
+    #    color_randomize(table)
+    #color = (np.random.uniform(0.7,1.0),np.random.uniform(0.7,1.0),np.random.uniform(0.7,1.0))
+    #color_randomize(rig, color=color)
 
     # Renders a single frame in a sequence (if frame%step == 0)
     frame -= render_offset
@@ -312,12 +316,12 @@ if __name__ == '__main__':
         params = json.load(f)
     clear_scene()
     make_capsule_rope(params)
-    rig = rig_rope(params, braid=1)
+    rig = rig_rope(params, braid=0)
     add_camera_light()
     set_render_settings(params["engine"],(params["render_width"],params["render_height"]))
     make_table(params)
     start = time.time()
-    iters = 10
+    iters = 25
     generate_dataset(iters, params, render=True)
     end = time.time()
     print("time", end-start)
