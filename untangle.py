@@ -14,6 +14,7 @@ from baseline import Heuristic
 from random_action import RandomAction
 from hierarchical_keypoints import Hierarchical_kp
 from bc import BC
+from multi_head import MultiHead
 
 def run_untangling_rollout(policy, params):
     set_animation_settings(15000)
@@ -86,14 +87,16 @@ if __name__ == '__main__':
     KP_DIR = os.path.join(BASE_DIR, 'keypoints_dir')
     BBOX_DIR = os.path.join(BASE_DIR, 'mrcnn_bbox', 'networks')
     BC_DIR = os.path.join(BASE_DIR, 'bc_networks')
+    MH_DIR = os.path.join(BASE_DIR, 'multi_head')
     path_to_refs = os.path.join(BASE_DIR, 'references', params["texture"])
 
     # policy = Oracle(params)
     # policy = Hierarchical(path_to_refs, DESCRIPTOR_DIR, BBOX_DIR, params)
     # policy = Heuristic(path_to_refs, BBOX_DIR, params)
     # policy = RandomAction(path_to_refs, BBOX_DIR, params)
-    policy = Hierarchical_kp(path_to_refs, KP_DIR, BBOX_DIR, params)
+    # policy = Hierarchical_kp(path_to_refs, KP_DIR, BBOX_DIR, params)
     # policy = BC(path_to_refs, BC_DIR, params)
+    policy = MultiHead(path_to_refs, MH_DIR, params)
 
     clear_scene()
     make_capsule_rope(params)
