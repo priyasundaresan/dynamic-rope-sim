@@ -140,7 +140,7 @@ class Hierarchical_kp(object):
         # for current global view cf:
         # end1_pixel, _, _, end2_pixel = kp_matches(self.ends_kp, path_to_curr_img, start_frame-render_offset, 4)
         # uncomment for bbox cf:
-        end2_pixel, end1_pixel = kp_matches(self.ends_kp, path_to_curr_img, start_frame-render_offset, 2)
+        end1_pixel, end2_pixel = kp_matches(self.ends_kp, path_to_curr_img, start_frame-render_offset, 2)
         end2_idx = pixels_to_cylinders([end2_pixel])
         end1_idx = pixels_to_cylinders([end1_pixel])
         return undone_check(start_frame, prev_pull, prev_hold, prev_action_vec, end1_idx, end2_idx, render_offset=render_offset)
@@ -177,7 +177,7 @@ class Hierarchical_kp(object):
         # for current global view cf:
         # end1_pixel, _, _, end2_pixel = kp_matches(self.ends_kp, path_to_curr_img, start_frame-render_offset, 4)
         # uncomment for bbox cf:
-        end2_pixel, end1_pixel = kp_matches(self.ends_kp, path_to_curr_img, start_frame-render_offset, 2)
+        end1_pixel, end2_pixel = kp_matches(self.ends_kp, path_to_curr_img, start_frame-render_offset, 2)
         end2_idx = pixels_to_cylinders([end2_pixel])
         end1_idx = pixels_to_cylinders([end1_pixel])
         middle_frame = reidemeister_right(start_frame, end1_idx, end2_idx, render=render, render_offset=render_offset)
@@ -187,7 +187,7 @@ class Hierarchical_kp(object):
         # for current global view cf:
         # end1_pixel, _, _, end2_pixel = kp_matches(self.ends_kp, path_to_curr_img, start_frame-render_offset, 4)
         # uncomment for bbox cf:
-        end2_pixel, end1_pixel = kp_matches(self.ends_kp, path_to_curr_img, start_frame-render_offset, 2)
+        end1_pixel, end2_pixel = kp_matches(self.ends_kp, path_to_curr_img, start_frame-render_offset, 2)
         end2_idx = pixels_to_cylinders([end2_pixel])
         end1_idx = pixels_to_cylinders([end1_pixel])
         self.action_count += 2
