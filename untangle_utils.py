@@ -114,14 +114,14 @@ def random_perturb(start_frame, params, render=False, render_offset=0):
             render_frame(step, render_offset=render_offset)
     return end_frame
 
-def take_undo_action(start_frame, pull_idx, hold_idx, norm_action_vec, render=False, render_offset=0, scale_action=True):
+def take_undo_action(start_frame, pull_idx, hold_idx, norm_action_vec, render=False, render_offset=0, scale_action=True, hold_flag=True):
     piece = "Cylinder"
     action_vec = norm_action_vec*3 if scale_action else norm_action_vec
     pull_cyl = get_piece(piece, pull_idx)
     hold_cyl = get_piece(piece, hold_idx)
 
     ## Undoing
-    if abs(hold_idx - pull_idx) > 5:
+    if abs(hold_idx - pull_idx) > 5 and hold_flag:
         take_action(hold_cyl, start_frame + 100, (0,0,0))
     for step in range(start_frame, start_frame+10):
         bpy.context.scene.frame_set(step)

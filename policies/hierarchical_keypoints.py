@@ -28,7 +28,7 @@ from predict import BBoxFinder, PredictionConfig
 def load_kp(kp_dir, network_name, image_width, image_height, num_classes):
     network_dir = os.path.join(kp_dir, 'checkpoints', network_name)
     keypoints = Keypoints(num_classes, img_height=image_height, img_width=image_width)
-    keypoints.load_state_dict(torch.load(os.path.join(network_dir, 'model_2_1_199.pth'), map_location='cpu'))
+    keypoints.load_state_dict(torch.load(os.path.join(network_dir, os.listdir(network_dir)[0]), map_location='cpu'))
     # use_cuda = torch.cuda.is_available()
     use_cuda = False
     if use_cuda:
@@ -45,7 +45,7 @@ def load_nets(path_to_refs, kp_dir, bbox_dir):
     model_path = '%s/%s/mask_rcnn_knot_cfg_0010.h5'%(bbox_dir, ref_annots["bbox"])
     model.load_weights(model_path, by_name=True)
     bbox_predictor = BBoxFinder(model, cfg)
-    nets = {"ends_kp": load_kp(kp_dir, ref_annots["ends_kp"], 640, 480, 4), \
+    nets = {"ends_kp": load_kp(kp_dir, ref_annots["ends_kp"], 640, 480, 2), \
             # "knot_kp": load_kp(kp_dir, ref_annots["knot_kp"], 640, 480, 4), \
             # JENN: uncomment when using bbox training
             "knot_kp": load_kp(kp_dir, ref_annots["knot_kp"], 80, 60, 2), \
@@ -79,32 +79,45 @@ class Hierarchical_kp(object):
         box, confidence = self.bbox_untangle(start_frame, render_offset=render_offset)
         if box is None:
             return None, None
-        img_num = start_frame-render_offset
-        path_to_curr_img = "images/%06d_rgb.png" % (img_num)
-        path_to_curr_img_depth = "images_depth/%06d_rgb.png" % (img_num)
-        path_to_curr_img_crop = "images/%06d_crop.png" % (img_num)
-        path_to_curr_img_depth_crop = "images_depth/%06d_crop.png" % (img_num)
-        img = cv2.imread(path_to_curr_img)
-        img_depth = cv2.imread(path_to_curr_img_depth)
-        crop, rescale_factor, (x_off, y_off) = crop_and_resize(box, img)
-        crop_depth, _, _ = crop_and_resize(box, img_depth)
-        cv2.imwrite("images/%06d_crop.png" % (img_num), crop)
-        cv2.imwrite("images_depth/%06d_crop.png" % (img_num), crop_depth)
-        cv2.imwrite("./preds/%06d_bbox.png" % (img_num), crop)
+        pull_flag = False
+        while (not pull_flag or not hold_flag):
+            img_num = start_frame-render_offset
+            path_to_curr_img = "images/%06d_rgb.png" % (img_num)
+            path_to_curr_img_depth = "images_depth/%06d_rgb.png" % (img_num)
+            path_to_curr_img_crop = "images/%06d_crop.png" % (img_num)
+            path_to_curr_img_depth_crop = "images_depth/%06d_crop.png" % (img_num)
+            img = cv2.imread(path_to_curr_img)
+            img_depth = cv2.imread(path_to_curr_img_depth)
+            crop, rescale_factor, (x_off, y_off) = crop_and_resize(box, img)
+            crop_depth, _, _ = crop_and_resize(box, img_depth)
+            cv2.imwrite("images/%06d_crop.png" % (img_num), crop)
+            cv2.imwrite("images_depth/%06d_crop.png" % (img_num), crop_depth)
+            cv2.imwrite("./preds/%06d_bbox.png" % (img_num), crop)
 
-        path_to_curr_hold_img = path_to_curr_img_depth_crop if depth else path_to_curr_img_crop
-        # @JENN FIX
-        # for current global view cf:
-        # _, pull_pixel, hold_pixel, _ = kp_matches(self.knot_kp, path_to_curr_img, start_frame-render_offset, 4)
-        # print("PULL", pull_pixel)
-        # print("HOLD", hold_pixel)
-        # uncomment for bbox cf:
-        pull_crop_pixel, hold_crop_pixel = kp_matches(self.knot_kp, path_to_curr_img_crop, start_frame-render_offset, 2)
+            path_to_curr_hold_img = path_to_curr_img_depth_crop if depth else path_to_curr_img_crop
+            # @JENN FIX
+            # for current global view cf:
+            # _, pull_pixel, hold_pixel, _ = kp_matches(self.knot_kp, path_to_curr_img, start_frame-render_offset, 4)
+            # print("PULL", pull_pixel)
+            # print("HOLD", hold_pixel)
+            # uncomment for bbox cf:
+            pull_crop_pixel, hold_crop_pixel = kp_matches(self.knot_kp, path_to_curr_img_crop, start_frame-render_offset, 2)
+            hold_flag = not (hold_crop_pixel[0] == 0 and hold_crop_pixel[1] == 0)
+            pull_flag = not (pull_crop_pixel[0] == 0 and pull_crop_pixel[1] == 0)
+            x1, y1, x2, y2 = box
+            x_min, x_max = min(x1,x2), max(x1,x2)
+            y_min, y_max = min(y1,y2), max(y1,y2)
+            new_x_min = max(0, x_min-5)
+            new_x_max = min(640, x_max+5)
+            new_y_min = max(0, y_min-5)
+            new_y_max = min(480, y_max+5)
+            box = (new_x_min, new_y_min, new_x_max, new_y_max)
+
         hold_pixel = pixel_crop_to_full(np.array([hold_crop_pixel]), rescale_factor, x_off, y_off)[0]
         pull_pixel = pixel_crop_to_full(np.array([pull_crop_pixel]), rescale_factor, x_off, y_off)[0]
         pull_pixel = (int(pull_pixel[0]), int(pull_pixel[1]))
         hold_pixel = (int(hold_pixel[0]), int(hold_pixel[1]))
-        return pull_pixel, hold_pixel
+        return pull_pixel, hold_pixel, hold_flag
 
     def bbox_untangle(self, start_frame, render_offset=0):
         path_to_curr_img = "images/%06d_rgb.png" % (start_frame-render_offset)
@@ -125,15 +138,15 @@ class Hierarchical_kp(object):
         path_to_curr_img = "images/%06d_rgb.png"%(start_frame-render_offset)
         # @JENN FIX
         # for current global view cf:
-        end1_pixel, _, _, end2_pixel = kp_matches(self.ends_kp, path_to_curr_img, start_frame-render_offset, 4)
+        # end1_pixel, _, _, end2_pixel = kp_matches(self.ends_kp, path_to_curr_img, start_frame-render_offset, 4)
         # uncomment for bbox cf:
-        # end2_pixel, end1_pixel = kp_matches(self.ends_kp, path_to_curr_img, start_frame-render_offset, 2)
+        end2_pixel, end1_pixel = kp_matches(self.ends_kp, path_to_curr_img, start_frame-render_offset, 2)
         end2_idx = pixels_to_cylinders([end2_pixel])
         end1_idx = pixels_to_cylinders([end1_pixel])
         return undone_check(start_frame, prev_pull, prev_hold, prev_action_vec, end1_idx, end2_idx, render_offset=render_offset)
 
     def undo(self, start_frame, render=False, render_offset=0):
-        pull_pixel, hold_pixel = self.find_pull_hold(start_frame, render_offset=render_offset)
+        pull_pixel, hold_pixel, hold_flag = self.find_pull_hold(start_frame, render_offset=render_offset)
         if pull_pixel is None:
             return start_frame, None, None, None
         dx = pull_pixel[0] - hold_pixel[0]
@@ -154,7 +167,7 @@ class Hierarchical_kp(object):
 
         hold_idx = pixels_to_cylinders([hold_pixel])
         pull_idx = pixels_to_cylinders([pull_pixel])
-        end_frame, action_vec = take_undo_action(start_frame, pull_idx, hold_idx, action_vec, render=render, render_offset=render_offset)
+        end_frame, action_vec = take_undo_action(start_frame, pull_idx, hold_idx, action_vec, render=render, render_offset=render_offset, hold_flag=hold_flag)
         self.action_count += 1
         return end_frame, pull_pixel, hold_pixel, action_vec
 
@@ -162,9 +175,9 @@ class Hierarchical_kp(object):
         path_to_curr_img = "images/%06d_rgb.png"%(start_frame-render_offset)
         # @JENN FIX
         # for current global view cf:
-        end1_pixel, _, _, end2_pixel = kp_matches(self.ends_kp, path_to_curr_img, start_frame-render_offset, 4)
+        # end1_pixel, _, _, end2_pixel = kp_matches(self.ends_kp, path_to_curr_img, start_frame-render_offset, 4)
         # uncomment for bbox cf:
-        # end2_pixel, end1_pixel = kp_matches(self.ends_kp, path_to_curr_img, start_frame-render_offset, 2)
+        end2_pixel, end1_pixel = kp_matches(self.ends_kp, path_to_curr_img, start_frame-render_offset, 2)
         end2_idx = pixels_to_cylinders([end2_pixel])
         end1_idx = pixels_to_cylinders([end1_pixel])
         middle_frame = reidemeister_right(start_frame, end1_idx, end2_idx, render=render, render_offset=render_offset)
@@ -172,9 +185,9 @@ class Hierarchical_kp(object):
         path_to_curr_img = "images/%06d_rgb.png"%(middle_frame-1-render_offset)
         # @JENN FIX
         # for current global view cf:
-        end1_pixel, _, _, end2_pixel = kp_matches(self.ends_kp, path_to_curr_img, start_frame-render_offset, 4)
+        # end1_pixel, _, _, end2_pixel = kp_matches(self.ends_kp, path_to_curr_img, start_frame-render_offset, 4)
         # uncomment for bbox cf:
-        # end2_pixel, end1_pixel = kp_matches(self.ends_kp, path_to_curr_img, start_frame-render_offset, 2)
+        end2_pixel, end1_pixel = kp_matches(self.ends_kp, path_to_curr_img, start_frame-render_offset, 2)
         end2_idx = pixels_to_cylinders([end2_pixel])
         end1_idx = pixels_to_cylinders([end1_pixel])
         self.action_count += 2

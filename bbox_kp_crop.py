@@ -95,7 +95,7 @@ if __name__ == '__main__':
     # ignore images_depth
     parser = argparse.ArgumentParser()
     parser.add_argument('-d', '--dir', type=str, default='.')
-    parser.add_argument('-b', '--bbox_detector', type=str, default="knot_capsule_mult")
+    parser.add_argument('-b', '--bbox_detector', type=str, default="bbox_chord_larger_mult")
     args = parser.parse_args()
     if os.path.exists('./image_crop'):
         os.system('rm -r ./image_crop')
@@ -128,4 +128,4 @@ if __name__ == '__main__':
     #     json.dump(knots_info, outfile, sort_keys=True, indent=2)
     
 #    os.system('python mask.py --dir ./image_crop/image_masks')
-#    os.system('python reorder_kpts.py --dir image_crop')
+    os.system('python reorder_kpts.py --dir image_crop')
