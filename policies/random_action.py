@@ -34,9 +34,10 @@ class RandomAction(object):
         self.action_count = 0
         self.max_action_count = 10
         self.rope_length = params["num_segments"]
+        self.step = 4
 
     def bbox_untangle(self, start_frame, render_offset=0):
-        path_to_curr_img = "images/%06d_rgb.png" % (start_frame-render_offset)
+        path_to_curr_img = "images/%06d_rgb.png" % (floor((start_frame-render_offset) / self.step))
         curr_img = imageio.imread(path_to_curr_img)
         boxes = self.bbox_finder.predict(curr_img, plot=False)
         # sorting by confidence
@@ -70,11 +71,14 @@ class RandomAction(object):
         box_height = y_max - y_min
         if box is None:
             return None, None
-        path_to_curr_mask = "image_masks/%06d_visible_mask.png" % (start_frame-render_offset)
+        # path_to_curr_mask = "image_masks/%06d_visible_mask.png" % (start_frame-render_offset)
+        path_to_curr_mask = "image_masks/%06d_visible_mask.png" % (floor((start_frame-render_offset)/self.step))
         img_mask = cv2.imread(path_to_curr_mask)
         crop, rescale_factor, (x_off, y_off) = crop_and_resize(box, img_mask, aspect=(box_width, box_height)) # Don't resize the box
-        cv2.imwrite("./preds/%06d_crop_mask.png" % (start_frame-render_offset), crop)
-        cv2.imwrite("./preds/%06d_bbox.png" % (start_frame-render_offset), crop)
+        # cv2.imwrite("./preds/%06d_crop_mask.png" % (start_frame-render_offset), crop)
+        # cv2.imwrite("./preds/%06d_bbox.png" % (start_frame-render_offset), crop)
+        cv2.imwrite("./preds/%06d_crop_mask.png" % (floor((start_frame-render_offset)/self.step)), crop)
+        cv2.imwrite("./preds/%06d_bbox.png" % (floor((start_frame-render_offset)/self.step)), crop)
 
         y,x,_ = np.where(crop==255)
         nonzero_px = np.vstack((x,y)).T
@@ -92,12 +96,14 @@ class RandomAction(object):
         action_vec = [dx, dy, 6] # 6 is arbitrary for dz
         action_vec /= np.linalg.norm(action_vec)
 
-        path_to_curr_img = "images/%06d_rgb.png" % (start_frame-render_offset)
+        # path_to_curr_img = "images/%06d_rgb.png" % (start_frame-render_offset)
+        path_to_curr_img = "images/%06d_rgb.png" % (floor((start_frame-render_offset)/self.step))
         img = cv2.imread(path_to_curr_img)
         img = cv2.circle(img, tuple(hold_pixel), 5, (255, 0, 0), 2)
         img = cv2.circle(img, tuple(pull_pixel), 5, (0, 0, 255), 2)
         img = cv2.arrowedLine(img, tuple(pull_pixel), (pull_pixel[0]+dx*5, pull_pixel[1]+dy*5), (0, 255, 0), 2)
-        cv2.imwrite("./preds/%06d_action.png" % (start_frame-render_offset), img)
+        # cv2.imwrite("./preds/%06d_action.png" % (start_frame-render_offset), img)
+        cv2.imwrite("./preds/%06d_action.png" % (floor((start_frame-render_offset)/self.step)), img)
 
         hold_idx = pixels_to_cylinders([hold_pixel])
         pull_idx = pixels_to_cylinders([pull_pixel])
