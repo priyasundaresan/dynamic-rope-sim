@@ -9,7 +9,7 @@ from rigidbody_rope import *
 
 # Load policies
 # from oracle import Oracle
-from test import Oracle
+from oracle2 import Oracle
 from hierarchical_descriptors import Hierarchical
 from baseline import Heuristic
 from random_action import RandomAction
