@@ -138,7 +138,8 @@ def take_undo_action(start_frame, pull_idx, hold_idx, norm_action_vec, render=Fa
     for step in range(start_frame + 10, start_frame + 200 + settle_time+1):
         bpy.context.scene.frame_set(step)
         if render:
-            render_frame(step, render_offset=render_offset, step=1)
+            # render_frame(step, render_offset=render_offset, step=1)
+            render_frame(step, render_offset=render_offset, step=4)
 
     return start_frame+200+settle_time, action_vec
 
@@ -155,7 +156,8 @@ def reidemeister_right(start_frame, end1_idx, end2_idx, render=False, render_off
     for step in range(start_frame, end_frame+1):
         bpy.context.scene.frame_set(step)
         if render:
-            render_frame(step, render_offset=render_offset, step=1)
+            # render_frame(step, render_offset=render_offset, step=1)
+            render_frame(step, render_offset=render_offset, step=4)
     toggle_animation(end1, end_frame, False)
     return end_frame
 
@@ -171,7 +173,8 @@ def reidemeister_left(start_frame, end1_idx, end2_idx, render=False, render_offs
     for step in range(start_frame, end_frame+settle_time+1):
         bpy.context.scene.frame_set(step)
         if render:
-            render_frame(step, render_offset=render_offset, step=1)
+            # render_frame(step, render_offset=render_offset, step=1)
+            render_frame(step, render_offset=render_offset, step=4)
     return end_frame+settle_time
 
 def undone_check(start_frame, prev_pull, prev_hold, prev_action_vec, end1_idx, end2_idx, render_offset=0):
