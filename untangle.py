@@ -8,7 +8,8 @@ from knots import *
 from rigidbody_rope import *
 
 # Load policies
-from oracle import Oracle
+# from oracle import Oracle
+from test import Oracle
 from hierarchical_descriptors import Hierarchical
 from baseline import Heuristic
 from random_action import RandomAction
@@ -46,6 +47,7 @@ def run_untangling_rollout(policy, params):
 
     reid_end = policy.reidemeister(knot_end_frame, render=True, render_offset=render_offset)
     num_actions += 1
+    reid_flag = 1
     undo_end_frame = reid_end
 
     bbox, _ = policy.bbox_untangle(undo_end_frame, render_offset=render_offset)
@@ -57,17 +59,20 @@ def run_untangling_rollout(policy, params):
                 undo_end, pull, hold, action_vec = policy.undo(undo_end_frame, render=True, render_offset=render_offset)
                 undone = policy.policy_undone_check(undo_end, pull, hold, action_vec, render_offset=render_offset)
                 undo_end_frame = undo_end
+                reid_flag = 0
                 num_actions += 1
             except:
                 undo_end_frame = policy.reidemeister(undo_end_frame, render=True, render_offset=render_offset)
+                reid_flag = 1
                 num_actions += 1
             i += 1
             if num_actions == 29:
                 undo_end_frame = policy.reidemeister(undo_end_frame, render=True, render_offset=render_offset)
                 num_actions += 1
                 return
-        undo_end_frame = policy.reidemeister(undo_end_frame, render=True, render_offset=render_offset)
-        num_actions += 1
+        if not reid_flag:
+            undo_end_frame = policy.reidemeister(undo_end_frame, render=True, render_offset=render_offset)
+            num_actions += 1
         bbox, _ = policy.bbox_untangle(undo_end_frame, render_offset=render_offset)
 
 
@@ -90,13 +95,13 @@ if __name__ == '__main__':
     MH_DIR = os.path.join(BASE_DIR, 'multi_head')
     path_to_refs = os.path.join(BASE_DIR, 'references', params["texture"])
 
-    # policy = Oracle(params)
+    policy = Oracle(params)
     # policy = Hierarchical(path_to_refs, DESCRIPTOR_DIR, BBOX_DIR, params)
     # policy = Heuristic(path_to_refs, BBOX_DIR, params)
     # policy = RandomAction(path_to_refs, BBOX_DIR, params)
     # policy = Hierarchical_kp(path_to_refs, KP_DIR, BBOX_DIR, params)
     # policy = BC(path_to_refs, BC_DIR, params)
-    policy = MultiHead(path_to_refs, MH_DIR, params)
+    # policy = MultiHead(path_to_refs, MH_DIR, params)
 
     clear_scene()
     make_capsule_rope(params)
