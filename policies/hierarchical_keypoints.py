@@ -74,6 +74,7 @@ class Hierarchical_kp(object):
         self.bbox_finder = nets["bbox"]
         self.action_count = 0
         self.rope_length = params["num_segments"]
+        self.step = 4
 
     def find_pull_hold(self, start_frame, render_offset=0, depth=0):
         box, confidence = self.bbox_untangle(start_frame, render_offset=render_offset)
@@ -81,7 +82,8 @@ class Hierarchical_kp(object):
             return None, None
         pull_flag = False
         while (not pull_flag or not hold_flag):
-            img_num = start_frame-render_offset
+            # img_num = start_frame-render_offset
+            img_num = floor((start_frame - render_offset)/self.step)
             path_to_curr_img = "images/%06d_rgb.png" % (img_num)
             path_to_curr_img_depth = "images_depth/%06d_rgb.png" % (img_num)
             path_to_curr_img_crop = "images/%06d_crop.png" % (img_num)
@@ -120,7 +122,7 @@ class Hierarchical_kp(object):
         return pull_pixel, hold_pixel, hold_flag
 
     def bbox_untangle(self, start_frame, render_offset=0):
-        path_to_curr_img = "images/%06d_rgb.png" % (start_frame-render_offset)
+        path_to_curr_img = "images/%06d_rgb.png" % (floor((start_frame-render_offset)/self.step))
         curr_img = imageio.imread(path_to_curr_img)
         boxes = self.bbox_finder.predict(curr_img, plot=False)
         # sorting by confidence
@@ -135,7 +137,7 @@ class Hierarchical_kp(object):
         box, confidence = self.bbox_untangle(start_frame, render_offset=render_offset)
         if box is None:
             return True
-        path_to_curr_img = "images/%06d_rgb.png"%(start_frame-render_offset)
+        path_to_curr_img = "images/%06d_rgb.png"% (floor((start_frame-render_offset)/self.step))
         # @JENN FIX
         # for current global view cf:
         # end1_pixel, _, _, end2_pixel = kp_matches(self.ends_kp, path_to_curr_img, start_frame-render_offset, 4)
@@ -156,12 +158,13 @@ class Hierarchical_kp(object):
 
         print("hold", hold_pixel)
         print("pull", pull_pixel)
-        path_to_curr_img = "images/%06d_rgb.png" % (start_frame-render_offset)
+        img_num = floor((start_frame-render_offset)/self.step)
+        path_to_curr_img = "images/%06d_rgb.png" % (img_num)
         img = cv2.imread(path_to_curr_img)
         img = cv2.circle(img, tuple(hold_pixel), 5, (255, 0, 0), 2)
         img = cv2.circle(img, tuple(pull_pixel), 5, (0, 0, 255), 2)
         img = cv2.arrowedLine(img, tuple(pull_pixel), (pull_pixel[0]+dx*5, pull_pixel[1]+dy*5), (0, 255, 0), 2)
-        cv2.imwrite("./preds/%06d_action.png" % (start_frame-render_offset), img)
+        cv2.imwrite("./preds/%06d_action.png" % (img_num), img)
         #cv2.imshow("action", img)
         #cv2.waitKey(0)
 
@@ -172,7 +175,7 @@ class Hierarchical_kp(object):
         return end_frame, pull_pixel, hold_pixel, action_vec
 
     def reidemeister(self, start_frame, render=False, render_offset=0):
-        path_to_curr_img = "images/%06d_rgb.png"%(start_frame-render_offset)
+        path_to_curr_img = "images/%06d_rgb.png"%(floor((start_frame-render_offset)/self.step))
         # @JENN FIX
         # for current global view cf:
         # end1_pixel, _, _, end2_pixel = kp_matches(self.ends_kp, path_to_curr_img, start_frame-render_offset, 4)
@@ -182,7 +185,7 @@ class Hierarchical_kp(object):
         end1_idx = pixels_to_cylinders([end1_pixel])
         middle_frame = reidemeister_right(start_frame, end1_idx, end2_idx, render=render, render_offset=render_offset)
 
-        path_to_curr_img = "images/%06d_rgb.png"%(middle_frame-1-render_offset)
+        path_to_curr_img = "images/%06d_rgb.png"%(floor((middle_frame-1-render_offset)/self.step))
         # @JENN FIX
         # for current global view cf:
         # end1_pixel, _, _, end2_pixel = kp_matches(self.ends_kp, path_to_curr_img, start_frame-render_offset, 4)
