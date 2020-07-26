@@ -7,15 +7,16 @@ from untangle_utils import *
 from knots import *
 from rigidbody_rope import *
 
+from sklearn.neighbors import NearestNeighbors
+
+from yumi_gripper import *
+
 # Load policies
-# from oracle import Oracle
-from oracle2 import Oracle
-from hierarchical_descriptors import Hierarchical
-from baseline import Heuristic
-from random_action import RandomAction
-from hierarchical_keypoints import Hierarchical_kp
-from bc import BC
-from multi_head import MultiHead
+from oracle import Oracle
+#from hierarchical_descriptors import Hierarchical
+#from baseline import Heuristic
+#from random_action import RandomAction
+#from hierarchical_keypoints import Hierarchical_kp
 
 def run_untangling_rollout(policy, params):
     set_animation_settings(15000)
@@ -47,67 +48,74 @@ def run_untangling_rollout(policy, params):
 
     reid_end = policy.reidemeister(knot_end_frame, render=True, render_offset=render_offset)
     num_actions += 1
-    reid_flag = 1
     undo_end_frame = reid_end
 
     bbox, _ = policy.bbox_untangle(undo_end_frame, render_offset=render_offset)
     while bbox is not None:
         undone = False
-        i = 0
-        while not undone and i < 10:
-            try: # if rope goes out of frame, take a reid move
-                undo_end, pull, hold, action_vec = policy.undo(undo_end_frame, render=True, render_offset=render_offset)
-                undone = policy.policy_undone_check(undo_end, pull, hold, action_vec, render_offset=render_offset)
-                undo_end_frame = undo_end
-                reid_flag = 0
-                num_actions += 1
-            except:
-                undo_end_frame = policy.reidemeister(undo_end_frame, render=True, render_offset=render_offset)
-                reid_flag = 1
-                num_actions += 1
-            i += 1
-            if num_actions == 29:
-                undo_end_frame = policy.reidemeister(undo_end_frame, render=True, render_offset=render_offset)
-                num_actions += 1
-                return
-        if not reid_flag:
-            undo_end_frame = policy.reidemeister(undo_end_frame, render=True, render_offset=render_offset)
-            num_actions += 1
-        bbox, _ = policy.bbox_untangle(undo_end_frame, render_offset=render_offset)
-
+        ### TESTING 
+        undo_end, pull, hold, action_vec = policy.undo(undo_end_frame, render=True, render_offset=render_offset)
+        undone = policy.policy_undone_check(undo_end, pull, hold, action_vec, render_offset=render_offset)
+        undo_end_frame = undo_end
+        num_actions += 1
+        ### 
+        # i = 0
+        # #while not undone and i < 10:
+        # while not undone and i < 2:
+        #     try: # if rope goes out of frame, take a reid move
+        #         undo_end, pull, hold, action_vec = policy.undo(undo_end_frame, render=True, render_offset=render_offset)
+        #         undone = policy.policy_undone_check(undo_end, pull, hold, action_vec, render_offset=render_offset)
+        #         undo_end_frame = undo_end
+        #         num_actions += 1
+        #     except:
+        #         undo_end_frame = policy.reidemeister(undo_end_frame, render=True, render_offset=render_offset)
+        #         num_actions += 1
+        #     i += 1
+        #     if num_actions == 29:
+        #         undo_end_frame = policy.reidemeister(undo_end_frame, render=True, render_offset=render_offset)
+        #         num_actions += 1
+        #         return
+        # undo_end_frame = policy.reidemeister(undo_end_frame, render=True, render_offset=render_offset)
+        # num_actions += 1
+        # bbox, _ = policy.bbox_untangle(undo_end_frame, render_offset=render_offset)
+        return #TESTING
 
 if __name__ == '__main__':
-
-    if not os.path.exists("./preds"):
-        os.makedirs('./preds')
-    else:
-        os.system('rm -r ./preds')
-        os.makedirs('./preds')
-
     with open("rigidbody_params.json", "r") as f:
         params = json.load(f)
-
-    BASE_DIR = os.getcwd()
-    DESCRIPTOR_DIR = os.path.join(BASE_DIR, 'dense_correspondence')
-    KP_DIR = os.path.join(BASE_DIR, 'keypoints_dir')
-    BBOX_DIR = os.path.join(BASE_DIR, 'mrcnn_bbox', 'networks')
-    BC_DIR = os.path.join(BASE_DIR, 'bc_networks')
-    MH_DIR = os.path.join(BASE_DIR, 'multi_head')
-    path_to_refs = os.path.join(BASE_DIR, 'references', params["texture"])
-
-    # policy = Oracle(params)
-    # policy = Hierarchical(path_to_refs, DESCRIPTOR_DIR, BBOX_DIR, params)
-    policy = Heuristic(path_to_refs, BBOX_DIR, params)
-    # policy = RandomAction(path_to_refs, BBOX_DIR, params)
-    # policy = Hierarchical_kp(path_to_refs, KP_DIR, BBOX_DIR, params)
-    # policy = BC(path_to_refs, BC_DIR, params)
-    # policy = MultiHead(path_to_refs, MH_DIR, params)
-
     clear_scene()
     make_capsule_rope(params)
-    if not params["texture"] == "capsule":
-        rig_rope(params, braid=params["texture"]=="braid")
     add_camera_light()
     set_render_settings(params["engine"],(params["render_width"],params["render_height"]))
     make_table(params)
+
+    use_grippers = True
+
+    if use_grippers:
+        print("MAKING GRIPPER")
+        base_a = import_mesh("/Users/vainaviv/Documents/GitHub/dynamic-rope-sim/GripperSTL/ACTION_BASE.STL", "-Z", scale = 0.02)
+        bpy.ops.object.origin_set(type="ORIGIN_GEOMETRY")
+        finger1_a = import_mesh("/Users/vainaviv/Documents/GitHub/dynamic-rope-sim/GripperSTL/ACTION_Finger1.STL", "-Z", scale = 0.02)
+        bpy.ops.object.origin_set(type="ORIGIN_GEOMETRY")
+        finger2_a = import_mesh("/Users/vainaviv/Documents/GitHub/dynamic-rope-sim/GripperSTL/ACTION_Finger2.STL", "-Z", scale = 0.02)
+        bpy.ops.object.origin_set(type="ORIGIN_GEOMETRY")
+
+        base_h = import_mesh("/Users/vainaviv/Documents/GitHub/dynamic-rope-sim/GripperSTL/HOLD_BASE.STL", "-Z", scale = 0.02)
+        bpy.ops.object.origin_set(type="ORIGIN_GEOMETRY")
+        finger1_h = import_mesh("/Users/vainaviv/Documents/GitHub/dynamic-rope-sim/GripperSTL/HOLD_Finger1.STL", "-Z", scale = 0.02)
+        bpy.ops.object.origin_set(type="ORIGIN_GEOMETRY")
+        finger2_h = import_mesh("/Users/vainaviv/Documents/GitHub/dynamic-rope-sim/GripperSTL/HOLD_Finger2.STL", "-Z", scale = 0.02)
+        bpy.ops.object.origin_set(type="ORIGIN_GEOMETRY")
+
+        gripper_action = YumiGripper(base_a, finger1_a, finger2_a)
+        gripper_hold = YumiGripper(base_h, finger1_h, finger2_h)
+
+        policy = Oracle(params, use_grippers)
+    else:
+        policy = Oracle(params)
+        # policy = Hierarchical(path_to_refs, DESCRIPTOR_DIR, BBOX_DIR, params)
+        # policy = Heuristic(path_to_refs, BBOX_DIR, params)
+        # policy = RandomAction(path_to_refs, BBOX_DIR, params)
+        # policy = Hierarchical_kp(path_to_refs, KP_DIR, BBOX_DIR, params)
+
     run_untangling_rollout(policy, params)

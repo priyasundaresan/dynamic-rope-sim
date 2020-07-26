@@ -11,6 +11,7 @@ from render import *
 #from image_utils import *
 from rigidbody_rope import *
 from knots import *
+from yumi_gripper import *
 
 def render_frame(frame, render_offset=0, step=2, num_annotations=400, filename="%06d_rgb.png", folder="images"):
     # Renders a single frame in a sequence (if frame%step == 0)
@@ -106,7 +107,7 @@ def random_perturb(start_frame, params, render=False, render_offset=0):
     mid_frame = start_frame + 30
     end_frame = start_frame + 60
 
-    take_action(pull_cyl, mid_frame, (dx,dy,dz))
+    #take_action(pull_cyl, mid_frame, (dx,dy,dz))
     toggle_animation(pull_cyl, mid_frame, False)
     for step in range(start_frame, end_frame+1):
         bpy.context.scene.frame_set(step)
@@ -114,20 +115,45 @@ def random_perturb(start_frame, params, render=False, render_offset=0):
             render_frame(step, render_offset=render_offset)
     return end_frame
 
-def take_undo_action(start_frame, pull_idx, hold_idx, norm_action_vec, render=False, render_offset=0, scale_action=True, hold_flag=True):
+def take_undo_action(start_frame, pull_idx, hold_idx, norm_action_vec, use_grippers, render=False, render_offset=0):
     piece = "Cylinder"
-    action_vec = norm_action_vec*3 if scale_action else norm_action_vec
+    action_vec = norm_action_vec*3
     pull_cyl = get_piece(piece, pull_idx)
+    print("pull index: " + str(pull_idx))
+    print("pull cylinder: " + str(pull_cyl))
     hold_cyl = get_piece(piece, hold_idx)
 
     ## Undoing
-    if abs(hold_idx - pull_idx) > 5 and hold_flag:
-        take_action(hold_cyl, start_frame + 100, (0,0,0))
+    if abs(hold_idx - pull_idx) > 5:
+        if use_grippers:
+            base = bpy.data.objects["HOLD BASE"]
+            bpy.ops.object.origin_set(type="ORIGIN_GEOMETRY")
+            finger1 = bpy.data.objects["HOLD Finger1"]
+            bpy.ops.object.origin_set(type="ORIGIN_GEOMETRY")
+            finger2 = bpy.data.objects["HOLD Finger2"]
+            bpy.ops.object.origin_set(type="ORIGIN_GEOMETRY")
+            hold_gripper = YumiGripper(base, finger1, finger2)
+            hold_gripper.hold(hold_cyl, start_frame + 100)
+        else:
+            take_action(hold_cyl, start_frame + 100, (0,0,0))
     for step in range(start_frame, start_frame+10):
         bpy.context.scene.frame_set(step)
         if render:
             render_frame(step, render_offset=render_offset, step=1)
-    take_action(pull_cyl, start_frame + 100, action_vec)
+
+    if use_grippers:
+        base = bpy.data.objects["ACTION BASE"]
+        bpy.ops.object.origin_set(type="ORIGIN_GEOMETRY")
+        finger1 = bpy.data.objects["ACTION Finger1"]
+        bpy.ops.object.origin_set(type="ORIGIN_GEOMETRY")
+        finger2 = bpy.data.objects["ACTION Finger2"]
+        bpy.ops.object.origin_set(type="ORIGIN_GEOMETRY")
+        action_gripper = YumiGripper(base, finger1, finger2)
+        print("Calling pick place for action gripper")
+        action_gripper.pick_place(pull_cyl, start_frame + 100, action_vec, pick_height=0)
+        print("Pulling this cylinder now: " + str(pull_cyl))
+    else: 
+        take_action(pull_cyl, start_frame + 100, action_vec)
 
     ## Release both pull, hold
     toggle_animation(pull_cyl, start_frame + 100, False)
@@ -136,45 +162,67 @@ def take_undo_action(start_frame, pull_idx, hold_idx, norm_action_vec, render=Fa
     settle_time = 10
     # Let the rope settle after the action, so we can know where the ends are afterwards
     for step in range(start_frame + 10, start_frame + 200 + settle_time+1):
+    # for step in range(start_frame, start_frame + 200 + settle_time+1):
         bpy.context.scene.frame_set(step)
         if render:
-            # render_frame(step, render_offset=render_offset, step=1)
-            render_frame(step, render_offset=render_offset, step=4)
+            render_frame(step, render_offset=render_offset, step=1)
 
     return start_frame+200+settle_time, action_vec
 
-def reidemeister_right(start_frame, end1_idx, end2_idx, render=False, render_offset=0):
+def reidemeister_right(start_frame, end1_idx, end2_idx, use_grippers, render=False, render_offset=0):
     piece = "Cylinder"
     end1 = get_piece(piece, end1_idx)
     end2 = get_piece(piece, end2_idx)
     middle_up_frame = start_frame+50
-    middle_move_frame = middle_up_frame+70
+    middle_move_frame = middle_up_frame+100
     end_frame = middle_move_frame+50
-    take_action(end1, middle_up_frame, (0,0,2))
-    take_action(end1, middle_move_frame, (17-end1.matrix_world.translation[0],0-end1.matrix_world.translation[1],0))
-    take_action(end1, end_frame, (0,0,-2))
+    if use_grippers:
+        base = bpy.data.objects["ACTION BASE"]
+        bpy.ops.object.origin_set(type="ORIGIN_GEOMETRY")
+        finger1 = bpy.data.objects["ACTION Finger1"]
+        bpy.ops.object.origin_set(type="ORIGIN_GEOMETRY")
+        finger2 = bpy.data.objects["ACTION Finger2"]
+        bpy.ops.object.origin_set(type="ORIGIN_GEOMETRY")
+        action_gripper = YumiGripper(base, finger1, finger2)
+        bpy.context.view_layer.update()
+        action_gripper.pick_place(end1, end_frame, (17-end1.matrix_world.translation[0],0-end1.matrix_world.translation[1],0))
+    else:
+        take_action(end1, middle_up_frame, (0,0,2))
+        take_action(end1, middle_move_frame, (17-end1.matrix_world.translation[0],0-end1.matrix_world.translation[1],0))
+        take_action(end1, end_frame, (0,0,-2))
     for step in range(start_frame, end_frame+1):
         bpy.context.scene.frame_set(step)
         if render:
-            # render_frame(step, render_offset=render_offset, step=1)
-            render_frame(step, render_offset=render_offset, step=4)
+            render_frame(step, render_offset=render_offset, step=1)
     toggle_animation(end1, end_frame, False)
     return end_frame
 
-def reidemeister_left(start_frame, end1_idx, end2_idx, render=False, render_offset=0):
+def reidemeister_left(start_frame, end1_idx, end2_idx, use_grippers, render=False, render_offset=0):
     piece = "Cylinder"
-    end_frame = start_frame + 70
+    #end_frame = start_frame + 70
+    end_frame = start_frame + 170
     end2 = get_piece(piece, end2_idx)
-    take_action(end2, end_frame, (-8-end2.matrix_world.translation[0],0-end2.matrix_world.translation[1],0))
+    if use_grippers:
+        base = bpy.data.objects["HOLD BASE"]
+        bpy.ops.object.origin_set(type="ORIGIN_GEOMETRY")
+        finger1 = bpy.data.objects["HOLD Finger1"]
+        bpy.ops.object.origin_set(type="ORIGIN_GEOMETRY")
+        finger2 = bpy.data.objects["HOLD Finger2"]
+        bpy.ops.object.origin_set(type="ORIGIN_GEOMETRY")
+        hold_gripper = YumiGripper(base, finger1, finger2)
+        bpy.context.view_layer.update()
+        hold_gripper.pick_place(end2, end_frame, (-8-end2.matrix_world.translation[0],0-end2.matrix_world.translation[1],0), pick_height=0)
+    else:
+        take_action(end2, end_frame, (-8-end2.matrix_world.translation[0],0-end2.matrix_world.translation[1],0))
     # Drop the ends
     toggle_animation(end2, end_frame, False)
 
-    settle_time = 10
+    # settle_time = 10
+    settle_time = 50
     for step in range(start_frame, end_frame+settle_time+1):
         bpy.context.scene.frame_set(step)
         if render:
-            # render_frame(step, render_offset=render_offset, step=1)
-            render_frame(step, render_offset=render_offset, step=4)
+            render_frame(step, render_offset=render_offset, step=1)
     return end_frame+settle_time
 
 def undone_check(start_frame, prev_pull, prev_hold, prev_action_vec, end1_idx, end2_idx, render_offset=0):
