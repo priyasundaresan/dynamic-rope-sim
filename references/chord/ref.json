@@ -14,5 +14,6 @@
     "ends_kp": "kpt_chord_ends_2_e20",
     "knot_kp": "kpt_chord_ph_e20",
     "bc": "bc_test_model",
-    "multi_head": "test" 
+    "multi_head": "undo_reid_term", 
+    "multi_head_kpt": "undo_reid_termGAUSS_KPTS_ONLY"
 }
