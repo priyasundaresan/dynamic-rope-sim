@@ -64,7 +64,7 @@ def create_pixelannot_xml(annotation_idx, pixel):
     with open(xml_file_name, "w") as f:
         f.write(xmlstr)
 
-def annotate(frame, mapping, num_annotations, knot_only=True, end_only=False, export_hold_pixel=True, offset=1):
+def annotate(frame, mapping, num_annotations, knot_only=False, end_only=False, export_hold_pixel=False, offset=1):
     '''Gets num_annotations annotations of cloth image at provided frame #, adds to mapping'''
     scene = bpy.context.scene
     render_scale = scene.render.resolution_percentage / 100
@@ -90,8 +90,8 @@ def annotate(frame, mapping, num_annotations, knot_only=True, end_only=False, ex
     for i in indices:
         cyl = get_piece("Cylinder", i if i != 0 else -1)
         cyl_verts = list(cyl.data.vertices)
-        #step_size = len(indices)*len(cyl_verts)//num_annotations
-        step_size = 1
+        step_size = len(indices)*len(cyl_verts)//num_annotations
+        #step_size = 1
         vertex_coords = [cyl.matrix_world @ v.co for v in cyl_verts][::step_size]
         for i in range(len(vertex_coords)):
             v = vertex_coords[i]
@@ -203,7 +203,7 @@ def center_camera(randomize=True, flip=False):
     return
 
 
-def render_frame(frame, render_offset=0, step=2, num_annotations=100, filename="%06d_rgb.png", folder="images", annot=True, mapping=None):
+def render_frame(frame, render_offset=0, step=2, num_annotations=500, filename="%06d_rgb.png", folder="images", annot=True, mapping=None):
     global rig
     # Renders a single frame in a sequence (if frame%step == 0)
     frame -= render_offset
@@ -479,7 +479,7 @@ if __name__ == '__main__':
     add_camera_light()
     set_render_settings(params["engine"],(params["render_width"],params["render_height"]))
     make_table(params)
-    generate_dataset(params, iters=1, render=True)
+    generate_dataset(params, iters=150, render=True)
 
 #    os.mkdir('./cap_pull')
 #    os.system('mv ./images ./cap_pull')

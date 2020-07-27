@@ -9,6 +9,7 @@ import sys
 sys.path.append(os.getcwd())
 
 from rigidbody_rope import *
+from dr_utils import *
 from sklearn.neighbors import NearestNeighbors
 from knots import tie_pretzel_knot, tie_stevedore, tie_figure_eight, tie_double_pretzel
 
@@ -45,6 +46,7 @@ def set_render_settings(engine, render_size):
         scene.eevee.taa_samples = 1
         scene.view_settings.view_transform = 'Raw'
         scene.eevee.taa_render_samples = 1
+        scene.render.image_settings.file_format='JPEG'
 
 def create_labimg_xml(annotation_idx, annotation_list):
     scene = bpy.context.scene
@@ -210,21 +212,50 @@ def find_knot(num_segments, chain=False, num_knots=1, depth_thresh=0.43, idx_thr
     return knots
     #return -1, last, [0,0,0] # Didn't find a pull/hold
 
+
 def randomize_camera():
-    #rot = np.random.uniform(-pi/12, pi/12)
-    rot = np.random.uniform(-pi/6, pi/6) + random.choice((0, np.pi))
-    xoffset = 0.2
-    yoffset = 0.2
-    zoffset = 0.2
-    dx = np.random.uniform(-xoffset, xoffset)
+    #ANGLE_DIVS = 55
+    ANGLE_DIVS = 35
+    xrot = np.random.uniform(-pi/ANGLE_DIVS, pi/ANGLE_DIVS) 
+    yrot = np.random.uniform(-pi/ANGLE_DIVS, pi/ANGLE_DIVS) 
+    zrot = np.random.uniform(-pi/6, pi/6) 
+    xoffset = 1.5
+    yoffset = 1.5
+    zoffset = 1.5
+    #zoffset = 10
+    dx = np.random.uniform(-(xoffset+3.5), xoffset)
     dy = np.random.uniform(-yoffset, yoffset)
-    dz = np.random.uniform(-zoffset, zoffset)
-    #bpy.context.scene.camera.rotation_euler = (0, 0, rot)
-    #bpy.context.scene.camera.location = Vector((2,0,28)) + Vector((dx, dy, dz))
+    dz = np.random.uniform(-18, 1)
+    bpy.context.scene.camera.rotation_euler = (xrot, yrot, zrot)
+    bpy.context.scene.camera.location = Vector((2,0,28)) + Vector((dx, dy, dz))
+
+#def randomize_camera():
+#    #rot = np.random.uniform(-pi/12, pi/12)
+#    rot = np.random.uniform(-pi/6, pi/6) + random.choice((0, np.pi))
+#    xoffset = 0.2
+#    yoffset = 0.2
+#    zoffset = 0.2
+#    dx = np.random.uniform(-xoffset, xoffset)
+#    dy = np.random.uniform(-yoffset, yoffset)
+#    dz = np.random.uniform(-zoffset, zoffset)
+#    bpy.context.scene.camera.rotation_euler = (0, 0, rot)
+#    bpy.context.scene.camera.location = Vector((2,0,28)) + Vector((dx, dy, dz))
     
 def render_frame(frame, render_offset=0, step=5, filename="%05d.jpg", folder="images", annot=True, num_knots=1, mapping=None):
     # Renders a single frame in a sequence (if frame%step == 0)
+    global rig
+    randomize_light()
+    table = bpy.data.objects["Plane"]
+    if random.random() < 0.33:
+        texture_randomize(table, 'dr_data/val2017')
+    elif random.random() < 0.66:
+        texture_randomize(table, 'dr_data/fabrics')
+    else:
+        color_randomize(table)
+    color = (np.random.uniform(0.7,1.0),np.random.uniform(0.7,1.0),np.random.uniform(0.7,1.0))
+    color_randomize(rig, color=color)
     randomize_camera()
+
     frame -= render_offset
     if frame%step == 0:
         scene = bpy.context.scene
@@ -383,7 +414,7 @@ def generate_dataset(params, chain=False, render=False):
 
     render_offset = 0
     num_loosens = 4
-    for i in range(2):
+    for i in range(30):
         num_knots = 1
         if i%6==0:
             knot_end_frame = tie_pretzel_knot(params, render=False)
@@ -412,7 +443,7 @@ if __name__ == '__main__':
     clear_scene()
     #make_rope(params)
     make_capsule_rope(params)
-    rig_rope(params)
+    rig = rig_rope(params, braid=1)
     add_camera_light()
     set_render_settings(params["engine"],(params["render_width"],params["render_height"]))
     make_table(params)

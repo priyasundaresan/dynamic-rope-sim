@@ -87,6 +87,37 @@ def tie_pretzel_knot(params, chain=False, render=False):
         #    render_frame(step, render_offset=render_offset)
     return 350
 
+def tie_loose_pretzel(params, chain=False, render=False):
+
+    piece = "Cylinder"
+    last = params["num_segments"]-1
+    end1 = get_piece(piece, -1)
+    end2 = get_piece(piece, last)
+    for i in range(last+1):
+        obj = get_piece(piece, i if i != 0 else -1)
+        take_action(obj, 1, (0,0,0), animate=(i==0 or i==last))
+
+    # Wrap endpoint one circularly around endpoint 2
+    take_action(end2, 80, (10,0,0))
+    take_action(end1, 80, (-15,5,0))
+    take_action(end1, 120, (-1,-7,0))
+    take_action(end1, 150, (3,0,-4))
+    take_action(end1, 170, (0,2.5,0))
+
+    # Thread endpoint 1 through the loop (downward)
+    take_action(end1, 180, (0,0,-2))
+    take_action(end1, 200, (8,0,2))
+    take_action(end2, 200, (0,0,0))
+    toggle_animation(end1, 200, False)
+    toggle_animation(end2, 200, False)
+
+    ## Reidemeister
+    for step in range(1, 350):
+        bpy.context.scene.frame_set(step)
+        #if render:
+        #    render_frame(step, render_offset=render_offset)
+    return 350
+
 def tie_figure_eight(params, chain=False, render=False):
 
     piece = "Cylinder"
@@ -324,17 +355,43 @@ def tie_cornell2_knot(params, chain=False, render=False):
         end_frame = rend.random_loosen(params, end_frame, render=render, mapping={}, annot=False)
     return end_frame
 
+def perturb_knot(params, start_frame):
+    piece = "Cylinder"
+    last = params["num_segments"]-1
+    end1 = get_piece(piece, -1)
+    end2 = get_piece(piece, last)
+    if random.random() < 0.5:
+        x_off = np.random.uniform(5,10)
+        z_off = np.random.uniform(10,15)
+        take_action(end1, start_frame+100, (-x_off,0,z_off))
+        take_action(end1, start_frame+200, (x_off,0,-z_off/2))
+        toggle_animation(end1, start_frame+200, False)
+    else:
+        x_off = np.random.uniform(5,10)
+        z_off = np.random.uniform(10,15)
+        take_action(end2, start_frame+100, (x_off,0,z_off))
+        take_action(end2, start_frame+200, (-x_off,0,-z_off/2))
+        toggle_animation(end2, start_frame+200, False)
+    for step in range(start_frame, start_frame+250):
+        bpy.context.scene.frame_set(step)
+        #if render:
+        #    render_frame(step, render_offset=render_offset)
+    return start_frame+250
+    
+
 if __name__ == '__main__':
     with open("rigidbody_params.json", "r") as f:
         params = json.load(f)
     clear_scene()
     make_capsule_rope(params)
-    rig_rope(params) # UNCOMMENT TO SEE CYLINDER REPR
+    rig_rope(params, braid=1) # UNCOMMENT TO SEE CYLINDER REPR
     add_camera_light()
+    add_gripper()
     set_animation_settings(600)
     make_table(params)
-    #tie_figure_eight(params, render=True)
     tie_pretzel_knot(params, render=True)
+    #end_frame = tie_pretzel_knot(params, render=True)
+    #perturb_knot(params, end_frame)
     # tie_stevedore(params, render=True)
     #tie_double_pretzel(params, render=True)
     #tie_cornell1_knot(params, render=False)

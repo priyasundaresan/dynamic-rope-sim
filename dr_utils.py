@@ -28,16 +28,14 @@ def add_camera_light(dr=True):
     bpy.context.scene.camera = bpy.context.object
 
 def randomize_light():
-    #print(list(bpy.data.objects))
     scene = bpy.context.scene
-    scene.view_settings.exposure = random.uniform(2.5,3.5)
+    scene.view_settings.exposure = random.uniform(2.5,4)
     light_data = bpy.data.lights['Light']
     light_data.color = tuple(np.random.uniform(0,1,3))
     light_data.energy = np.random.uniform(300,500)
-    light_data.shadow_color = tuple(np.random.uniform(0,1,3))
+    light_data.shadow_color = tuple(np.random.uniform(0.7,1,3))
     light_obj = bpy.data.objects['LightObj']
     light_obj.data.color = tuple(np.random.uniform(0.7,1,3))
-    #light_obj.location += Vector(np.random.uniform(-0.25,0.25,3).tolist())
     light_obj.location = Vector(np.random.uniform(-4,4,3).tolist())
     light_obj.location[2] = np.random.uniform(4,7)
     light_obj.rotation_euler[0] += np.random.uniform(-np.pi/4, np.pi/4)
@@ -56,19 +54,21 @@ def randomize_camera():
 def randomize_rig(rig, mode="capsule", ):
     if mode=="capsule":
         rig = bpy.data.objects['BezierCircle']
-        new_scale = np.random.uniform(0.5,1.25)
+        #new_scale = np.random.uniform(0.5,1.25)
+        #new_scale = np.random.uniform(0.5,0.9)
+        new_scale = np.random.uniform(0.4,0.85)
         rig.scale = (new_scale, new_scale, new_scale)
     else:
-        pass
-        #circle = bpy.data.objects["Circle.003"]
-        #sx,sy,sz = circle.scale
-        #sy = np.random.uniform(0.06,0.15)
-        #sy = sx
-        #circle.scale = (sx,sy,sz)
-        #new_off = np.random.uniform(11,13)
-        #new_iter = np.random.uniform(14,16)
-        #rig.modifiers["Screw"].screw_offset = new_off
-        #rig.modifiers["Screw"].iterations = new_iter
+        new_scale = np.random.uniform(0.075, 0.125)
+        _, _, z_scale = rig.scale
+        rig.scale = (new_scale, new_scale, z_scale)
+        orig_screw_offset = 13.5
+        orig_iterations = 15.97
+        SCALE = orig_screw_offset * orig_iterations
+        new_off = np.random.uniform(0.5*orig_screw_offset, 1.5*orig_screw_offset)
+        new_iter = SCALE/new_off
+        rig.modifiers["Screw"].screw_offset = new_off
+        rig.modifiers["Screw"].iterations = new_iter
 
 def pattern(obj, texture_filename):
     '''Add image texture to object (don't create new materials, just overwrite the existing one if there is one)'''
@@ -96,11 +96,15 @@ def texture_randomize(obj, textures_folder):
     img_filepath = os.path.join(textures_folder, rand_img_path)
     pattern(obj, img_filepath)
 
-def color_randomize(obj, color=None):
-    if color is None:
+def color_randomize(obj, color=None, color_range=None):
+    if color_range is not None:
+        low,high = color_range
+        r,g,b = np.random.uniform(low,high,3)
+    elif color is None:
         r,g,b = np.random.uniform(0,1,3)
     else:   
-        r,g,b = np.array(color) + np.random.standard_normal(3)/10.0
+        noise = (np.random.standard_normal(3))/7.0
+        r,g,b = np.array(color) + noise
     color = [r,g,b,1]
     if '%sColor' % obj.name in bpy.data.materials:
         mat = bpy.data.materials['%sColor'%obj.name]

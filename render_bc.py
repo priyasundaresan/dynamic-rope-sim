@@ -53,7 +53,7 @@ def save_actions(annotation_idx, annotation_list):
     np_annotations = np.array(annotation_list)
     np.save('actions/%05d.npy'%annotation_idx, np_annotations)
 
-def find_knot(num_segments, chain=False, depth_thresh=0.4, idx_thresh=3, pull_offset=3):
+def find_knot(num_segments, chain=False, depth_thresh=0.35, idx_thresh=3, pull_offset=3):
 
     piece = "Torus" if chain else "Cylinder"
     cache = {}
@@ -90,10 +90,9 @@ def find_knot(num_segments, chain=False, depth_thresh=0.4, idx_thresh=3, pull_of
             return pull_idx, hold_idx, action_vec # Found! Return the pull, hold, and action
     return 16, 25, [0,0,0] # Didn't find a pull/hold
 
-def annotate(frame, offset=4, num_knots=1):
+def annotate(frame, offset=4, annotate_undone_check=False, annotate_end_episode=False):
     # knot_only = True:  means only record the under, over crossings
     # knot_only = False:  means record annotations for full rope
-    '''Gets num_annotations annotations of cloth image at provided frame #, adds to mapping'''
     scene = bpy.context.scene
     render_size = (
             int(scene.render.resolution_x),
@@ -101,17 +100,23 @@ def annotate(frame, offset=4, num_knots=1):
             )
     annot_list = []
     pull_idx, hold_idx, action_vec = find_knot(50)
-    action_vec /= np.linalg.norm(action_vec)
-    action_vec *= 2.5
-    pull_loc = get_piece("Cylinder", pull_idx).matrix_world.translation
-    pull_offset = pull_loc + Vector(action_vec)
-    hold_loc = get_piece("Cylinder", hold_idx).matrix_world.translation
-    locs = [pull_loc, pull_offset, hold_loc]
+    if action_vec != [0,0,0]:
+        action_vec /= np.linalg.norm(action_vec)
+        action_vec *= 2.5
+    undone_flag = int(annotate_undone_check)
+    end_episode_flag = int(annotate_end_episode)
+    end1_loc = get_piece("Cylinder", 50-1).matrix_world.translation
+    pull_loc = get_piece("Cylinder", pull_idx if pull_idx else -1).matrix_world.translation
+    hold_loc = get_piece("Cylinder", hold_idx if hold_idx else -1).matrix_world.translation
+    end2_loc = get_piece("Cylinder", -1).matrix_world.translation
+    locs = [end1_loc, pull_loc, hold_loc, end2_loc]
     annotations = [] # [[x1,y1],[x2,y2],...
     for loc in locs:
         camera_coord = bpy_extras.object_utils.world_to_camera_view(scene, bpy.context.scene.camera, loc)
         x, y = [round(camera_coord.x * render_size[0]), round(render_size[1] - camera_coord.y * render_size[1])]
-        annotations.append([x,y])
+        annotations += [x,y]
+    annotations += [undone_flag]
+    annotations += [end_episode_flag]
     save_actions(frame, annotations)
 
 def get_piece(piece_name, piece_id):
@@ -144,16 +149,19 @@ def randomize_camera():
     xrot = np.random.uniform(-pi/ANGLE_DIVS, pi/ANGLE_DIVS) 
     yrot = np.random.uniform(-pi/ANGLE_DIVS, pi/ANGLE_DIVS) 
     zrot = np.random.uniform(-pi/6, pi/6) 
-    xoffset = 2
-    yoffset = 2
-    zoffset = 2
+    #xoffset = 2
+    #yoffset = 2
+    #zoffset = 2
+    xoffset = 1
+    yoffset = 1
+    zoffset = 1
     dx = np.random.uniform(-xoffset, xoffset)
     dy = np.random.uniform(-yoffset, yoffset)
     dz = np.random.uniform(-zoffset, zoffset)
     bpy.context.scene.camera.rotation_euler = (xrot, yrot, zrot)
     bpy.context.scene.camera.location = Vector((2,0,28)) + Vector((dx, dy, dz))
     
-def render_frame(frame, render_offset=0, step=10, filename="%05d.jpg", folder="images", annot=True, num_knots=1, mapping=None):
+def render_frame(frame, render_offset=0, step=10, filename="%05d.jpg", folder="images", annot=True, annotate_undone_check=False, annotate_end_episode=False):
     # DOMAIN RANDOMIZE
     global rig
     randomize_camera()
@@ -179,7 +187,7 @@ def render_frame(frame, render_offset=0, step=10, filename="%05d.jpg", folder="i
         scene.render.filepath = os.path.join(folder, filename) % index
         bpy.ops.render.render(write_still=True)
         if annot:
-            annotate(index)
+            annotate(index, annotate_undone_check=annotate_undone_check, annotate_end_episode=annotate_end_episode)
 
 def render_mask(mask_filename, depth_filename, index):
     # NOTE: this method is still in progress
@@ -218,7 +226,7 @@ def render_mask(mask_filename, depth_filename, index):
     scene.use_nodes = False
 
 
-def reidemeister(params, start_frame, render=False, render_offset=0, annot=True, num_knots=1, mapping=None):
+def reidemeister(params, start_frame, render=False, render_offset=0, annot=True):
 
     piece = "Cylinder"
     last = params["num_segments"]-1
@@ -228,12 +236,14 @@ def reidemeister(params, start_frame, render=False, render_offset=0, annot=True,
     middle_frame = start_frame+50
     end_frame = start_frame+100
 
-    take_action(end1, middle_frame, (np.random.uniform(9,11)-end1.matrix_world.translation[0],np.random.uniform(-3,3),0))
+    #take_action(end1, middle_frame, (np.random.uniform(9,11)-end1.matrix_world.translation[0],np.random.uniform(-3,3),0))
+    take_action(end1, middle_frame, (11-end1.matrix_world.translation[0],np.random.uniform(-3,3),0))
     for step in range(start_frame, middle_frame):
         bpy.context.scene.frame_set(step)
         if render:
-            render_frame(step, render_offset=render_offset, annot=annot, mapping=mapping, num_knots=num_knots)
-    take_action(end2, end_frame, (np.random.uniform(-6,-8)-end2.matrix_world.translation[0],np.random.uniform(-3,3),0))
+            render_frame(step, render_offset=render_offset, annot=annot)
+    #take_action(end2, end_frame, (np.random.uniform(-6,-8)-end2.matrix_world.translation[0],np.random.uniform(-3,3),0))
+    take_action(end2, end_frame, (-8-end2.matrix_world.translation[0],np.random.uniform(-3,3),0))
     # Drop the ends
 
     toggle_animation(end1, middle_frame, False)
@@ -243,10 +253,10 @@ def reidemeister(params, start_frame, render=False, render_offset=0, annot=True,
     for step in range(middle_frame, end_frame):
         bpy.context.scene.frame_set(step)
         if render:
-            render_frame(step, render_offset=render_offset, annot=annot, mapping=mapping, num_knots=num_knots)
+            render_frame(step, render_offset=render_offset, annot=annot)
     return end_frame
 
-def take_undo_action_oracle(params, start_frame, render=False, render_offset=0, annot=True, num_knots=1, mapping=None):
+def take_undo_action_oracle(params, start_frame, render=False, render_offset=0, annot=True):
     piece = "Cylinder"
     pull_idx, hold_idx, action_vec = find_knot(50)
     #action_vec = np.array(action_vec) + np.random.uniform(-0.5, 0.5, 3)
@@ -255,14 +265,15 @@ def take_undo_action_oracle(params, start_frame, render=False, render_offset=0, 
     action_vec *= 2.5
     pull_cyl = get_piece(piece, pull_idx if pull_idx else -1)
     hold_cyl = get_piece(piece, hold_idx if hold_idx else -1)
-    end_frame = start_frame + 100
+    #end_frame = start_frame + 100
+    end_frame = start_frame + 130
     take_action(hold_cyl, end_frame, (0,0,0))
 
     for step in range(start_frame, start_frame + 10):
         bpy.context.scene.frame_set(step)
-        #render_frame(step, render_offset=render_offset, annot=annot, mapping=mapping)
+        #render_frame(step, render_offset=render_offset, annot=annot)
         if render and (abs(step-start_frame) < 5 or abs(step-(start_frame+10)) < 5):
-            render_frame(step, render_offset=render_offset, annot=annot, mapping=mapping)
+            render_frame(step, render_offset=render_offset, annot=annot)
         elif render:
             render_offset += 1
 
@@ -274,39 +285,122 @@ def take_undo_action_oracle(params, start_frame, render=False, render_offset=0, 
 
     for step in range(start_frame + 10, end_frame+settle_time):
         bpy.context.scene.frame_set(step)
-        #render_frame(step, render_offset=render_offset, annot=annot, mapping=mapping)
+        #render_frame(step, render_offset=render_offset, annot=annot)
         if render and (abs(step-(start_frame+10)) < 2 or abs(step-(end_frame+settle_time)) < 2):
-            render_frame(step, render_offset=render_offset, annot=annot, mapping=mapping)
+            render_frame(step, render_offset=render_offset, annot=annot)
         elif render:
             render_offset += 1
-    return end_frame+settle_time, render_offset
+    return end_frame+settle_time, render_offset, pull_idx, hold_idx, action_vec
+
+
+def random_end_pick_place(params, start_frame, render=False, render_offset=0, annot=True):
+
+    piece = "Cylinder"
+    last = params["num_segments"]-1
+    end1 = get_piece(piece, -1)
+    end2 = get_piece(piece, last)
+    
+    dx1 = np.random.uniform(-5,0)
+    dy1 = np.random.uniform(-2,2)
+    dz1 = np.random.uniform(4,6)
+    #dz1 = np.random.uniform(0,0)
+
+    dx2 = np.random.uniform(0,5)
+    dy2 = np.random.uniform(-2,2)
+    dz2 = np.random.uniform(4,6)
+    #dz2 = np.random.uniform(0,0)
+
+    middle_frame = start_frame+25
+    end_frame = start_frame+50
+    end1_first = random.random() > 0.5
+
+    take_action(end1, middle_frame, (dx1,dy1,dz1))
+    for step in range(start_frame, middle_frame):
+        bpy.context.scene.frame_set(step)
+        if render:
+            render_frame(step, render_offset=render_offset, annot=annot)
+    take_action(end2, end_frame, (dx2,dy2,dz2))
+    toggle_animation(end1, middle_frame, False)
+    toggle_animation(end2, end_frame-10, False)
+
+    for step in range(middle_frame, end_frame+20):
+        bpy.context.scene.frame_set(step)
+        if render:
+            render_frame(step, render_offset=render_offset, annot=annot)
+    return end_frame+20
+
+def undone_check(pull_idx, hold_idx, prev_action_vec):
+    piece = "Cylinder"
+    pull_cyl = get_piece(piece, pull_idx if pull_idx else -1)
+    hold_cyl = get_piece(piece, hold_idx if hold_idx else -1)
+
+    end_cyl = get_piece(piece, -1)
+    end_loc = end_cyl.matrix_world.translation
+    hold_loc = hold_cyl.matrix_world.translation
+    pull_loc = pull_cyl.matrix_world.translation
+
+    prev_action_vec = prev_action_vec[:-1]/np.linalg.norm(prev_action_vec[:-1])
+    end_hold_vec = np.array(end_loc - hold_loc)[:-1]/np.linalg.norm(np.array(end_loc - hold_loc)[:-1])
+    thresh = 3
+    dist = np.linalg.norm(end_loc - hold_loc)
+    #if np.dot(prev_action_vec, end_hold_vec) > 0.7 and dist < thresh:
+    if np.dot(prev_action_vec, end_hold_vec) > 0.75:
+        return True
+    return False
 
 def generate_dataset(iters, params, chain=False, render=False):
 
     set_animation_settings(15000)
     piece = "Cylinder"
     last = params["num_segments"]-1
-    mapping = None
 
     render_offset = 0
-    num_loosens = 4
+    #num_loosens = 4
+    num_loosens = 6
     for i in range(iters):
         print("Iter %d of %d" % (i,iters))
         num_knots = 1
-        if i%2==0:
+        if i%3==0:
             knot_end_frame = tie_pretzel_knot(params, render=False)
-        elif i%2==1:
+        elif i%3==1:
             knot_end_frame = tie_figure_eight(params, render=False)
+        else:
+            knot_end_frame = tie_double_pretzel(params, render=False)
+            num_knots = 2
+        knot_end_frame = random_end_pick_place(params, knot_end_frame, render=False)
         render_offset += knot_end_frame
-        reid_end_frame = reidemeister(params, knot_end_frame, render=render, render_offset=render_offset, num_knots=num_knots, mapping=mapping)
-        perturb_end_frame = random_perturb(reid_end_frame, params, render=False)
-        render_offset += perturb_end_frame - reid_end_frame
-        start = perturb_end_frame
-        for i in range(num_loosens):
-            loosen_end_frame, offset = take_undo_action_oracle(params, start, render=render, render_offset=render_offset, num_knots=num_knots, mapping=mapping)
+        reid_end_frame = reidemeister(params, knot_end_frame, render=render, render_offset=render_offset)
+        #perturb_end_frame = random_perturb(reid_end_frame, params, render=False)
+        #render_offset += perturb_end_frame - reid_end_frame
+        #start = perturb_end_frame
+
+        start = reid_end_frame
+        #for i in range(num_loosens):
+
+        undone = False
+        while not undone:
+            #annotate_reid = i==(num_loosens-1)
+            loosen_end_frame, offset, pull_idx, hold_idx, action_vec = take_undo_action_oracle(params, \
+                                            start, \
+                                            render=render, \
+                                            render_offset=render_offset, \
+                                            )
             start = loosen_end_frame
             render_offset = offset
-        render_offset -= loosen_end_frame
+            undone = undone_check(pull_idx,hold_idx,action_vec)
+        # Take one more loosening action for good measure
+        loosen_end_frame, offset, pull_idx, hold_idx, action_vec = take_undo_action_oracle(params, \
+                                            start, \
+                                            render=render, \
+                                            render_offset=render_offset, \
+                                            )
+        render_offset = offset
+        #render_offset -= loosen_end_frame
+        loosen_buffer = loosen_end_frame + 60
+        for step in range(loosen_end_frame, loosen_buffer):
+            bpy.context.scene.frame_set(step)
+            render_frame(step, render_offset=render_offset, annot=True, annotate_undone_check=True, annotate_end_episode=(num_knots==1)) # Notice annotate_undone_check set to True
+        render_offset -= loosen_buffer
         bpy.context.scene.frame_set(0)
         for a in bpy.data.actions:
             bpy.data.actions.remove(a)
@@ -316,12 +410,12 @@ if __name__ == '__main__':
         params = json.load(f)
     clear_scene()
     make_capsule_rope(params)
-    rig = rig_rope(params, braid=0)
+    rig = rig_rope(params, braid=1)
     add_camera_light()
     set_render_settings(params["engine"],(params["render_width"],params["render_height"]))
     make_table(params)
     start = time.time()
-    iters = 25
+    iters = 200
     generate_dataset(iters, params, render=True)
     end = time.time()
     print("time", end-start)

@@ -19,6 +19,13 @@ def add_camera_light():
     bpy.ops.object.camera_add(location=(2,0,28), rotation=(0,0,0))
     bpy.context.scene.camera = bpy.context.object
 
+def add_gripper():
+    bpy.ops.import_scene.obj(filepath='/Users/priyasundaresan/Downloads/priyayumi.obj')
+    obj = bpy.context.object
+    obj.scale = (3,3,3)
+    obj.location[0] -= 2
+    return obj
+
 def clear_scene():
     '''Clear existing objects in scene'''
     for block in bpy.data.meshes:
@@ -134,12 +141,14 @@ def make_braid_rig(params, bezier):
     bpy.ops.object.modifier_add(type='SCREW')
     rope = bpy.context.object
     rope.rotation_euler = (0,pi/2,0)
-    rope.modifiers["Screw"].screw_offset = 12 # Arbitrary
-    rope.modifiers["Screw"].iterations = 15 # Arbitrary
+    rope.modifiers["Screw"].screw_offset = 13.5 # Arbitrary
+    #rope.modifiers["Screw"].screw_offset = 0 # Arbitrary
+    rope.modifiers["Screw"].iterations = 15.97 # Arbitrary
     bpy.ops.object.modifier_add(type='CURVE')
     rope.modifiers["Curve"].object = bezier
     rope.modifiers["Curve"].show_in_editmode = True
     rope.modifiers["Curve"].show_on_cage = True
+    print(rope.scale, rope.modifiers["Screw"].screw_offset, rope.modifiers["Screw"].iterations)
     return rope
 
 def make_cable_rig(params, bezier):

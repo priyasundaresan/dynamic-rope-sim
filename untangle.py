@@ -9,10 +9,10 @@ from rigidbody_rope import *
 
 # Load policies
 from oracle import Oracle
-from hierarchical_descriptors import Hierarchical
-from baseline import Heuristic
+#from hierarchical_descriptors import Hierarchical
+#from baseline import Heuristic
 from random_action import RandomAction
-from hierarchical_keypoints import Hierarchical_kp
+#from hierarchical_keypoints import Hierarchical_kp
 
 def run_untangling_rollout(policy, params):
     set_animation_settings(15000)
@@ -89,8 +89,8 @@ if __name__ == '__main__':
     # policy = Oracle(params)
     # policy = Hierarchical(path_to_refs, DESCRIPTOR_DIR, BBOX_DIR, params)
     # policy = Heuristic(path_to_refs, BBOX_DIR, params)
-    # policy = RandomAction(path_to_refs, BBOX_DIR, params)
-    policy = Hierarchical_kp(path_to_refs, KP_DIR, BBOX_DIR, params)
+    policy = RandomAction(path_to_refs, BBOX_DIR, params)
+    #policy = Hierarchical_kp(path_to_refs, KP_DIR, BBOX_DIR, params)
 
     clear_scene()
     make_capsule_rope(params)
