@@ -1,6 +1,5 @@
 import torch
 from torch.autograd import Variable
-import torch.nn.functional as f
 import matplotlib.pyplot as plt
 import cv2
 from datetime import datetime
@@ -24,35 +23,23 @@ class Prediction:
             
         heatmap = self.model.forward(Variable(imgs))
         return heatmap
-
-    def best_match(self, distribution):
-        distribution = distribution.T
-        width, height = distribution.shape
-        flattened_dist = distribution.ravel()
-        best_match = np.argmax(flattened_dist)
-        u = best_match % width
-        v = best_match % height
-        best_match_px = (u,v)
-        return best_match_px
     
-    def plot(self, img, heatmap, cls, cls_to_label, image_id=0):
+    def plot(self, img, heatmap, image_id=0, cls=None, classes=None):
         print("Running inferences on image: %d"%image_id)
-        label = cls_to_label[cls]
-        grayscale = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        heatmap_vis = []
-        for h in heatmap[0]:
-            #best_match_px = self.best_match(h)
-            y,x = np.where((h == np.amax(h)))
-            best_match_px = (x,y)
-            h = cv2.normalize(h, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
-            r = cv2.addWeighted(grayscale, 0.5, h, 0.5, 0)
-            try:
-                r = cv2.circle(r, best_match_px, 3, (0,0,0), -1)
-            except:
-                pass
-            heatmap_vis.append(r)
-        res1 = cv2.hconcat([heatmap_vis[0],heatmap_vis[-1]]) # endpoints (r1 = right, r4 = left)
-        res2 = cv2.hconcat([heatmap_vis[1],heatmap_vis[2]])
-        result = cv2.vconcat([res2,res1])
-        cv2.putText(result, label, (10, 55), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+        all_overlays = []
+        for i in range(self.num_keypoints):
+            h = heatmap[0][i]
+            pred_y, pred_x = np.unravel_index(h.argmax(), h.shape)
+            vis = cv2.normalize(h, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
+            vis = np.repeat(vis[:,:,np.newaxis], 3, axis=2)
+            #grayscale = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+            overlay = cv2.addWeighted(img, 0.3, vis, 0.7, 0)
+            overlay = cv2.circle(overlay, (pred_x,pred_y), 3, (255,50,0), -1)
+            all_overlays.append(overlay)
+        result1 = cv2.vconcat(all_overlays[:self.num_keypoints//2])
+        result2 = cv2.vconcat(all_overlays[self.num_keypoints//2:])
+        result = cv2.hconcat((result1, result2))
+        if cls is not None:
+            label = classes[cls]
+            cv2.putText(result, label, (10, 55), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
         cv2.imwrite('preds/out%04d.png'%image_id, result)

@@ -1,5 +1,4 @@
 import pickle
-import pprint
 import time
 import os
 import torch
@@ -11,108 +10,48 @@ from torch.utils.data import DataLoader
 from config import *
 from src.model import KeypointsGauss
 from src.dataset import KeypointsDataset, transform
-from src.plotting import plot_history
-
 MSE = torch.nn.MSELoss()
-bceLoss = nn.BCELoss()
-crossEntropyLoss = F.cross_entropy
+bceLoss = nn.BCELoss
+
+os.environ["CUDA_VISIBLE_DEVICES"]="5"
 
 def forward(sample_batched, model):
-    img, gt_gauss, cls = sample_batched
+    img, gt_gauss = sample_batched
     img = Variable(img.cuda() if use_cuda else img)
-    pred_gauss, cls_pred = model.forward(img)
-    cls_loss = crossEntropyLoss(cls_pred, cls.cuda().long()).double()
-    kpt_loss = bceLoss(pred_gauss.double(), gt_gauss)
-    cls_correct = torch.argmax(cls_pred).item() == cls.item()
-    return cls_loss, kpt_loss, cls_correct
+    pred_gauss = model.forward(img).double()
+    #pred_gauss = pred_gauss.view(pred_gauss.shape[0], 4, 640*480).double()
+    #gt_gauss += 1e-300
+    #loss = F.kl_div(gt_gauss.cuda().log(), pred_gauss, None, None, 'mean')
+    loss = nn.BCELoss()(pred_gauss, gt_gauss)
+    return loss
 
 def fit(train_data, test_data, model, epochs, checkpoint_path = ''):
-    train_losses = []
-    test_losses = []
-    train_cls_losses = []
-    test_cls_losses = []
-    train_kpts_losses = []
-    test_kpts_losses = []
-    train_cls_acc = []
-    test_cls_acc = []
     for epoch in range(epochs):
 
         train_loss = 0.0
-        train_kpt_loss = 0.0
-        train_cls_loss = 0.0
-        correct = 0
-        seen = 0
         for i_batch, sample_batched in enumerate(train_data):
-            #if i_batch>10:
-            #    break
-            optimizer_kpt.zero_grad()
-            optimizer_cls.zero_grad()
-            cls_loss, kpt_loss, cls_correct = forward(sample_batched, model)
-            kpt_loss.backward(retain_graph=True)
-            cls_loss.backward(retain_graph=True)
-            optimizer_kpt.step()
-            optimizer_cls.step()
-            train_loss += kpt_loss.item() + cls_loss.item()
-            train_kpt_loss += kpt_loss.item()
-            train_cls_loss += cls_loss.item()
-            correct += cls_correct 
-            accuracy = 0 if not seen else correct/seen
-            print('[%d, %5d] kpts loss: %.3f, cls loss: %.3f, cls_accuracy: %.3f' % \
-	           (epoch + 1, i_batch + 1, kpt_loss.item(), cls_loss.item(), accuracy), end='')
+            optimizer.zero_grad()
+            loss = forward(sample_batched, model)
+            loss.backward()
+            optimizer.step()
+            train_loss += loss.item()
+            print('[%d, %5d] loss: %.3f' % (epoch + 1, i_batch + 1, loss.item()), end='')
             print('\r', end='')
-            seen += 1
-        train_kpts_losses.append(train_kpt_loss/i_batch)
-        train_cls_losses.append(train_cls_loss/i_batch)
-        train_losses.append(train_loss/i_batch)
-        train_cls_acc.append(accuracy)
-        print('train loss:', train_loss/i_batch)
-        print('train kpt loss:', train_kpt_loss/i_batch)
-        print('train cls loss:', train_cls_loss/i_batch)
-        print('train cls_accuracy:', accuracy)
+        print('train loss:', train_loss / i_batch)
         
         test_loss = 0.0
-        test_kpt_loss = 0.0
-        test_cls_loss = 0.0
-        correct = 0
-        seen = 0
         for i_batch, sample_batched in enumerate(test_data):
-            #if i_batch>10:
-            #    break
-            cls_loss, kpt_loss, cls_correct = forward(sample_batched, model)
-            correct += cls_correct 
-            accuracy = 0 if not seen else correct/seen
-            test_loss += kpt_loss.item() + cls_loss.item()
-            test_kpt_loss += kpt_loss.item()
-            test_cls_loss += cls_loss.item()
-            seen += 1
-        test_kpts_losses.append(test_kpt_loss/i_batch)
-        test_cls_losses.append(test_cls_loss/i_batch)
-        test_losses.append(test_loss/i_batch)
-        test_cls_acc.append(accuracy)
-        print('test loss:', test_loss/i_batch)
-        print('test kpt loss:', test_kpt_loss/i_batch)
-        print('test cls loss:', test_cls_loss/i_batch)
-        print('test cls_accuracy:', accuracy)
-        torch.save(keypoints.state_dict(), checkpoint_path + '/model_2_1_' + str(epoch) + '.pth')
-
-    history =  {"train_losses": train_losses, \
-		"train_kpt_losses": train_kpts_losses, \
-		"train_cls_losses": train_cls_losses, \
-	    	"train_cls_accs": train_cls_acc, \
-		"test_losses": test_losses, \
-		"test_kpt_losses": test_kpts_losses, \
-		"test_cls_losses": test_cls_losses, \
-		"test_cls_accs": test_cls_acc}
-    with open('%s/history.pickle'%checkpoint_path, 'wb') as handle:
-        pickle.dump(history, handle, protocol=pickle.HIGHEST_PROTOCOL)
-    #pprint.pprint(history) # DEBUG
-    return history
+            loss = forward(sample_batched, model)
+            test_loss += loss.item()
+        print('test loss:', test_loss / i_batch)
+        if epoch%2 == 0:
+            torch.save(keypoints.state_dict(), checkpoint_path + '/model_2_1_' + str(epoch) + '_' + str(test_loss/i_batch) + '.pth')
 
 # dataset
 workers=0
 dataset_dir = 'undo_reid_term'
 output_dir = 'checkpoints'
-save_dir = os.path.join(output_dir, dataset_dir)
+save_dir = os.path.join(output_dir, dataset_dir+'GAUSS_KPTS_ONLY')
 
 if not os.path.exists(output_dir):
     os.mkdir(output_dir)
@@ -138,8 +77,6 @@ keypoints = KeypointsGauss(NUM_KEYPOINTS, img_height=IMG_HEIGHT, img_width=IMG_W
 
 # optimizer
 #optimizer = optim.Adam(keypoints.parameters(), lr=1.0e-4, weight_decay=1.0e-4)
-optimizer_kpt = optim.Adam(keypoints.parameters(), lr=1e-4, weight_decay=1.0e-4)
-optimizer_cls = optim.Adam(keypoints.parameters(), lr=1e-5, weight_decay=1.0e-4)
+optimizer = optim.Adam(keypoints.parameters(), lr=0.0001)
 
-history = fit(train_data, test_data, keypoints, epochs=epochs, checkpoint_path=save_dir)
-plot_history(history, epochs, save_dir)
+fit(train_data, test_data, keypoints, epochs=epochs, checkpoint_path=save_dir)

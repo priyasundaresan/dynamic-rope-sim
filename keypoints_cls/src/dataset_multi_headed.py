@@ -21,7 +21,6 @@ def gauss_2d_batch(width, height, sigma, U, V, normalize_dist=False):
     X,Y = torch.meshgrid([torch.arange(0., width), torch.arange(0., height)])
     X,Y = torch.transpose(X, 0, 1).cuda(), torch.transpose(Y, 0, 1).cuda()
     G=torch.exp(-((X-U.float())**2+(Y-V.float())**2)/(2.0*sigma**2))
-    #G=G.view(G.shape[0], G.shape[1]*G.shape[2])
     if normalize_dist:
         return normalize(G).double()
     return G.double()
@@ -41,9 +40,13 @@ class KeypointsDataset(Dataset):
         self.transform = transform
 
         self.imgs = []
+        self.classes = []
         self.labels = []
         for i in range(len(os.listdir(labels_folder))):
-            label = np.load(os.path.join(labels_folder, '%05d.npy'%i))[:-2].reshape(num_keypoints, 2)
+            action = np.load(os.path.join(labels_folder, '%05d.npy'%i))
+            label = action[:-2].reshape(num_keypoints, 2)
+            cls = sum(action[-2:])
+            self.classes.append(cls)
             label[:,0] = np.clip(label[:, 0], 0, self.img_width-1)
             label[:,1] = np.clip(label[:, 1], 0, self.img_height-1)
             self.imgs.append(os.path.join(img_folder, '%05d.jpg'%i))
@@ -51,11 +54,12 @@ class KeypointsDataset(Dataset):
 
     def __getitem__(self, index):  
         img = self.transform(Image.open(self.imgs[index]))
+        cls = self.classes[index]
         labels = self.labels[index]
         U = labels[:,0]
         V = labels[:,1]
         gaussians = gauss_2d_batch(self.img_width, self.img_height, self.gauss_sigma, U, V)
-        return img, gaussians
+        return img, gaussians, cls
     
     def __len__(self):
         return len(self.labels)
@@ -67,5 +71,5 @@ if __name__ == '__main__':
     GAUSS_SIGMA = 10
     test_dataset = KeypointsDataset('/host/data/undo_reid_term/train/images',
                            '/host/data/undo_reid_term/train/actions', NUM_KEYPOINTS, IMG_HEIGHT, IMG_WIDTH, transform, gauss_sigma=GAUSS_SIGMA)
-    img, gaussians = test_dataset[0]
+    img, gaussians, cls = test_dataset[0]
     vis_gauss(gaussians)
