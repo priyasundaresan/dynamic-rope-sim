@@ -103,7 +103,7 @@ if __name__ == '__main__':
     # policy = Hierarchical_kp(path_to_refs, KP_DIR, BBOX_DIR, params)
     # policy = BC(path_to_refs, BC_DIR, params)
     # policy = MultiHead(path_to_refs, MH_DIR, params)
-    policy = MultiHead_KPT(path_to_refs, MH_DIR, params)
+    policy = MultiHead_KPT(path_to_refs, MH_DIR, BBOX_DIR, params)
 
     clear_scene()
     make_capsule_rope(params)

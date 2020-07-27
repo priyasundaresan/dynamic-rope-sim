@@ -11,6 +11,7 @@ import tensorflow as tf
 # BASE_DIR = '/Users/priyasundaresan/Desktop/blender/dynamic-rope'
 BASE_DIR = '/Users/jennifergrannen/Documents/Berkeley/projects/rope/dynamic-rope-sim'
 sys.path.append(BASE_DIR)
+sys.path.insert(0, os.path.join(BASE_DIR, "mrcnn_bbox/tools"))
 sys.path.insert(0, os.path.join(BASE_DIR, "keypoints_cls"))
 sys.path.insert(0, os.path.join(BASE_DIR, "keypoints_cls/src"))
 
@@ -21,11 +22,16 @@ from keras.models import Model, load_model
 from src.model import KeypointsGauss
 from src.dataset import KeypointsDataset, transform
 from src.prediction import Prediction
+from mrcnn.config import Config
+from mrcnn.model import MaskRCNN, load_image_gt
+from mrcnn.model import mold_image
+from mrcnn.utils import Dataset, compute_ap
+from predict import BBoxFinder, PredictionConfig
 from datetime import datetime
 from PIL import Image
 import numpy as np
 
-def load_nets(path_to_refs, network_dir, use_cuda=0):
+def load_nets(path_to_refs, network_dir, bbox_dir, use_cuda=0):
     with open('%s/ref.json'%(path_to_refs), 'r') as f:
         ref_annots = json.load(f)
     keypoints = KeypointsGauss(4, img_height=480, img_width=640)
@@ -36,7 +42,13 @@ def load_nets(path_to_refs, network_dir, use_cuda=0):
         keypoints = keypoints.cuda()
     else:
         keypoints.load_state_dict(torch.load(os.path.join(model_path, os.listdir(model_path)[0]), map_location='cpu'))
-    return keypoints
+
+    cfg = PredictionConfig()
+    model = MaskRCNN(mode='inference', model_dir='./', config=cfg)
+    model_path = '%s/%s/mask_rcnn_knot_cfg_0010.h5'%(bbox_dir, ref_annots["bbox"])
+    model.load_weights(model_path, by_name=True)
+    bbox_predictor = BBoxFinder(model, cfg)
+    return keypoints, bbox_predictor
 
 def preds(model, path_to_curr_img, curr_frame, use_cuda=0):
     prediction = Prediction(model, 4, 480, 640, use_cuda)
@@ -57,10 +69,11 @@ def preds(model, path_to_curr_img, curr_frame, use_cuda=0):
     return keypoints
 
 class MultiHead_KPT(object):
-    def __init__(self, path_to_refs, network_dir, params):
+    def __init__(self, path_to_refs, network_dir, bbox_net_dir, params):
         self.use_cuda = torch.cuda.is_available()
-        net = load_nets(path_to_refs, network_dir, use_cuda=self.use_cuda)
+        net, bbox = load_nets(path_to_refs, network_dir, bbox_net_dir, use_cuda=self.use_cuda)
         self.network = net
+        self.bbox_finder = bbox
         self.action_count = 0
         self.rope_length = params["num_segments"]
         self.end1_kp_idx = 3
@@ -85,7 +98,16 @@ class MultiHead_KPT(object):
         return pull_pixel, hold_pixel
 
     def bbox_untangle(self, start_frame, render_offset=0):
-        return True, None
+        path_to_curr_img = "images/%06d_rgb.png" % (floor((start_frame-render_offset)/self.step)-1)
+        curr_img = imageio.imread(path_to_curr_img)
+        boxes = self.bbox_finder.predict(curr_img, plot=False)
+        # sorting by confidence
+        # boxes = sorted(boxes, key=lambda box: box[1], reverse=True)
+        # sort right to left
+        boxes = sorted(boxes, key=lambda box: max(box[0][0], box[0][2]), reverse=True)
+        if len(boxes) == 0:
+            return None, 0
+        return boxes[0] # ASSUME first box is knot to be untied
 
     def policy_undone_check(self, start_frame, prev_pull, prev_hold, prev_action_vec, render_offset=0):
         img_num = max(floor((start_frame-render_offset)/self.step)-1,0)
