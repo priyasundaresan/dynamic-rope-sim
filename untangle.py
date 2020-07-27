@@ -66,7 +66,7 @@ def run_untangling_rollout(policy, params):
                 reid_flag = 1
                 num_actions += 1
             i += 1
-            if num_actions == 29:
+            if num_actions >= 29:
                 undo_end_frame = policy.reidemeister(undo_end_frame, render=True, render_offset=render_offset)
                 num_actions += 1
                 return
