@@ -10,5 +10,6 @@
     "ends_cf": "braid_ends",
     "hold_cf": "braid_hold_larger_rgb",
     "pull_cf": "braid_pull_rgb",
-    "bbox": "bbox_braid_larger_mult"
+    "bbox": "bbox_braid_larger_mult",
+    "multi_head_kpt": "undo_reid_term_braid_GAUSS_KPTS_ONLY"
 }
