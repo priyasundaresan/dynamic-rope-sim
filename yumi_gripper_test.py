@@ -148,10 +148,8 @@ class YumiGripper():
 		start_frame = bpy.context.scene.frame_current
 
 		### GET CYLINDER
-		toggle_animation(cylinder, start_frame, True)
 		bpy.context.view_layer.update()
-		#cylinder.keyframe_insert(data_path="rotation_euler", frame=start_frame)
-		cylinder.keyframe_insert(data_path = "location", frame=start_frame)
+		toggle_animation(cylinder, start_frame, True)
 
 		cyl_rot_z = cylinder.matrix_world.to_euler().z
 		pick_coord = cylinder.matrix_world.translation + Vector((0,0,1.75))
@@ -178,13 +176,6 @@ class YumiGripper():
 		pick_up_frame = int(0.16*frames) + start_frame
 		self.gripper_base.location = Vector((pick_x, pick_y, pick_z))
 		self.keyframe_gripper(pick_up_frame)
-
-
-		# bpy.context.view_layer.update()
-		# cylinder.rotation_euler = cylinder.matrix_world.to_euler()
-		# cylinder.location = cylinder.matrix_world.translation
-		# cylinder.keyframe_insert(data_path="rotation_euler", frame=pick_up_frame+1)
-		# cylinder.keyframe_insert(data_path="location", frame=pick_up_frame+1)
 		###########
 
 		########## INFLUENCE HIGH CHILD OF 
@@ -260,25 +251,24 @@ def animation_test():
 	last = params["num_segments"]
 	piece = "Cylinder"
 
+	for i in range(last):
+		obj = get_piece("Cylinder", i)
+		obj.keyframe_insert(data_path="rotation_euler", frame=0)
+		obj.keyframe_insert(data_path="location", frame = 0)
+
 	base_a = import_mesh("/Users/vainaviv/Documents/GitHub/dynamic-rope-sim/GripperSTL/ACTION_BASE.STL", "-Z", scale = 0.02)
 	bpy.ops.object.origin_set(type="ORIGIN_GEOMETRY")
-	# bpy.ops.object.origin_set(type="ORIGIN_CENTER_OF_MASS")
 	finger1_a = import_mesh("/Users/vainaviv/Documents/GitHub/dynamic-rope-sim/GripperSTL/ACTION_Finger1.STL", "-Z", scale = 0.02)
 	bpy.ops.object.origin_set(type="ORIGIN_GEOMETRY")
-	# bpy.ops.object.origin_set(type="ORIGIN_CENTER_OF_MASS")
 	finger2_a = import_mesh("/Users/vainaviv/Documents/GitHub/dynamic-rope-sim/GripperSTL/ACTION_Finger2.STL", "-Z", scale = 0.02)
 	bpy.ops.object.origin_set(type="ORIGIN_GEOMETRY")
-	# bpy.ops.object.origin_set(type="ORIGIN_CENTER_OF_MASS")
 
 	base_h = import_mesh("/Users/vainaviv/Documents/GitHub/dynamic-rope-sim/GripperSTL/HOLD_BASE.STL", "-Z", scale = 0.02)
 	bpy.ops.object.origin_set(type="ORIGIN_GEOMETRY")
-	# bpy.ops.object.origin_set(type="ORIGIN_CENTER_OF_MASS")
 	finger1_h = import_mesh("/Users/vainaviv/Documents/GitHub/dynamic-rope-sim/GripperSTL/HOLD_Finger1.STL", "-Z", scale = 0.02)
 	bpy.ops.object.origin_set(type="ORIGIN_GEOMETRY")
-	# bpy.ops.object.origin_set(type="ORIGIN_CENTER_OF_MASS")
 	finger2_h = import_mesh("/Users/vainaviv/Documents/GitHub/dynamic-rope-sim/GripperSTL/HOLD_Finger2.STL", "-Z", scale = 0.02)
 	bpy.ops.object.origin_set(type="ORIGIN_GEOMETRY")
-	# bpy.ops.object.origin_set(type="ORIGIN_CENTER_OF_MASS")
 
 	gripper_action = YumiGripper(base_a, finger1_a, finger2_a)
 	gripper_hold = YumiGripper(base_h, finger1_h, finger2_h)
@@ -334,5 +324,5 @@ if __name__ == '__main__':
 	#rig_rope(params) # UNCOMMENT TO SEE CYLINDER REPR
 	add_camera_light()
 	animation_test()
-	set_animation_settings(550) 
+	set_animation_settings(600) 
 

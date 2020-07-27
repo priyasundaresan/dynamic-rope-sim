@@ -10,30 +10,6 @@ sys.path.append(os.getcwd())
 
 from rigidbody_rope import *
 
-# def clear_scene():
-#     '''Clear existing objects in scene'''
-#     for block in bpy.data.meshes:
-#         if block.users == 0:
-#             bpy.data.meshes.remove(block)
-#     for block in bpy.data.materials:
-#         if block.users == 0:
-#             bpy.data.materials.remove(block)
-#     for block in bpy.data.textures:
-#         if block.users == 0:
-#             bpy.data.textures.remove(block)
-#     for block in bpy.data.images:
-#         if block.users == 0:
-#             bpy.data.images.remove(block)
-#     bpy.ops.object.mode_set(mode='OBJECT')
-#     bpy.ops.object.select_all(action='SELECT')
-#     bpy.ops.object.delete()
-
-# def set_animation_settings(anim_end):
-#     # Sets up the animation to run till frame anim_end (otherwise default terminates @ 250)
-#     scene = bpy.context.scene
-#     scene.frame_end = anim_end
-#     scene.rigidbody_world.point_cache.frame_end = anim_end
-
 def get_piece(piece_name, piece_id):
     # Returns the piece with name piece_name, index piece_id
     # if piece_id == -1:
@@ -124,7 +100,6 @@ class YumiGripper():
 		### GET CYLINDER
 		bpy.context.view_layer.update()
 		toggle_animation(cylinder, start_frame, True)
-		cylinder.keyframe_insert(data_path = "location", frame=start_frame)
 
 		cyl_rot_z = cylinder.matrix_world.to_euler().z
 		pick_coord = cylinder.matrix_world.translation + Vector((0,0,1.75))
@@ -155,6 +130,7 @@ class YumiGripper():
 		########## INFLUENCE HIGH CHILD OF 
 		con.influence = 0.0
 		con.keyframe_insert(data_path="influence", frame=pick_up_frame+1)
+		bpy.context.view_layer.update()
 		cylinder.keyframe_insert(data_path="rotation_euler", frame=pick_up_frame+1)
 		cylinder.keyframe_insert(data_path="location", frame=pick_up_frame+1)
 
@@ -219,3 +195,5 @@ class YumiGripper():
 		self.gripper_base.keyframe_insert(data_path="location", frame=end_frame)
 
 		toggle_animation(cylinder, end_frame, False)
+
+
