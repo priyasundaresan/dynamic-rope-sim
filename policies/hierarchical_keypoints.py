@@ -81,7 +81,8 @@ class Hierarchical_kp(object):
         if box is None:
             return None, None
         pull_flag = False
-        while (not pull_flag or not hold_flag):
+        i = 0
+        while (not pull_flag or not hold_flag) and i < 3:
             # img_num = start_frame-render_offset
             img_num = floor((start_frame - render_offset)/self.step)
             path_to_curr_img = "images/%06d_rgb.png" % (img_num)
@@ -114,6 +115,7 @@ class Hierarchical_kp(object):
             new_y_min = max(0, y_min-5)
             new_y_max = min(480, y_max+5)
             box = (new_x_min, new_y_min, new_x_max, new_y_max)
+            i += 1
 
         hold_pixel = pixel_crop_to_full(np.array([hold_crop_pixel]), rescale_factor, x_off, y_off)[0]
         pull_pixel = pixel_crop_to_full(np.array([pull_crop_pixel]), rescale_factor, x_off, y_off)[0]
