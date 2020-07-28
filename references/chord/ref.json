@@ -14,5 +14,10 @@
     "ends_kp": "kpt_chord_ends_2_e20",
     "knot_kp": "kpt_chord_ph_e20",
     "bc": "bc_test_model",
+<<<<<<< HEAD
     "multi_head": "undo_reid_term" 
+=======
+    "multi_head": "undo_reid_term", 
+    "multi_head_kpt": "undo_reid_termGAUSS_KPTS_ONLY"
+>>>>>>> 7343b35758323bcb5c745ccdf3dff2372b99138f
 }

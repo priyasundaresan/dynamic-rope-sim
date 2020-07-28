@@ -8,13 +8,8 @@
     "crop_hold_x": 36,
     "crop_hold_y": 20,
     "ends_cf": "ends",
-<<<<<<< HEAD
-    "hold_cf": "bbox_capsule_2_hold_d",
-    "pull_cf": "cyl_crop_depth",
-    "bbox": "knot_capsule_mult"
-=======
     "hold_cf": "cap_hold_rgb",
     "pull_cf": "cap_pull_rgb",
-    "bbox": "bbox_larger_mult"
->>>>>>> c9b06879ab58c05b21d7f349943afca4e9a89ef4
+    "bbox": "bbox_larger_mult",
+    "multi_head_kpt": "undo_reid_term_capsule_GAUSS_KPTS_ONLY"
 }
