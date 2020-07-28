@@ -6,14 +6,14 @@ import numpy as np
 from shutil import copyfile
 import json
 from xml.etree import ElementTree
-#from mrcnn.model import MaskRCNN
+from mrcnn.model import MaskRCNN
 
 sys.path.append(os.getcwd())
 sys.path.insert(0, os.path.join(os.getcwd(), "dense_correspondence/pytorch-segmentation-detection"))
 sys.path.insert(0, os.path.join(os.getcwd(), "dense_correspondence/tools"))
 sys.path.insert(0, os.path.join(os.getcwd(), "mrcnn_bbox/tools"))
 
-#from predict import BBoxFinder, PredictionConfig
+from predict import BBoxFinder, PredictionConfig
 
 def crop_and_resize(box, img, aspect=(80,60)):
     x1, y1, x2, y2 = box
@@ -51,19 +51,19 @@ def crop(filename, dir, bbox_predictor, knots_info):
     mask = cv2.imread('./%s/image_masks/%s'%(dir, mask_filename)).copy()
     depth = cv2.imread('./%s/images_depth/%s'%(dir, filename)).copy()
     # get box
-    #boxes = bbox_predictor.predict(img, plot=False, annotate=False)
-    #boxes = sorted(boxes, key=lambda box: box[0][2], reverse=True)
-    #box = boxes[0][0]
+    boxes = bbox_predictor.predict(img, plot=False, annotate=False)
+    boxes = sorted(boxes, key=lambda box: box[0][2], reverse=True)
+    box = boxes[0][0]
 
-    filename = 'annots/%05d.xml'%num
-    tree = ElementTree.parse(filename)
-    root = tree.getroot()
-    box = root.findall('.//bndbox')[0]
-    xmin = int(box.find('xmin').text)
-    ymin = int(box.find('ymin').text)
-    xmax = int(box.find('xmax').text)
-    ymax = int(box.find('ymax').text)
-    box = [xmin, ymin, xmax, ymax]
+    #filename = 'annots/%05d.xml'%num
+    #tree = ElementTree.parse(filename)
+    #root = tree.getroot()
+    #box = root.findall('.//bndbox')[0]
+    #xmin = int(box.find('xmin').text)
+    #ymin = int(box.find('ymin').text)
+    #xmax = int(box.find('xmax').text)
+    #ymax = int(box.find('ymax').text)
+    #box = [xmin, ymin, xmax, ymax]
     # crop img and mask
     cropped_img, rescale_factor_img, (x_off_img, y_off_img) = crop_and_resize(box, img)
     cropped_mask, _, _ = crop_and_resize(box, mask)
@@ -97,12 +97,12 @@ if __name__ == '__main__':
     os.mkdir('./image_crop/image_masks')
     os.mkdir('./image_crop/images_depth')
 
-    #cfg = PredictionConfig()
-    #model = MaskRCNN(mode='inference', model_dir='./', config=cfg)
-    #model_path = 'mrcnn_bbox/networks/{}/mask_rcnn_knot_cfg_0010.h5'.format(args.bbox_detector)
-    #model.load_weights(model_path, by_name=True)
-    #bbox_predictor = BBoxFinder(model, cfg)
-    bbox_predictor = None
+    cfg = PredictionConfig()
+    model = MaskRCNN(mode='inference', model_dir='./', config=cfg)
+    model_path = 'mrcnn_bbox/networks/{}/mask_rcnn_knot_cfg_0010.h5'.format(args.bbox_detector)
+    model.load_weights(model_path, by_name=True)
+    bbox_predictor = BBoxFinder(model, cfg)
+    #bbox_predictor = None
 
     with open("./{}/images/knots_info.json".format(args.dir), "r") as stream:
         knots_info = json.load(stream)

@@ -15,10 +15,12 @@ class Oracle(object):
         self.num_knots = len(params["knots"])
 
     def bbox_untangle(self, start_frame, render_offset=0):
+        if find_knot(self.rope_length)[-1]  == [0,0,0]:
+            return None, None
         return find_knot(self.rope_length)[-1]  == [0,0,0], None
 
     def policy_undone_check(self, start_frame, prev_pull, prev_hold, prev_action_vec, render_offset=0):
-        if self.action_count > self.max_actions or find_knot(self.rope_length)[-1]  == [0,0,0]:
+        if find_knot(self.rope_length)[-1]  == [0,0,0]:
             return True
         end2_idx = self.rope_length-1
         end1_idx = -1

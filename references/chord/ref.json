@@ -11,6 +11,8 @@
     "hold_cf": "chord_hold_larger_rgb",
     "pull_cf": "chord_pull_rgb",
     "bbox": "bbox_chord_larger_mult",
-    "ends_kp": "pull_hold_ends_rand",
-    "knot_kp": "pull_hold_ends_rand"
+    "ends_kp": "kpt_chord_ends_2_e20",
+    "knot_kp": "kpt_chord_ph_e20",
+    "bc": "bc_test_model",
+    "multi_head": "test" 
 }

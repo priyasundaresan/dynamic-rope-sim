@@ -114,14 +114,14 @@ def random_perturb(start_frame, params, render=False, render_offset=0):
             render_frame(step, render_offset=render_offset)
     return end_frame
 
-def take_undo_action(start_frame, pull_idx, hold_idx, norm_action_vec, render=False, render_offset=0):
+def take_undo_action(start_frame, pull_idx, hold_idx, norm_action_vec, render=False, render_offset=0, scale_action=True, hold_flag=True):
     piece = "Cylinder"
-    action_vec = norm_action_vec*3
+    action_vec = norm_action_vec*3 if scale_action else norm_action_vec
     pull_cyl = get_piece(piece, pull_idx)
     hold_cyl = get_piece(piece, hold_idx)
 
     ## Undoing
-    if abs(hold_idx - pull_idx) > 5:
+    if abs(hold_idx - pull_idx) > 5 and hold_flag:
         take_action(hold_cyl, start_frame + 100, (0,0,0))
     for step in range(start_frame, start_frame+10):
         bpy.context.scene.frame_set(step)
@@ -138,7 +138,8 @@ def take_undo_action(start_frame, pull_idx, hold_idx, norm_action_vec, render=Fa
     for step in range(start_frame + 10, start_frame + 200 + settle_time+1):
         bpy.context.scene.frame_set(step)
         if render:
-            render_frame(step, render_offset=render_offset, step=1)
+            # render_frame(step, render_offset=render_offset, step=1)
+            render_frame(step, render_offset=render_offset, step=4)
 
     return start_frame+200+settle_time, action_vec
 
@@ -155,7 +156,8 @@ def reidemeister_right(start_frame, end1_idx, end2_idx, render=False, render_off
     for step in range(start_frame, end_frame+1):
         bpy.context.scene.frame_set(step)
         if render:
-            render_frame(step, render_offset=render_offset, step=1)
+            # render_frame(step, render_offset=render_offset, step=1)
+            render_frame(step, render_offset=render_offset, step=4)
     toggle_animation(end1, end_frame, False)
     return end_frame
 
@@ -171,7 +173,8 @@ def reidemeister_left(start_frame, end1_idx, end2_idx, render=False, render_offs
     for step in range(start_frame, end_frame+settle_time+1):
         bpy.context.scene.frame_set(step)
         if render:
-            render_frame(step, render_offset=render_offset, step=1)
+            # render_frame(step, render_offset=render_offset, step=1)
+            render_frame(step, render_offset=render_offset, step=4)
     return end_frame+settle_time
 
 def undone_check(start_frame, prev_pull, prev_hold, prev_action_vec, end1_idx, end2_idx, render_offset=0):

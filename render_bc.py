@@ -410,12 +410,12 @@ if __name__ == '__main__':
         params = json.load(f)
     clear_scene()
     make_capsule_rope(params)
-    rig = rig_rope(params, braid=1)
+    #rig = rig_rope(params, braid=1)
     add_camera_light()
     set_render_settings(params["engine"],(params["render_width"],params["render_height"]))
     make_table(params)
     start = time.time()
-    iters = 200
+    iters = 10
     generate_dataset(iters, params, render=True)
     end = time.time()
     print("time", end-start)
