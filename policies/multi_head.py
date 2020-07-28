@@ -8,8 +8,8 @@ import torch
 from PIL import Image
 import colorsys
 import tensorflow as tf
-# BASE_DIR = '/Users/priyasundaresan/Desktop/blender/dynamic-rope'
-BASE_DIR = '/Users/jennifergrannen/Documents/Berkeley/projects/rope/dynamic-rope-sim'
+BASE_DIR = '/Users/priyasundaresan/Desktop/blender/dynamic-rope'
+#BASE_DIR = '/Users/jennifergrannen/Documents/Berkeley/projects/rope/dynamic-rope-sim'
 sys.path.append(BASE_DIR)
 sys.path.insert(0, os.path.join(BASE_DIR, "keypoints_cls"))
 sys.path.insert(0, os.path.join(BASE_DIR, "keypoints_cls/src"))
