@@ -10,5 +10,6 @@
     "ends_cf": "ends",
     "hold_cf": "cap_hold_rgb",
     "pull_cf": "cap_pull_rgb",
-    "bbox": "bbox_larger_mult"
+    "bbox": "bbox_larger_mult",
+    "multi_head_kpt": "undo_reid_term_capsule_GAUSS_KPTS_ONLY"
 }
