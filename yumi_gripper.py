@@ -21,7 +21,7 @@ def import_mesh(filepath, axis, scale=1):
     bpy.ops.import_mesh.stl(filepath=filepath, axis_up=axis)
     bpy.ops.rigidbody.object_add()
     c = bpy.context.object
-    c.rigid_body.type = 'PASSIVE'
+    # c.rigid_body.type = 'PASSIVE'
     if scale != 1:
         bpy.ops.transform.resize(value=(scale, scale, scale))
         bpy.ops.object.transform_apply(scale=True)
@@ -69,20 +69,19 @@ class YumiGripper():
 		bpy.ops.object.origin_set(type="ORIGIN_GEOMETRY")
 		self.gripper_base.location = (0,0,4)
 		self.gripper_base.rotation_euler = (0,0,radians(90))
-		#self.gripper_base.rigid_body.kinematic = True
-
+		self.gripper_base.rigid_body.kinematic = True
 
 		self.claw1 = finger1
 		bpy.ops.object.origin_set(type="ORIGIN_GEOMETRY")
 		self.claw1.location = (0.09,0.38,2.7)
 		self.claw1.rotation_euler = (0, 0, radians(90))
-		#self.claw1.rigid_body.kinematic = True
+		self.claw1.rigid_body.kinematic = True
 
 		self.claw2 = finger2
 		bpy.ops.object.origin_set(type="ORIGIN_GEOMETRY")
 		self.claw2.location = (-0.07,-0.38,2.7)
 		self.claw2.rotation_euler = (0, 0, radians(90))
-		#self.claw2.rigid_body.kinematic = True
+		self.claw2.rigid_body.kinematic = True
 		###########
 
 		self.parent_no_transform(self.gripper_base, self.claw1)

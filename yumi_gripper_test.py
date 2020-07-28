@@ -152,19 +152,21 @@ class YumiGripper():
 		toggle_animation(cylinder, start_frame, True)
 
 		cyl_rot_z = cylinder.matrix_world.to_euler().z
+		cyl_tilt = cylinder.matrix_world.to_euler().x
 		pick_coord = cylinder.matrix_world.translation + Vector((0,0,1.75))
 		pick_x, pick_y, pick_z = pick_coord
 
 		drop_coord = pick_coord + Vector(move_vector)
 		drop_x, drop_y, drop_z = drop_coord
-
 		
 		close_amount = (0.2,0,0)
-		self.gripper_base.rotation_euler = (0, 0, cyl_rot_z)
+		self.gripper_base.rotation_euler = (cyl_tilt, 0, cyl_rot_z)
 		self.gripper_base.location = Vector((pick_x, pick_y, pick_z + pick_height))
 		self.keyframe_gripper(start_frame)
 
 		### INITIAL CHILDING BEGIN
+		bpy.context.view_layer.update()
+
 		con = self.add_child(self.gripper_base, cylinder, str(cylinder))
 		con.influence = 0.0
 		con.keyframe_insert(data_path="influence", frame=start_frame)
@@ -283,37 +285,37 @@ def animation_test():
 		obj = get_piece("Cylinder", i)
 		toggle_animation(obj, 200, False)
 
-	for step in range(1, 300):
-		bpy.context.scene.frame_set(step)
-		render_frame(step)
+	# for step in range(1, 300):
+	# 	bpy.context.scene.frame_set(step)
+	# 	render_frame(step)
 
-	base = bpy.data.objects["ACTION BASE"]
-	bpy.ops.object.origin_set(type="ORIGIN_GEOMETRY")
-	finger1 = base.children[0]
-	bpy.ops.object.origin_set(type="ORIGIN_GEOMETRY")
-	finger2 = base.children[1]
-	bpy.ops.object.origin_set(type="ORIGIN_GEOMETRY")
-	gripper_action = YumiGripper(base, finger1, finger2)
+	# base = bpy.data.objects["ACTION BASE"]
+	# bpy.ops.object.origin_set(type="ORIGIN_GEOMETRY")
+	# finger1 = base.children[0]
+	# bpy.ops.object.origin_set(type="ORIGIN_GEOMETRY")
+	# finger2 = base.children[1]
+	# bpy.ops.object.origin_set(type="ORIGIN_GEOMETRY")
+	# gripper_action = YumiGripper(base, finger1, finger2)
 
-	base = bpy.data.objects["HOLD BASE"]
-	bpy.ops.object.origin_set(type="ORIGIN_GEOMETRY")
-	finger1 = base.children[0]
-	bpy.ops.object.origin_set(type="ORIGIN_GEOMETRY")
-	finger2 = base.children[1]
-	bpy.ops.object.origin_set(type="ORIGIN_GEOMETRY")
-	gripper_hold = YumiGripper(base, finger1, finger2)
+	# base = bpy.data.objects["HOLD BASE"]
+	# bpy.ops.object.origin_set(type="ORIGIN_GEOMETRY")
+	# finger1 = base.children[0]
+	# bpy.ops.object.origin_set(type="ORIGIN_GEOMETRY")
+	# finger2 = base.children[1]
+	# bpy.ops.object.origin_set(type="ORIGIN_GEOMETRY")
+	# gripper_hold = YumiGripper(base, finger1, finger2)
 
-	c14 = get_piece(piece, 14)
-	gripper_action.pick_place(c35, 500, (-3,4,0), pick_height=0)
-	gripper_hold.hold(c14, 500)
+	# c14 = get_piece(piece, 14)
+	# gripper_action.pick_place(c35, 500, (-3,4,0), pick_height=0)
+	# gripper_hold.hold(c14, 500)
 
-	for i in range(last):
-		obj = get_piece("Cylinder", i)
-		toggle_animation(obj, 500, False)
+	# for i in range(last):
+	# 	obj = get_piece("Cylinder", i)
+	# 	toggle_animation(obj, 500, False)
 
-	for step in range(300, 550):
-		bpy.context.scene.frame_set(step)
-		render_frame(step)
+	# for step in range(300, 550):
+	# 	bpy.context.scene.frame_set(step)
+	# 	render_frame(step)
 
 if __name__ == '__main__':
 	with open("rigidbody_params.json", "r") as f:
