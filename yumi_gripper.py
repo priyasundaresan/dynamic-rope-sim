@@ -89,12 +89,17 @@ class YumiGripper():
 
 		bpy.context.view_layer.objects.active = self.gripper_base
 
-	def hold(self,cylinder, end_frame):
-		self.pick_place(cylinder, end_frame, (0,0,0), pick_height=0)
+	def hold(self,cylinder, end_frame, undo_hold=False):
+		self.pick_place(cylinder, end_frame, (0,0,0), pick_height=0, undo=undo_hold)
 
-	def pick_place(self, cylinder, end_frame, move_vector, pick_height=2):
+	def pick_place(self, cylinder, end_frame, move_vector, pick_height=2, undo=False):
 
 		start_frame = bpy.context.scene.frame_current
+
+		if undo:
+			start_height = 0.25
+		else:
+			start_height = 6
 
 		### GET CYLINDER
 		bpy.context.view_layer.update()
@@ -109,7 +114,7 @@ class YumiGripper():
 		
 		close_amount = (0.2,0,0)
 		self.gripper_base.rotation_euler = (0, 0, cyl_rot_z)
-		self.gripper_base.location = Vector((pick_x, pick_y, pick_z + 6))
+		self.gripper_base.location = Vector((pick_x, pick_y, pick_z + start_height))
 		self.keyframe_gripper(start_frame)
 
 		### INITIAL CHILDING BEGIN
@@ -134,6 +139,7 @@ class YumiGripper():
 		cylinder.keyframe_insert(data_path="location", frame=pick_up_frame+1)
 
 		bpy.context.view_layer.update()
+		self.keyframe_gripper(pick_up_frame+1)
 		cylinder.matrix_world = self.gripper_base.matrix_world.inverted() @ cylinder.matrix_world
 		cylinder.keyframe_insert(data_path="rotation_euler", frame=pick_up_frame+2)
 		cylinder.keyframe_insert(data_path="location", frame=pick_up_frame+2)
@@ -190,7 +196,7 @@ class YumiGripper():
 		cylinder.keyframe_insert(data_path = "location", frame=release_frame)
 		########## INFLUENCE LOW CHILD OF
 
-		self.gripper_base.location = Vector((drop_x, drop_y, drop_z + 6))
+		self.gripper_base.location = Vector((drop_x, drop_y, drop_z + start_height))
 		self.gripper_base.keyframe_insert(data_path="location", frame=end_frame)
 
 		toggle_animation(cylinder, end_frame, False)

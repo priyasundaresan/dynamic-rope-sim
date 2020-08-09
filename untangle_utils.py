@@ -133,7 +133,7 @@ def take_undo_action(start_frame, pull_idx, hold_idx, norm_action_vec, use_gripp
             finger2 = bpy.data.objects["HOLD Finger2"]
             bpy.ops.object.origin_set(type="ORIGIN_GEOMETRY")
             hold_gripper = YumiGripper(base, finger1, finger2)
-            hold_gripper.hold(hold_cyl, start_frame + 100)
+            hold_gripper.hold(hold_cyl, start_frame + 100, undo_hold=True)
         else:
             take_action(hold_cyl, start_frame + 100, (0,0,0))
     for step in range(start_frame, start_frame+10):
@@ -149,9 +149,7 @@ def take_undo_action(start_frame, pull_idx, hold_idx, norm_action_vec, use_gripp
         finger2 = bpy.data.objects["ACTION Finger2"]
         bpy.ops.object.origin_set(type="ORIGIN_GEOMETRY")
         action_gripper = YumiGripper(base, finger1, finger2)
-        print("Calling pick place for action gripper")
-        action_gripper.pick_place(pull_cyl, start_frame + 100, action_vec, pick_height=0)
-        print("Pulling this cylinder now: " + str(pull_cyl))
+        action_gripper.pick_place(pull_cyl, start_frame + 100, action_vec, pick_height=0, undo=True)
     else: 
         take_action(pull_cyl, start_frame + 100, action_vec)
 

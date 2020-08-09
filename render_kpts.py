@@ -1,4 +1,4 @@
-import bpy
+ximport bpy
 import numpy as np
 import xml.etree.cElementTree as ET
 from xml.dom import minidom
