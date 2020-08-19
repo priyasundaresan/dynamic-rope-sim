@@ -19,13 +19,6 @@ def add_camera_light():
     bpy.ops.object.camera_add(location=(2,0,28), rotation=(0,0,0))
     bpy.context.scene.camera = bpy.context.object
 
-def add_gripper():
-    bpy.ops.import_scene.obj(filepath='/Users/priyasundaresan/Downloads/priyayumi.obj')
-    obj = bpy.context.object
-    obj.scale = (3,3,3)
-    obj.location[0] -= 2
-    return obj
-
 def clear_scene():
     '''Clear existing objects in scene'''
     for block in bpy.data.meshes:
@@ -97,7 +90,43 @@ def make_capsule_rope(params):
     link0.rigid_body.friction = link_friction
     link0.rigid_body.linear_damping = params["linear_damping"]
     link0.rigid_body.angular_damping = params["angular_damping"] # NOTE: this makes the rope a lot less wiggly
-    #link0.rigid_body.collision_shape = 'CAPSULE'
+
+    bpy.context.scene.rigidbody_world.steps_per_second = 120
+    bpy.context.scene.rigidbody_world.solver_iterations = 20
+    for i in range(num_segments-1):
+        bpy.ops.object.duplicate_move(TRANSFORM_OT_translate={"value":(-2*radius, 0, 0)})
+    bpy.ops.object.select_all(action='SELECT')
+    bpy.ops.rigidbody.connect(con_type='POINT', connection_pattern='CHAIN_DISTANCE')
+    bpy.ops.object.select_all(action='DESELECT')
+    links = [bpy.data.objects['Cylinder.%03d' % (i) if i>0 else "Cylinder"] for i in range(num_segments)]
+    return links
+
+def make_capsule_rope_stiff(params):
+    radius = params["segment_radius"]
+    #rope_length = radius * params["num_segments"] * 2 * 0.9 # HACKY -- shortening the rope artificially by 10% for now
+    rope_length = radius * params["num_segments"]
+    num_segments = int(rope_length / radius)
+    separation = radius*1.1 # HACKY - artificially increase the separation to avoid link-to-link collision
+    link_mass = params["segment_mass"] # TODO: this may need to be scaled
+    link_friction = params["segment_friction"]
+    num_joints = int(radius/separation)*2+1
+    bpy.ops.import_mesh.stl(filepath="capsule_12_8_1_2.stl")
+    loc0 = (radius*num_segments,0,0)
+    link0 = bpy.context.object
+    link0.location = loc0
+    loc0 = loc0[0]
+    link0.name = "Cylinder"
+    bpy.ops.transform.resize(value=(radius, radius, radius))
+    link0.rotation_euler = (0, pi/2, 0)
+    bpy.ops.rigidbody.object_add()
+    link0.rigid_body.mass = link_mass
+    link0.rigid_body.friction = link_friction
+    link0.rigid_body.linear_damping = params["linear_damping"]
+    link0.rigid_body.angular_damping = params["angular_damping"] # NOTE: this makes the rope a lot less wiggly
+
+    link0.rigid_body.use_margin=True
+    link0.rigid_body.collision_margin=0.04
+
     bpy.context.scene.rigidbody_world.steps_per_second = 120
     bpy.context.scene.rigidbody_world.solver_iterations = 20
     for i in range(num_segments-1):
@@ -141,15 +170,41 @@ def make_braid_rig(params, bezier):
     bpy.ops.object.modifier_add(type='SCREW')
     rope = bpy.context.object
     rope.rotation_euler = (0,pi/2,0)
-    rope.modifiers["Screw"].screw_offset = 13.5 # Arbitrary
-    #rope.modifiers["Screw"].screw_offset = 0 # Arbitrary
-    rope.modifiers["Screw"].iterations = 15.97 # Arbitrary
+    rope.modifiers["Screw"].screw_offset = 12 # Arbitrary
+    rope.modifiers["Screw"].iterations = 15 # Arbitrary
     bpy.ops.object.modifier_add(type='CURVE')
     rope.modifiers["Curve"].object = bezier
     rope.modifiers["Curve"].show_in_editmode = True
     rope.modifiers["Curve"].show_on_cage = True
-    print(rope.scale, rope.modifiers["Screw"].screw_offset, rope.modifiers["Screw"].iterations)
     return rope
+
+def make_cyl_rig(params, bezier):
+    n = params["num_segments"]
+    radius = params["segment_radius"]
+    bpy.ops.mesh.primitive_cylinder_add(location=(0,0,0), vertices=12)
+    cyl = bpy.context.object
+    bpy.ops.object.mode_set(mode='EDIT')
+    me = cyl.data
+    bm = bmesh.from_edit_mesh(me)
+    bm.faces.ensure_lookup_table()
+    #top_bottom_faces = [bm.faces[30], bm.faces[33]]
+    top_bottom_faces = [bm.faces[10], bm.faces[13]]
+    bmesh.ops.delete(bm, geom=top_bottom_faces, context='FACES_ONLY')
+    bmesh.update_edit_mesh(me, True)
+    bpy.ops.mesh.subdivide(number_cuts=9, quadcorner='INNERVERT')
+    #bpy.ops.object.modifier_add(type='SUBSURF')
+    #bpy.context.object.modifiers["Subdivision"].levels=1 # Smooths the cloth so it doesn't look blocky
+    cyl.name = "CylinderRig"
+    cyl.scale[0] = radius 
+    cyl.scale[1] = radius 
+    cyl.scale[2] = radius*n
+    cyl.location = (radius*n, 0, 0)
+    cyl.rotation_euler = (0, np.pi/2, 0)
+    bpy.ops.object.mode_set(mode='OBJECT')
+    bpy.ops.object.modifier_add(type='CURVE')
+    cyl.modifiers["Curve"].object = bezier
+    cyl.modifiers["Curve"].show_in_editmode = True
+    cyl.modifiers["Curve"].show_on_cage = True
 
 def make_cable_rig(params, bezier):
     bpy.ops.object.modifier_add(type='CURVE')
@@ -159,7 +214,7 @@ def make_cable_rig(params, bezier):
     bpy.context.view_layer.objects.active = bezier
     return bezier
 
-def rig_rope(params, braid=0):
+def rig_rope(params, mode="braid"):
     bpy.ops.object.armature_add(enter_editmode=False, location=(0, 0, 0))
     arm = bpy.context.object
     n = params["num_segments"]
@@ -197,10 +252,12 @@ def rig_rope(params, braid=0):
         bpy.data.objects[obj_name].hide_set(True)
         bpy.data.objects[obj_name].hide_render = True
     bezier.select_set(False)
-    if braid:
+    if mode == "braid":
         rope = make_braid_rig(params, bezier)
-    else:
+    elif mode == "cable":
         rope = make_cable_rig(params, bezier)
+    else:
+        rope = make_cyl_rig(params, bezier)
     return rope
 
 def make_rope_v3(params):
@@ -210,22 +267,29 @@ def make_rope_v3(params):
     # based on the param's radius and num_segments, and compute the
     # number of segments composed of the capsules that we need
     radius = params["segment_radius"]
-    rope_length = radius * params["num_segments"] * 2 * 0.9 # HACKY -- shortening the rope artificially by 10% for now
-    num_segments = int(rope_length / radius)
-    separation = radius*1.1 # HACKY - artificially increase the separation to avoid link-to-link collision
+    #rope_length = radius * params["num_segments"] * 2 * 0.9 # HACKY -- shortening the rope artificially by 10% for now
+    #num_segments = int(rope_length / radius)
+    rope_length = radius * params["num_segments"] 
+    num_segments = params["num_segments"]
+    #separation = radius*1.1 # HACKY - artificially increase the separation to avoid link-to-link collision
+    separation = radius*2
     link_mass = params["segment_mass"] # TODO: this may need to be scaled
     link_friction = params["segment_friction"]
 
-    # Parameters for how much the rope resists twisting
+    # Parameters 
+    #twist_stiffness = 20
+    #twist_damping = 10
+    #bend_stiffness = 0
+    #bend_damping = 5
+
     twist_stiffness = 20
     twist_damping = 10
-
-    # Parameters for how much the rope resists bending
     bend_stiffness = 0
     bend_damping = 5
 
     num_joints = int(radius/separation)*2+1
-    loc0 = rope_length/2
+    #loc0 = rope_length/2
+    loc0 = radius*num_segments
 
     # Create the first link from the STL. In the filename: 12 = number
     # of radial subdivisions, 8 = number of length-wise subdivisions,
@@ -293,19 +357,22 @@ def make_rope_v3(params):
     # After creating the rope, we connect every link to the link 1
     # separated by a joint that has no constraints.  This prevents
     # collision detection between the pairs of rope points.
-    for i in range(2, num_segments):
-        bpy.ops.object.empty_add(type='PLAIN_AXES', radius=radius*1.5, location=(loc0 - (i-1)*separation, 0, 0))
+    step = 1
+    start = step
+    for i in range(start, num_segments, step):
+        bpy.ops.object.empty_add(type='PLAIN_AXES', radius=radius*1.5, location=(loc0 - (i-step)*separation, 0, 0))
         bpy.ops.rigidbody.constraint_add(type='GENERIC_SPRING')
         joint = bpy.context.object
-        joint.name = 'cc_' + str(i-2) + ':' + str(i)
-        joint.rigid_body_constraint.object1 = links[i-2]
+        joint.name = 'cc_' + str(i-step) + ':' + str(i)
+        joint.rigid_body_constraint.object1 = links[i-step]
         joint.rigid_body_constraint.object2 = links[i]
 
     # the following parmaeters seem sufficient and fast for using this
     # rope.  steps_per_second can probably be lowered more to gain a
     # little speed.
+
     bpy.context.scene.rigidbody_world.steps_per_second = 1000
-    bpy.context.scene.rigidbody_world.solver_iterations = 100
+    bpy.context.scene.rigidbody_world.solver_iterations = 10
 
     return links
 
@@ -364,26 +431,36 @@ if __name__ == '__main__':
     with open("rigidbody_params.json", "r") as f:
         params = json.load(f)
     clear_scene()
-    links = make_rope_v3(params)
+    make_capsule_rope(params)
+    rig = rig_rope(params, mode="cyl")
     make_table(params)
 
-    # create a fixture for tying the knot
-    bpy.ops.mesh.primitive_cube_add(location=(0,0,-1.5))
-    bpy.ops.transform.resize(value=(1,2,0.25))
-    bpy.ops.rigidbody.object_add()
-    fixture = bpy.context.object
-    fixture.rigid_body.friction = 0.5
-    fixture.rigid_body.kinematic = True
+    #links = make_rope_v3(params)
+    #rig_rope(params, braid=0) # UNCOMMENT TO SEE CYLINDER REPR
 
-    # Extend the number for frames in the animation and the rigid-body
-    # simulation.
-    frame_end = 500
-    bpy.context.scene.rigidbody_world.point_cache.frame_end = frame_end
-    bpy.context.scene.frame_end = frame_end
+    ## create a fixture for tying the knot
+    #bpy.ops.mesh.primitive_cube_add(location=(0,0,-1.5))
+    #bpy.ops.transform.resize(value=(1,2,0.25))
+    #bpy.ops.rigidbody.object_add()
+    #fixture = bpy.context.object
+    #fixture.rigid_body.friction = 0.5
+    #fixture.rigid_body.kinematic = True
 
-    # A little hacky... add extra weight to the last segment to have
-    # it tighten the knot more when the opposite end is lifted
-    links[0].rigid_body.mass *= 100
-    tie_knot_with_fixture(links[-1], fixture)
+    ## Extend the number for frames in the animation and the rigid-body
+    ## simulation.
+    #frame_end = 500
+    #bpy.context.scene.rigidbody_world.point_cache.frame_end = frame_end
+    #bpy.context.scene.frame_end = frame_end
 
-    add_camera_light()
+    ## A little hacky... add extra weight to the last segment to have
+    ## it tighten the knot more when the opposite end is lifted
+    ##links[0].rigid_body.mass *= 100
+    #links[-1].rigid_body.kinematic = True
+    #links[-1].keyframe_insert(data_path="rigid_body.kinematic", frame=0)
+    #tie_knot_with_fixture(links[-1], fixture)
+
+    ## @ PRIYA: drop the rope
+    #links[-1].rigid_body.kinematic = False
+    #links[-1].keyframe_insert(data_path="rigid_body.kinematic", frame=450)
+
+    #add_camera_light()
