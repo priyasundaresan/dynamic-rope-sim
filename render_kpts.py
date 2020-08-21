@@ -54,7 +54,7 @@ def save_kpts(annotation_idx, annotation_list):
     np_annotations = np.array(annotation_list)
     np.save('keypoints/%05d.npy'%annotation_idx, np_annotations)
 
-def find_knot(num_segments, chain=False, depth_thresh=0.4, idx_thresh=3, pull_offset=3):
+def find_knot(num_segments, chain=False, depth_thresh=0.4, idx_thresh=3, pull_offset=2):
 
     piece = "Torus" if chain else "Cylinder"
     cache = {}
@@ -103,15 +103,9 @@ def annotate(frame, offset=4, num_knots=1):
             int(scene.render.resolution_y),
             )
     annot_list = []
-<<<<<<< HEAD
     pull_idx, hold_idx, _ = find_knot(last)
-    #indices = [0, pull_idx, hold_idx, last-1]
-    indices = [0, last-1]
-=======
-    pull_idx, hold_idx, _ = find_knot(50)
-#    indices = [-1, pull_idx, hold_idx, 50-1]
-    indices = [pull_idx, hold_idx]
->>>>>>> c9b06879ab58c05b21d7f349943afca4e9a89ef4
+    indices = [0, pull_idx, hold_idx, last-1]
+    #indices = [0, last-1]
     annotations = [] # [[x1,y1],[x2,y2],...
     for i in indices:
         #(x,y) = cyl_to_pixels([i])[0][0]
@@ -157,7 +151,8 @@ def take_action(obj, frame, action_vec, animate=True):
     obj.keyframe_insert(data_path="location", frame=frame)
 
 def randomize_camera():
-    ANGLE_DIVS = 65
+    #ANGLE_DIVS = 65
+    ANGLE_DIVS = 58
     xrot = np.random.uniform(-pi/ANGLE_DIVS, pi/ANGLE_DIVS) 
     yrot = np.random.uniform(-pi/ANGLE_DIVS, pi/ANGLE_DIVS) 
     zrot = np.random.uniform(-pi/6, pi/6) 
@@ -174,31 +169,32 @@ def randomize_camera():
     #bpy.context.scene.camera.location = Vector((x,y,np.random.uniform(15,25))) + Vector((dx, dy, dz))
     #bpy.context.scene.camera.location = Vector((x,y,np.random.uniform(15,25))) + Vector((dx, dy, dz))
     #bpy.context.scene.camera.location = Vector((x,y,np.random.uniform(13,24))) + Vector((dx, dy, dz))
-    bpy.context.scene.camera.location = Vector((x,y,np.random.uniform(16,25))) + Vector((dx, dy, dz))
+    bpy.context.scene.camera.location = Vector((x,y,np.random.uniform(16,23))) + Vector((dx, dy, dz))
     #bpy.context.scene.camera.location = Vector((2,0,25)) + Vector((dx, dy, dz))
     
 def render_frame(frame, render_offset=0, step=10, filename="%05d.jpg", folder="images", annot=True, num_knots=1, mapping=None):
     # DOMAIN RANDOMIZE
     global rig
-    #randomize_camera()
+    randomize_camera()
     #randomize_rig(rig, mode="braid")
-    #randomize_rig(rig)
-    #randomize_light()
+    randomize_rig(rig)
+    randomize_light()
 
-    #table = bpy.data.objects["Plane"]
+    table = bpy.data.objects["Plane"]
     #color_randomize(table, color_range=(1,1))
     #color_randomize(rig, color_range=(0.4,0.4))
-    #if random.random() < 0.33:
-
-    #    texture_randomize(table, 'dr_data/val2017')
+    if random.random() < 0.0:
+        texture_randomize(table, 'dr_data/val2017')
     #elif random.random() < 0.66:
     #    texture_randomize(table, 'dr_data/background')
-    #else:
-    #    color_randomize(table, color_range=(0,1))
-    #if random.random() < 0.5:
-    #    color_randomize(rig, color_range=(0,1))
-    #else:
-    #    texture_randomize(rig, 'dr_data/rope_textures')
+    else:
+        color_randomize(table, color_range=(0,0.9))
+    if random.random() < 0.5:
+        color_randomize(rig, color_range=(0.85,1))
+    else:
+        #texture_randomize(rig, 'dr_data/rope_textures')
+        #texture_randomize(rig, 'dr_data/white_textures')
+        texture_randomize(rig, 'dr_data/stripes')
 
     # Renders a single frame in a sequence (if frame%step == 0)
     frame -= render_offset
@@ -286,9 +282,10 @@ def take_undo_action_oracle(params, start_frame, render=False, render_offset=0, 
     #action_vec *= 2.5
     #action_vec *= 2.8
     action_vec *= 3
+    action_vec[2] = 0.8
     pull_cyl = get_piece(piece, pull_idx if pull_idx else -1)
     hold_cyl = get_piece(piece, hold_idx if hold_idx else -1)
-    end_frame = start_frame + 100
+    end_frame = start_frame + 150
     take_action(hold_cyl, end_frame, (0,0,0))
 
     for step in range(start_frame, start_frame + 10):
@@ -313,7 +310,7 @@ def take_undo_action_oracle(params, start_frame, render=False, render_offset=0, 
         elif render:
             render_offset += 1
     return end_frame+settle_time, render_offset
-
+ 
 def take_random_action(params, start_frame, render=False, render_offset=0, annot=True):
     global last
     piece = "Cylinder"
@@ -375,13 +372,14 @@ if __name__ == '__main__':
     last = params["num_segments"]
     clear_scene()
     make_capsule_rope(params)
-    rig = rig_rope(params, braid=0)
+    #make_capsule_rope_stiff(params)
+    rig = rig_rope(params, mode="cable")
     #rig = rig_rope(params, braid=1)
     add_camera_light()
     set_render_settings(params["engine"],(params["render_width"],params["render_height"]))
     make_table(params)
     start = time.time()
-    iters = 3
+    iters = 10
     generate_dataset(iters, params, render=True)
     end = time.time()
     print("time", end-start)

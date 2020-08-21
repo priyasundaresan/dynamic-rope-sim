@@ -29,13 +29,17 @@ def add_camera_light(dr=True):
 
 def randomize_light():
     scene = bpy.context.scene
-    scene.view_settings.exposure = random.uniform(2.5,4)
+    #scene.view_settings.exposure = random.uniform(2.5,4)
+    #scene.view_settings.exposure = random.uniform(2.5,3.7)
+    #scene.view_settings.exposure = random.uniform(2,3.7)
+    scene.view_settings.exposure = random.uniform(3,3.4)
     light_data = bpy.data.lights['Light']
     light_data.color = tuple(np.random.uniform(0,1,3))
+    #light_data.energy = np.random.uniform(300,500)
     light_data.energy = np.random.uniform(300,500)
-    light_data.shadow_color = tuple(np.random.uniform(0.7,1,3))
+    light_data.shadow_color = tuple(np.random.uniform(0.5,1,3))
     light_obj = bpy.data.objects['LightObj']
-    light_obj.data.color = tuple(np.random.uniform(0.7,1,3))
+    light_obj.data.color = tuple(np.random.uniform(0.3,1,3))
     light_obj.location = Vector(np.random.uniform(-4,4,3).tolist())
     light_obj.location[2] = np.random.uniform(4,7)
     light_obj.rotation_euler[0] += np.random.uniform(-np.pi/4, np.pi/4)
@@ -51,14 +55,14 @@ def randomize_camera():
     bpy.context.scene.camera.location += Vector((dx,dy,dz))
     bpy.context.scene.camera.rotation_euler = (0, 0, np.random.uniform(-np.pi/4, np.pi/4))
 
-def randomize_rig(rig, mode="capsule", ):
+def randomize_rig(rig, mode="capsule"):
     if mode=="capsule":
         rig = bpy.data.objects['BezierCircle']
         #new_scale = np.random.uniform(0.5,1.25)
         #new_scale = np.random.uniform(0.5,0.9)
-        new_scale = np.random.uniform(0.4,0.85)
+        new_scale = np.random.uniform(0.5,0.85)
         rig.scale = (new_scale, new_scale, new_scale)
-    else:
+    elif mode=='braid':
         new_scale = np.random.uniform(0.075, 0.125)
         _, _, z_scale = rig.scale
         rig.scale = (new_scale, new_scale, z_scale)
@@ -93,6 +97,8 @@ def pattern(obj, texture_filename):
 
 def texture_randomize(obj, textures_folder):
     rand_img_path = random.choice(os.listdir(textures_folder))
+    while rand_img_path == '.DS_Store':
+        rand_img_path = random.choice(os.listdir(textures_folder))
     img_filepath = os.path.join(textures_folder, rand_img_path)
     pattern(obj, img_filepath)
 

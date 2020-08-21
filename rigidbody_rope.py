@@ -178,38 +178,11 @@ def make_braid_rig(params, bezier):
     rope.modifiers["Curve"].show_on_cage = True
     return rope
 
-def make_cyl_rig(params, bezier):
-    n = params["num_segments"]
-    radius = params["segment_radius"]
-    bpy.ops.mesh.primitive_cylinder_add(location=(0,0,0), vertices=12)
-    cyl = bpy.context.object
-    bpy.ops.object.mode_set(mode='EDIT')
-    me = cyl.data
-    bm = bmesh.from_edit_mesh(me)
-    bm.faces.ensure_lookup_table()
-    #top_bottom_faces = [bm.faces[30], bm.faces[33]]
-    top_bottom_faces = [bm.faces[10], bm.faces[13]]
-    bmesh.ops.delete(bm, geom=top_bottom_faces, context='FACES_ONLY')
-    bmesh.update_edit_mesh(me, True)
-    bpy.ops.mesh.subdivide(number_cuts=9, quadcorner='INNERVERT')
-    #bpy.ops.object.modifier_add(type='SUBSURF')
-    #bpy.context.object.modifiers["Subdivision"].levels=1 # Smooths the cloth so it doesn't look blocky
-    cyl.name = "CylinderRig"
-    cyl.scale[0] = radius 
-    cyl.scale[1] = radius 
-    cyl.scale[2] = radius*n
-    cyl.location = (radius*n, 0, 0)
-    cyl.rotation_euler = (0, np.pi/2, 0)
-    bpy.ops.object.mode_set(mode='OBJECT')
-    bpy.ops.object.modifier_add(type='CURVE')
-    cyl.modifiers["Curve"].object = bezier
-    cyl.modifiers["Curve"].show_in_editmode = True
-    cyl.modifiers["Curve"].show_on_cage = True
-
 def make_cable_rig(params, bezier):
     bpy.ops.object.modifier_add(type='CURVE')
     bpy.ops.curve.primitive_bezier_circle_add(radius=0.02)
     #bpy.ops.curve.primitive_bezier_circle_add(radius=0.018)
+    bpy.context.object.data.use_uv_as_generated = True
     bezier.data.bevel_object = bpy.data.objects["BezierCircle"]
     bpy.context.view_layer.objects.active = bezier
     return bezier
@@ -226,6 +199,7 @@ def rig_rope(params, mode="braid"):
     bezier_scale = n*radius
     bpy.ops.transform.resize(value=(bezier_scale, bezier_scale, bezier_scale))
     bezier = bpy.context.active_object
+    bpy.context.object.data.use_uv_as_generated = True # Important!!! Makes texture maps work
     bpy.ops.object.mode_set(mode='EDIT')
     bpy.ops.curve.select_all(action='SELECT')
     bpy.ops.curve.handle_type_set(type='VECTOR')
@@ -256,8 +230,6 @@ def rig_rope(params, mode="braid"):
         rope = make_braid_rig(params, bezier)
     elif mode == "cable":
         rope = make_cable_rig(params, bezier)
-    else:
-        rope = make_cyl_rig(params, bezier)
     return rope
 
 def make_rope_v3(params):

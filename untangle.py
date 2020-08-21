@@ -9,12 +9,12 @@ from rigidbody_rope import *
 
 # Load policies
 # from oracle import Oracle
-from oracle2 import Oracle
-from hierarchical_descriptors import Hierarchical
-from baseline import Heuristic
-from random_action import RandomAction
-from hierarchical_keypoints import Hierarchical_kp
-from bc import BC
+#from oracle2 import Oracle
+#from hierarchical_descriptors import Hierarchical
+#from baseline import Heuristic
+#from random_action import RandomAction
+#from hierarchical_keypoints import Hierarchical_kp
+#from bc import BC
 # from multi_head import MultiHead
 from multihead_kpt_only import MultiHead_KPT
 

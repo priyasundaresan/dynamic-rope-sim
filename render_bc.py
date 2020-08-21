@@ -53,7 +53,7 @@ def save_actions(annotation_idx, annotation_list):
     np_annotations = np.array(annotation_list)
     np.save('actions/%05d.npy'%annotation_idx, np_annotations)
 
-def find_knot(num_segments, chain=False, depth_thresh=0.35, idx_thresh=3, pull_offset=3):
+def find_knot(num_segments, chain=False, depth_thresh=0.35, idx_thresh=3, pull_offset=2):
 
     piece = "Torus" if chain else "Cylinder"
     cache = {}
@@ -105,23 +105,45 @@ def annotate(frame, offset=4, annotate_undone_check=False, annotate_end_episode=
         action_vec *= 2.5
     undone_flag = int(annotate_undone_check)
     end_episode_flag = int(annotate_end_episode)
-    end1_loc = get_piece("Cylinder", 50-1).matrix_world.translation
-    pull_loc = get_piece("Cylinder", pull_idx if pull_idx else -1).matrix_world.translation
-    hold_loc = get_piece("Cylinder", hold_idx if hold_idx else -1).matrix_world.translation
-    end2_loc = get_piece("Cylinder", -1).matrix_world.translation
-    locs = [end1_loc, pull_loc, hold_loc, end2_loc]
+
+    last = 50 # FIX
+    indices = [0, pull_idx, hold_idx, last-1]
+    #indices = [0, last-1]
     annotations = [] # [[x1,y1],[x2,y2],...
-    for loc in locs:
-        camera_coord = bpy_extras.object_utils.world_to_camera_view(scene, bpy.context.scene.camera, loc)
+    for i in indices:
+        #(x,y) = cyl_to_pixels([i])[0][0]
+        cyl = get_piece("Cylinder", i)
+        camera_coord = bpy_extras.object_utils.world_to_camera_view(scene, bpy.context.scene.camera, cyl.matrix_world.translation)
         x, y = [round(camera_coord.x * render_size[0]), round(render_size[1] - camera_coord.y * render_size[1])]
+        j = i
+        while not(x<render_size[0] and x>0 and y<render_size[1] and y>0):
+            if j<last//2:
+                j += 1
+            else:
+                j -= 1
+            cyl = get_piece("Cylinder", j)
+            camera_coord = bpy_extras.object_utils.world_to_camera_view(scene, bpy.context.scene.camera, cyl.matrix_world.translation)
+            x, y = [round(camera_coord.x * render_size[0]), round(render_size[1] - camera_coord.y * render_size[1])]
         annotations += [x,y]
+        #annotations.append([x,y])
+
+    #end1_loc = get_piece("Cylinder", 50-1).matrix_world.translation
+    #pull_loc = get_piece("Cylinder", pull_idx if pull_idx else -1).matrix_world.translation
+    #hold_loc = get_piece("Cylinder", hold_idx if hold_idx else -1).matrix_world.translation
+    #end2_loc = get_piece("Cylinder", -1).matrix_world.translation
+    #locs = [end1_loc, pull_loc, hold_loc, end2_loc]
+    #annotations = [] # [[x1,y1],[x2,y2],...
+    #for loc in locs:
+    #    camera_coord = bpy_extras.object_utils.world_to_camera_view(scene, bpy.context.scene.camera, loc)
+    #    x, y = [round(camera_coord.x * render_size[0]), round(render_size[1] - camera_coord.y * render_size[1])]
+    #    annotations += [x,y]
     annotations += [undone_flag]
     annotations += [end_episode_flag]
     save_actions(frame, annotations)
 
 def get_piece(piece_name, piece_id):
     # Returns the piece with name piece_name, index piece_id
-    if piece_id == -1:
+    if piece_id == -1 or piece_id == 0:
         return bpy.data.objects['%s' % (piece_name)]
     return bpy.data.objects['%s.%03d' % (piece_name, piece_id)]
 
@@ -148,18 +170,23 @@ def randomize_camera():
     ANGLE_DIVS = 65
     xrot = np.random.uniform(-pi/ANGLE_DIVS, pi/ANGLE_DIVS) 
     yrot = np.random.uniform(-pi/ANGLE_DIVS, pi/ANGLE_DIVS) 
-    zrot = np.random.uniform(-pi/6, pi/6) 
-    #xoffset = 2
-    #yoffset = 2
-    #zoffset = 2
-    xoffset = 1
-    yoffset = 1
-    zoffset = 1
+    #zrot = np.random.uniform(-pi/6, pi/6) 
+    zrot = np.random.uniform(-pi/20, pi/20) 
+    xoffset = 2
+    yoffset = 2
+    zoffset = 2
     dx = np.random.uniform(-xoffset, xoffset)
     dy = np.random.uniform(-yoffset, yoffset)
     dz = np.random.uniform(-zoffset, zoffset)
     bpy.context.scene.camera.rotation_euler = (xrot, yrot, zrot)
-    bpy.context.scene.camera.location = Vector((2,0,28)) + Vector((dx, dy, dz))
+    piece = "Cylinder"
+    mid_rope = get_piece(piece, 25)
+    x,y,z = mid_rope.matrix_world.translation
+    #bpy.context.scene.camera.location = Vector((x,y,np.random.uniform(15,25))) + Vector((dx, dy, dz))
+    #bpy.context.scene.camera.location = Vector((x,y,np.random.uniform(15,25))) + Vector((dx, dy, dz))
+    #bpy.context.scene.camera.location = Vector((x,y,np.random.uniform(13,24))) + Vector((dx, dy, dz))
+    bpy.context.scene.camera.location = Vector((x,y,np.random.uniform(16,25))) + Vector((dx, dy, dz))
+    #bpy.context.scene.camera.location = Vector((2,0,25)) + Vector((dx, dy, dz))
     
 def render_frame(frame, render_offset=0, step=10, filename="%05d.jpg", folder="images", annot=True, annotate_undone_check=False, annotate_end_episode=False):
     # DOMAIN RANDOMIZE
@@ -167,23 +194,28 @@ def render_frame(frame, render_offset=0, step=10, filename="%05d.jpg", folder="i
     randomize_camera()
     #randomize_rig(rig, mode="braid")
     #randomize_rig(rig)
-    #randomize_light()
-    #table = bpy.data.objects["Plane"]
-    #if random.random() < 0.33:
-    #    texture_randomize(table, 'dr_data/val2017')
+    randomize_light()
+    table = bpy.data.objects["Plane"]
+    #color_randomize(table, color_range=(1,1))
+    #color_randomize(rig, color_range=(0.4,0.4))
+    if random.random() < 0.0:
+        texture_randomize(table, 'dr_data/val2017')
     #elif random.random() < 0.66:
-    #    texture_randomize(table, 'dr_data/fabrics')
-    #else:
-    #    color_randomize(table)
-    #color = (np.random.uniform(0.7,1.0),np.random.uniform(0.7,1.0),np.random.uniform(0.7,1.0))
-    #color_randomize(rig, color=color)
+    #    texture_randomize(table, 'dr_data/background')
+    else:
+        color_randomize(table, color_range=(0,1))
+    if random.random() < 0.5:
+        color_randomize(rig, color_range=(0.75,1))
+    else:
+        #texture_randomize(rig, 'dr_data/rope_textures')
+        texture_randomize(rig, 'dr_data/white_textures')
 
     # Renders a single frame in a sequence (if frame%step == 0)
     frame -= render_offset
     if frame%step == 0:
         scene = bpy.context.scene
         index = frame//step
-        #render_mask("image_masks/%06d_visible_mask.png", "images_depth/%06d_rgb.png", index)
+        render_mask("image_masks/%06d_visible_mask.png", "images_depth/%06d_rgb.png", index)
         scene.render.filepath = os.path.join(folder, filename) % index
         bpy.ops.render.render(write_still=True)
         if annot:
@@ -389,17 +421,16 @@ def generate_dataset(iters, params, chain=False, render=False):
             render_offset = offset
             undone = undone_check(pull_idx,hold_idx,action_vec)
         # Take one more loosening action for good measure
-        loosen_end_frame, offset, pull_idx, hold_idx, action_vec = take_undo_action_oracle(params, \
-                                            start, \
-                                            render=render, \
-                                            render_offset=render_offset, \
-                                            )
-        render_offset = offset
-        #render_offset -= loosen_end_frame
+        #loosen_end_frame, offset, pull_idx, hold_idx, action_vec = take_undo_action_oracle(params, \
+        #                                    start, \
+        #                                    render=render, \
+        #                                    render_offset=render_offset, \
+        #                                    )
+        #render_offset = offset
         loosen_buffer = loosen_end_frame + 60
         for step in range(loosen_end_frame, loosen_buffer):
             bpy.context.scene.frame_set(step)
-            render_frame(step, render_offset=render_offset, annot=True, annotate_undone_check=True, annotate_end_episode=(num_knots==1)) # Notice annotate_undone_check set to True
+            render_frame(step, render_offset=render_offset, annot=True, annotate_undone_check=True, annotate_end_episode=(num_knots==1))
         render_offset -= loosen_buffer
         bpy.context.scene.frame_set(0)
         for a in bpy.data.actions:
@@ -409,13 +440,14 @@ if __name__ == '__main__':
     with open("rigidbody_params.json", "r") as f:
         params = json.load(f)
     clear_scene()
-    make_capsule_rope(params)
-    #rig = rig_rope(params, braid=1)
+    #make_capsule_rope(params)
+    make_capsule_rope_stiff(params)
+    rig = rig_rope(params, mode="cyl")
     add_camera_light()
     set_render_settings(params["engine"],(params["render_width"],params["render_height"]))
     make_table(params)
     start = time.time()
-    iters = 10
+    iters = 1
     generate_dataset(iters, params, render=True)
     end = time.time()
     print("time", end-start)

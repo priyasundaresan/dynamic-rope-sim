@@ -3,7 +3,7 @@ import numpy as np
 from sklearn.neighbors import NearestNeighbors
 import sys
 import os
-import imageio
+#import imageio
 import cv2
 sys.path.append(os.getcwd())
 from knots import *
