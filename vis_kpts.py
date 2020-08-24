@@ -9,10 +9,14 @@ import colorsys
 
 def show_kpts(idx, image_dir):
     image_filename = "{0:05d}.jpg".format(idx)
-    img = cv2.imread('images/{}'.format(image_filename))
+    img = cv2.imread('test_kpt_gaussian/train/images/{}'.format(image_filename))
     vis = img.copy()
+<<<<<<< Updated upstream
     kpts = np.load('%s/%05d.npy'%(image_dir, idx))
     kpts = np.reshape(kpts, (4,2))
+=======
+    kpts = np.load('test_kpt_gaussian/train/keypoints/%05d.npy'%idx)
+>>>>>>> Stashed changes
     for i, (u,v) in enumerate(kpts):    
         (r, g, b) = colorsys.hsv_to_rgb(float(i)/kpts.shape[0], 1.0, 1.0)
         R, G, B = int(255 * r), int(255 * g), int(255 * b)
@@ -23,8 +27,14 @@ def show_kpts(idx, image_dir):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
+<<<<<<< Updated upstream
     parser.add_argument('-d', '--dir', type=str, default='keypoints')
+=======
+    parser.add_argument('-n', '--num', type=int, default=len(os.listdir('./test_kpt_gaussian/train/images')) - 1)
+    parser.add_argument('-d', '--dir', type=str, default='test_kpt_gaussian/train/images')
+>>>>>>> Stashed changes
     args = parser.parse_args()
+    print(args)
     if not os.path.exists("./annotated"):
         os.makedirs('./annotated')
     else:

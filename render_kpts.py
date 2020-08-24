@@ -10,7 +10,7 @@ sys.path.append(os.getcwd())
 
 from rigidbody_rope import *
 from sklearn.neighbors import NearestNeighbors
-from knots import tie_pretzel_knot, tie_stevedore, tie_figure_eight, tie_double_pretzel
+from knots import tie_pretzel_knot, tie_stevedore, tie_figure_eight, tie_double_pretzel, flip_pretzel_knot, flip_figure_eight
 from untangle_utils import *
 from dr_utils import *
 
@@ -39,7 +39,7 @@ def set_render_settings(engine, render_size):
     # DELETE
     #scene.view_settings.exposure = 3
     if engine == 'BLENDER_WORKBENCH':
-        scene.render.display_mode
+        #scene.render.display_mode
         scene.render.image_settings.color_mode = 'RGB'
         scene.display_settings.display_device = 'None'
         scene.sequencer_colorspace_settings.name = 'XYZ'
@@ -170,6 +170,7 @@ def randomize_camera():
     #bpy.context.scene.camera.location = Vector((x,y,np.random.uniform(15,25))) + Vector((dx, dy, dz))
     #bpy.context.scene.camera.location = Vector((x,y,np.random.uniform(13,24))) + Vector((dx, dy, dz))
     bpy.context.scene.camera.location = Vector((x,y,np.random.uniform(16,23))) + Vector((dx, dy, dz))
+
     #bpy.context.scene.camera.location = Vector((2,0,25)) + Vector((dx, dy, dz))
     
 def render_frame(frame, render_offset=0, step=10, filename="%05d.jpg", folder="images", annot=True, num_knots=1, mapping=None):
@@ -333,7 +334,8 @@ def take_random_action(params, start_frame, render=False, render_offset=0, annot
 
 def generate_dataset(iters, params, chain=False, render=False):
 
-    set_animation_settings(15000)
+    #set_animation_settings(15000)
+    set_animation_settings(5000)
     piece = "Cylinder"
     last = params["num_segments"]-1
     mapping = None
@@ -343,10 +345,12 @@ def generate_dataset(iters, params, chain=False, render=False):
     for i in range(iters):
         print("Iter %d of %d" % (i,iters))
         num_knots = 1
-        if i%3==0:
-            knot_end_frame = tie_pretzel_knot(params, render=False)
-        elif i%3==1:
-            knot_end_frame = tie_figure_eight(params, render=False)
+        if i%5==0 or i%5==1:
+            #knot_end_frame = tie_pretzel_knot(params, render=False)
+            knot_end_frame = flip_pretzel_knot(params, render=False)
+        elif i%5==2:
+            #knot_end_frame = tie_figure_eight(params, render=False)
+            knot_end_frame = flip_figure_eight(params, render=False)
         else:
             knot_end_frame = tie_double_pretzel(params, render=False)
         knot_end_frame = perturb_knot(params, knot_end_frame)
@@ -374,12 +378,13 @@ if __name__ == '__main__':
     make_capsule_rope(params)
     #make_capsule_rope_stiff(params)
     rig = rig_rope(params, mode="cable")
+    #rig = rig_rope(params, braid=0)
     #rig = rig_rope(params, braid=1)
     add_camera_light()
     set_render_settings(params["engine"],(params["render_width"],params["render_height"]))
     make_table(params)
     start = time.time()
-    iters = 10
+    iters = 30 #150 #30
     generate_dataset(iters, params, render=True)
     end = time.time()
     print("time", end-start)

@@ -40,6 +40,7 @@ def randomize_light():
     light_data.shadow_color = tuple(np.random.uniform(0.5,1,3))
     light_obj = bpy.data.objects['LightObj']
     light_obj.data.color = tuple(np.random.uniform(0.3,1,3))
+
     light_obj.location = Vector(np.random.uniform(-4,4,3).tolist())
     light_obj.location[2] = np.random.uniform(4,7)
     light_obj.rotation_euler[0] += np.random.uniform(-np.pi/4, np.pi/4)

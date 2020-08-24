@@ -182,7 +182,7 @@ def make_cable_rig(params, bezier):
     bpy.ops.object.modifier_add(type='CURVE')
     bpy.ops.curve.primitive_bezier_circle_add(radius=0.02)
     #bpy.ops.curve.primitive_bezier_circle_add(radius=0.018)
-    bpy.context.object.data.use_uv_as_generated = True
+    #bpy.context.object.data.use_uv_as_generated = True
     bezier.data.bevel_object = bpy.data.objects["BezierCircle"]
     bpy.context.view_layer.objects.active = bezier
     return bezier
@@ -199,7 +199,8 @@ def rig_rope(params, mode="braid"):
     bezier_scale = n*radius
     bpy.ops.transform.resize(value=(bezier_scale, bezier_scale, bezier_scale))
     bezier = bpy.context.active_object
-    bpy.context.object.data.use_uv_as_generated = True # Important!!! Makes texture maps work
+    #bpy.context.object.data.use_uv_as_generated = True # Important!!! Makes texture maps work
+    #bpy.context.object.data.uv_layers.active
     bpy.ops.object.mode_set(mode='EDIT')
     bpy.ops.curve.select_all(action='SELECT')
     bpy.ops.curve.handle_type_set(type='VECTOR')

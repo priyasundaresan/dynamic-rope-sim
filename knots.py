@@ -81,10 +81,11 @@ def tie_pretzel_knot(params, chain=False, render=False):
         bpy.context.scene.frame_set(step)
         #if render:
         #    render_frame(step, render_offset=render_offset)
+
     return 350
 
-def tie_loose_pretzel(params, chain=False, render=False):
 
+def tie_loose_pretzel(params, chain=False, render=False):
     piece = "Cylinder"
     last = params["num_segments"]-1
     end1 = get_piece(piece, -1)
@@ -113,6 +114,24 @@ def tie_loose_pretzel(params, chain=False, render=False):
         #if render:
         #    render_frame(step, render_offset=render_offset)
     return 350
+
+
+def flip_pretzel_knot(params, chain=False, render=False):
+    end_frame = tie_pretzel_knot(params, render=True)
+    return flip2(params, end_frame)
+
+def flip2(params, start_frame):
+    piece = "Cylinder"
+    last = params["num_segments"]-1
+    end2 = get_piece(piece, last)
+
+    take_action(end2, start_frame+30, (-4,-2,0))
+    toggle_animation(end2, start_frame+50, False)
+
+    for step in range(start_frame, start_frame+100):
+        bpy.context.scene.frame_set(step)
+
+    return start_frame + 100
 
 def tie_figure_eight(params, chain=False, render=False):
 
@@ -147,6 +166,10 @@ def tie_figure_eight(params, chain=False, render=False):
         #    render_frame(step)
     return 500
 
+
+def flip_figure_eight(params, chain=False, render=False):
+    end = tie_figure_eight(params, render=True)
+    return flip2(params, end)
 
 def tie_stevedore(params, chain=False, render=False):
 
@@ -227,11 +250,11 @@ def tie_double_pretzel(params, chain=False, render=False):
     toggle_animation(end1, 540, False)
     toggle_animation(end2, 540, False)
 
-    for step in range(1, 560):
+    for step in range(1, 600):
         bpy.context.scene.frame_set(step)
         #if render:
         #    render_frame(step)
-    return 560
+    return 600
 
 def tie_knot_7(params, chain=False, render=True):
     piece = "Cylinder"
@@ -330,7 +353,6 @@ def perturb_knot(params, start_frame):
         #if render:
         #    render_frame(step, render_offset=render_offset)
     return start_frame+250
-    
 
 if __name__ == '__main__':
     with open("rigidbody_params.json", "r") as f:
@@ -340,6 +362,12 @@ if __name__ == '__main__':
     #make_rope_v3(params)
     rig_rope(params, mode="cable") # UNCOMMENT TO SEE CYLINDER REPR
     add_camera_light()
-    set_animation_settings(600)
+    set_animation_settings(700)
     make_table(params)
-    end_frame = tie_pretzel_knot(params, render=True)
+    #tie_figure_eight(params, render=True)
+    #tie_pretzel_knot(params, render=True)
+    # tie_stevedore(params, render=True)
+    tie_double_pretzel(params, render=True)
+    #tie_cornell1_knot(params, render=False)
+    #flip_pretzel_knot(params, render = True)
+    #flip_figure_eight(params, render=True)
