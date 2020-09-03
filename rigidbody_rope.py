@@ -181,7 +181,7 @@ def make_braid_rig(params, bezier):
 def make_cable_rig(params, bezier):
     bpy.ops.object.modifier_add(type='CURVE')
     bpy.ops.curve.primitive_bezier_circle_add(radius=0.02)
-    #bpy.ops.curve.primitive_bezier_circle_add(radius=0.018)
+    #bpy.ops.transform.resize(value=(1, 0.45, 1))
     bpy.context.object.data.use_uv_as_generated = True
     bezier.data.bevel_object = bpy.data.objects["BezierCircle"]
     bpy.context.view_layer.objects.active = bezier

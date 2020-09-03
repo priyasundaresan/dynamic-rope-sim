@@ -16,6 +16,7 @@ def set_viewport_shading(mode):
 
 def add_camera_light(dr=True):
     if dr:
+        bpy.context.scene.view_settings.exposure = 3
         light_data = bpy.data.lights.new(name="Light", type='POINT')
         light_data.energy = 300
         light_object = bpy.data.objects.new(name="LightObj", object_data=light_data)
@@ -32,12 +33,11 @@ def randomize_light():
     #scene.view_settings.exposure = random.uniform(2.5,4)
     #scene.view_settings.exposure = random.uniform(2.5,3.7)
     #scene.view_settings.exposure = random.uniform(2,3.7)
-    scene.view_settings.exposure = random.uniform(3,3.4)
+    scene.view_settings.exposure = random.uniform(3,4)
     light_data = bpy.data.lights['Light']
     light_data.color = tuple(np.random.uniform(0,1,3))
-    #light_data.energy = np.random.uniform(300,500)
-    light_data.energy = np.random.uniform(300,500)
-    light_data.shadow_color = tuple(np.random.uniform(0.5,1,3))
+    light_data.energy = np.random.uniform(300,600)
+    light_data.shadow_color = tuple(np.random.uniform(0,1,3))
     light_obj = bpy.data.objects['LightObj']
     light_obj.data.color = tuple(np.random.uniform(0.3,1,3))
     light_obj.location = Vector(np.random.uniform(-4,4,3).tolist())
@@ -55,13 +55,15 @@ def randomize_camera():
     bpy.context.scene.camera.location += Vector((dx,dy,dz))
     bpy.context.scene.camera.rotation_euler = (0, 0, np.random.uniform(-np.pi/4, np.pi/4))
 
-def randomize_rig(rig, mode="capsule"):
-    if mode=="capsule":
+def randomize_rig(rig, mode="cable"):
+    if mode=="cable":
         rig = bpy.data.objects['BezierCircle']
-        #new_scale = np.random.uniform(0.5,1.25)
-        #new_scale = np.random.uniform(0.5,0.9)
-        new_scale = np.random.uniform(0.5,0.85)
-        rig.scale = (new_scale, new_scale, new_scale)
+        #new_scale = np.random.uniform(0.75,1.25)
+        new_scale = np.random.uniform(0.4,0.95)
+        #new_scale = np.random.uniform(0.65,0.65)
+        #x,y,z = 1, 1 if random.random()<0.5 else np.random.uniform(0.44,0.6), 1
+        x,y,z = 1, np.random.uniform(0.5,0.75), 1
+        rig.scale = (x*new_scale, y*new_scale, z*new_scale)
     elif mode=='braid':
         new_scale = np.random.uniform(0.075, 0.125)
         _, _, z_scale = rig.scale
@@ -88,7 +90,8 @@ def pattern(obj, texture_filename):
     bsdf = mat.node_tree.nodes["Principled BSDF"]
     texImage.image = bpy.data.images.load(texture_filename)
     mat.node_tree.links.new(bsdf.inputs['Base Color'], texImage.outputs['Color'])
-    mat.specular_intensity = np.random.uniform(0, 0.3)
+    #mat.specular_intensity = np.random.uniform(0, 0.3)
+    mat.specular_intensity = np.random.uniform(0, 0)
     mat.roughness = np.random.uniform(0.5, 1)
     if not obj.data.materials:
         obj.data.materials.append(mat)

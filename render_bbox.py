@@ -245,6 +245,7 @@ def render_frame(frame, render_offset=0, step=5, filename="%05d.jpg", folder="im
     # Renders a single frame in a sequence (if frame%step == 0)
     global rig
     randomize_light()
+    randomize_rig(rig)
     table = bpy.data.objects["Plane"]
     if random.random() < 0.33:
         texture_randomize(table, 'dr_data/val2017')
@@ -443,7 +444,7 @@ if __name__ == '__main__':
     clear_scene()
     #make_rope(params)
     make_capsule_rope(params)
-    rig = rig_rope(params, braid=1)
+    rig = rig_rope(params, mode="cable")
     add_camera_light()
     set_render_settings(params["engine"],(params["render_width"],params["render_height"]))
     make_table(params)

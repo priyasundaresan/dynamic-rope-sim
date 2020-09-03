@@ -13,6 +13,7 @@ from sklearn.neighbors import NearestNeighbors
 from knots import tie_pretzel_knot, tie_stevedore, tie_figure_eight, tie_double_pretzel
 from untangle_utils import *
 from dr_utils import *
+from render import create_pixelannot_xml
 
 def set_animation_settings(anim_end):
     # Sets up the animation to run till frame anim_end (otherwise default terminates @ 250)
@@ -37,7 +38,6 @@ def set_render_settings(engine, render_size):
     scene.render.resolution_x = render_width
     scene.render.resolution_y = render_height
     # DELETE
-    #scene.view_settings.exposure = 3
     if engine == 'BLENDER_WORKBENCH':
         scene.render.display_mode
         scene.render.image_settings.color_mode = 'RGB'
@@ -49,6 +49,19 @@ def set_render_settings(engine, render_size):
         scene.render.image_settings.file_format='JPEG'
         scene.view_settings.view_transform = 'Raw'
         scene.eevee.taa_render_samples = 1
+    elif engine == 'CYCLES':   
+        scene.render.image_settings.file_format='JPEG'
+        scene.cycles.samples = 50
+        scene.view_settings.view_transform = 'Filmic'
+        #scene.cycles.max_bounces = 1
+        #scene.cycles.min_bounces = 1
+        #scene.cycles.glossy_bounces = 1
+        #scene.cycles.transmission_bounces = 1
+        #scene.cycles.volume_bounces = 1
+        #scene.cycles.transparent_max_bounces = 1
+        #scene.cycles.transparent_min_bounces = 1
+        scene.render.tile_x = 16
+        scene.render.tile_y = 16
 
 def save_kpts(annotation_idx, annotation_list):
     np_annotations = np.array(annotation_list)
@@ -92,7 +105,7 @@ def find_knot(num_segments, chain=False, depth_thresh=0.4, idx_thresh=3, pull_of
     return 16, 25, [0,0,0] # Didn't find a pull/hold
     #return -1, -1, [0,0,0] # Didn't find a pull/hold
 
-def annotate(frame, offset=4, num_knots=1):
+def annotate(frame, offset=4, num_knots=1, export_hold_pixel=True):
     global last
     # knot_only = True:  means only record the under, over crossings
     # knot_only = False:  means record annotations for full rope
@@ -124,6 +137,10 @@ def annotate(frame, offset=4, num_knots=1):
         annotations.append([x,y])
         
     save_kpts(frame, annotations)
+    if export_hold_pixel:
+        pixel = annotations[2]
+        print(pixel)
+        create_pixelannot_xml(frame, pixel)
 
 def get_piece(piece_name, piece_id):
     # Returns the piece with name piece_name, index piece_id
@@ -152,10 +169,12 @@ def take_action(obj, frame, action_vec, animate=True):
 
 def randomize_camera():
     #ANGLE_DIVS = 65
-    ANGLE_DIVS = 58
+    ANGLE_DIVS = 54
+
     xrot = np.random.uniform(-pi/ANGLE_DIVS, pi/ANGLE_DIVS) 
     yrot = np.random.uniform(-pi/ANGLE_DIVS, pi/ANGLE_DIVS) 
-    zrot = np.random.uniform(-pi/6, pi/6) 
+    zrot = np.random.uniform(-pi/5.5, pi/5.5) 
+
     xoffset = 2
     yoffset = 2
     zoffset = 2
@@ -166,11 +185,9 @@ def randomize_camera():
     piece = "Cylinder"
     mid_rope = get_piece(piece, 25)
     x,y,z = mid_rope.matrix_world.translation
-    #bpy.context.scene.camera.location = Vector((x,y,np.random.uniform(15,25))) + Vector((dx, dy, dz))
-    #bpy.context.scene.camera.location = Vector((x,y,np.random.uniform(15,25))) + Vector((dx, dy, dz))
-    #bpy.context.scene.camera.location = Vector((x,y,np.random.uniform(13,24))) + Vector((dx, dy, dz))
-    bpy.context.scene.camera.location = Vector((x,y,np.random.uniform(16,23))) + Vector((dx, dy, dz))
-    #bpy.context.scene.camera.location = Vector((2,0,25)) + Vector((dx, dy, dz))
+    #bpy.context.scene.camera.location = Vector((x,y,np.random.uniform(15,18.5))) + Vector((dx, dy, dz))
+    bpy.context.scene.camera.location = Vector((x,y,np.random.uniform(13,17.5))) + Vector((dx, dy, dz))
+    #bpy.context.scene.camera.location = Vector((x,y,np.random.uniform(8,9))) + Vector((dx, dy, dz))
     
 def render_frame(frame, render_offset=0, step=10, filename="%05d.jpg", folder="images", annot=True, num_knots=1, mapping=None):
     # DOMAIN RANDOMIZE
@@ -178,23 +195,23 @@ def render_frame(frame, render_offset=0, step=10, filename="%05d.jpg", folder="i
     randomize_camera()
     #randomize_rig(rig, mode="braid")
     randomize_rig(rig)
-    randomize_light()
 
     table = bpy.data.objects["Plane"]
-    #color_randomize(table, color_range=(1,1))
-    #color_randomize(rig, color_range=(0.4,0.4))
-    if random.random() < 0.0:
-        texture_randomize(table, 'dr_data/val2017')
-    #elif random.random() < 0.66:
-    #    texture_randomize(table, 'dr_data/background')
+
+    #color_randomize(table, color_range=(0,0))
+    #color_randomize(rig, color_range=(0.8,0.8))
+
+    randomize_light()
+    if random.random() < 1:
+        texture_randomize(table, 'dr_data/val2017_dark')
+        #texture_randomize(table, 'dr_data/val2017')
     else:
-        color_randomize(table, color_range=(0,0.9))
+        color_randomize(table, color_range=(0,0.2))
     if random.random() < 0.5:
-        color_randomize(rig, color_range=(0.85,1))
+        color_randomize(rig, color_range=(0.6,1))
     else:
-        #texture_randomize(rig, 'dr_data/rope_textures')
-        #texture_randomize(rig, 'dr_data/white_textures')
         texture_randomize(rig, 'dr_data/stripes')
+        #texture_randomize(rig, 'dr_data/stripes_colored')
 
     # Renders a single frame in a sequence (if frame%step == 0)
     frame -= render_offset
@@ -279,7 +296,6 @@ def take_undo_action_oracle(params, start_frame, render=False, render_offset=0, 
     action_vec = np.array(action_vec) + np.random.uniform(-0.75, 0.75, 3)
     #action_vec = np.array(action_vec) + np.random.uniform(-1,1,3)
     action_vec /= np.linalg.norm(action_vec)
-    #action_vec *= 2.5
     #action_vec *= 2.8
     action_vec *= 3
     action_vec[2] = 0.8
@@ -343,15 +359,27 @@ def generate_dataset(iters, params, chain=False, render=False):
     for i in range(iters):
         print("Iter %d of %d" % (i,iters))
         num_knots = 1
-        if i%3==0:
+        if i%4==0:
+            if random.random() < 0.75:
+                knot_end_frame = tie_opp_pretzel(params, render=False)
+            else:
+                knot_end_frame = tie_loose_pretzel(params, render=False)
+        elif i%4==1:
             knot_end_frame = tie_pretzel_knot(params, render=False)
-        elif i%3==1:
-            knot_end_frame = tie_figure_eight(params, render=False)
+            #else:
+            #    knot_end_frame = flip_pretzel_knot(params, render=False)
+        elif i%4==2:
+            if random.random() < 0.4:
+                knot_end_frame = tie_figure_eight(params, render=False)
+            else:
+                #knot_end_frame = flip_figure_eight(params, render=False)
+                knot_end_frame = tie_opp_figure_eight(params, render=False)
         else:
             knot_end_frame = tie_double_pretzel(params, render=False)
         knot_end_frame = perturb_knot(params, knot_end_frame)
         render_offset += knot_end_frame
         reid_end_frame = reidemeister(params, knot_end_frame, render=render, render_offset=render_offset, num_knots=num_knots, mapping=mapping)
+        #perturb_end_frame = reid_end_frame
         perturb_end_frame = random_perturb(reid_end_frame, params, render=False)
         render_offset += perturb_end_frame - reid_end_frame
         start = perturb_end_frame
@@ -379,7 +407,7 @@ if __name__ == '__main__':
     set_render_settings(params["engine"],(params["render_width"],params["render_height"]))
     make_table(params)
     start = time.time()
-    iters = 10
+    iters = 100
     generate_dataset(iters, params, render=True)
     end = time.time()
     print("time", end-start)
