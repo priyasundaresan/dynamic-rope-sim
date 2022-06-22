@@ -25,7 +25,7 @@ Markdown==3.2.1
 matplotlib==2.2.5
 mrcnn==0.2
 networkx==2.2
-numpy==1.16.4
+numpy==1.22.0
 oauthlib==3.1.0
 opencv-python==4.2.0.32
 opencv-python-headless==4.2.0.32
